@@ -19,73 +19,110 @@ const firebaseConfig = {
     measurementId: "G-XBN7VX3X3R"
 };
 
-// เริ่มต้น Firebase (เฉพาะ Firestore)
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ตัวแปรและ Element ต่างๆ
+// ตัวแปรควบคุมหน้าจอและสิทธิ์
+let currentUserRole = null; // 'student' หรือ 'admin'
+let allNotes = [];
+
+// DOM Elements
+const roleSelectionView = document.getElementById('roleSelectionView');
+const hubDashboardView = document.getElementById('hubDashboardView');
+const studyHubView = document.getElementById('studyHubView');
+
+const passwordModal = document.getElementById('passwordModal');
+const uploadModal = document.getElementById('uploadModal');
+const passwordForm = document.getElementById('passwordForm');
+const adminPasswordInput = document.getElementById('adminPasswordInput');
+const uploadForm = document.getElementById('uploadForm');
+const submitBtn = document.getElementById('submitBtn');
+
 const notesGrid = document.getElementById('notesGrid');
 const loadingText = document.getElementById('loading');
 const noteCount = document.getElementById('noteCount');
 const searchInput = document.getElementById('searchInput');
 const gradeFilter = document.getElementById('gradeFilter');
 const subjectFilter = document.getElementById('subjectFilter');
+const adminActionBtn = document.getElementById('adminActionBtn');
+const userRoleBadge = document.getElementById('userRoleBadge');
 
-// โมดัลแอดมิน
-const adminLoginBtn = document.getElementById('adminLoginBtn');
-const passwordModal = document.getElementById('passwordModal');
-const closePassModal = document.getElementById('closePassModal');
-const passwordForm = document.getElementById('passwordForm');
-const adminPasswordInput = document.getElementById('adminPasswordInput');
-
-// โมดัลเพิ่มข้อมูล
-const uploadModal = document.getElementById('uploadModal');
-const closeUploadModal = document.getElementById('closeUploadModal');
-const uploadForm = document.getElementById('uploadForm');
-const submitBtn = document.getElementById('submitBtn');
-
-let allNotes = [];
-let isAdminLoggedIn = false; // ตัวแปรเช็กสถานะแอดมิน
-
-// จัดการเปิด-ปิดหน้าต่างรหัสผ่าน
-adminLoginBtn.onclick = () => {
-    if (isAdminLoggedIn) {
-        // ถ้าล็อกอินอยู่แล้ว กดปุ่มเพื่อเปิดหน้าเพิ่มข้อมูลได้เลย
-        uploadModal.style.display = 'flex';
+// ฟังก์ชันเลือกบทบาทจากหน้า Landing
+window.selectRole = function(role) {
+    currentUserRole = role;
+    roleSelectionView.style.display = 'none';
+    hubDashboardView.style.display = 'block';
+    
+    if (role === 'admin') {
+        userRoleBadge.innerText = "⚙️ สมาชิกพรรค / ทีมงาน";
+        userRoleBadge.style.background = "#E0F2FE";
+        adminActionBtn.style.display = 'block';
     } else {
-        passwordModal.style.display = 'flex';
+        userRoleBadge.innerText = "🎓 นักเรียน / คุณครู";
+        adminActionBtn.style.display = 'none';
     }
-};
+}
 
-closePassModal.onclick = () => passwordModal.style.display = 'none';
-closeUploadModal.onclick = () => uploadModal.style.display = 'none';
-window.onclick = (e) => {
-    if (e.target === passwordModal) passwordModal.style.display = 'none';
-    if (e.target === uploadModal) uploadModal.style.display = 'none';
-};
+// เปิด Modal รหัสผ่านแอดมินจากหน้า Landing
+window.openAdminPasswordModal = function() {
+    passwordModal.style.display = 'flex';
+}
 
 // ตรวจสอบรหัสผ่านแอดมิน
 passwordForm.addEventListener('submit', (e) => {
     e.preventDefault();
     if (adminPasswordInput.value === ADMIN_PASSWORD) {
-        isAdminLoggedIn = true; // ยืนยันสถานะแอดมิน
         passwordModal.style.display = 'none';
         adminPasswordInput.value = '';
-        
-        // เปลี่ยนข้อความปุ่มด้านบนให้รู้ว่าอยู่ในโหมดแอดมินแล้ว
-        adminLoginBtn.innerText = "⚙️ โหมดแอดมิน (จัดการข้อมูล)";
-        adminLoginBtn.style.background = "#E0F2FE";
-        adminLoginBtn.style.borderColor = "#0284C7";
-
-        // เปิดหน้าต่างเพิ่มข้อมูลต่อทันที
-        uploadModal.style.display = 'flex';
-        renderNotes(allNotes); // เรนเดอร์การ์ดใหม่เพื่อให้ปุ่มลบแสดงขึ้นมา
+        selectRole('admin');
+        alert("🎉 เข้าสู่ระบบสมาชิกพรรคสำเร็จ!");
     } else {
         alert("❌ รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง");
     }
 });
 
-// ดึงข้อมูลสรุปทั้งหมดจาก Firestore
+// ออกจากระบบกลับสู่หน้า Landing
+window.logoutToLanding = function() {
+    currentUserRole = null;
+    hubDashboardView.style.display = 'none';
+    studyHubView.style.display = 'none';
+    roleSelectionView.style.display = 'flex';
+}
+
+// กดเข้า StudyHub จากหน้า Hub
+window.goToStudyHub = function() {
+    hubDashboardView.style.display = 'none';
+    studyHubView.style.display = 'block';
+    fetchNotes();
+}
+
+// กลับสู่หน้า Hub
+window.backToHub = function() {
+    studyHubView.style.display = 'none';
+    hubDashboardView.style.display = 'block';
+}
+
+// ปิด Modal ต่างๆ
+window.closeModal = function(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+// จัดการปุ่มโหมดแอดมินในหน้า StudyHub
+window.handleAdminAction = function() {
+    if (currentUserRole === 'admin') {
+        uploadModal.style.display = 'flex';
+    } else {
+        passwordModal.style.display = 'flex';
+    }
+}
+
+// ปิด Modal เมื่อคลิกนอกกรอบ
+window.onclick = (e) => {
+    if (e.target === passwordModal) passwordModal.style.display = 'none';
+    if (e.target === uploadModal) uploadModal.style.display = 'none';
+};
+
+// ดึงข้อมูลสรุปจาก Firestore
 async function fetchNotes() {
     try {
         const q = query(collection(db, "notes"), orderBy("createdAt", "desc"));
@@ -102,7 +139,7 @@ async function fetchNotes() {
     }
 }
 
-// แสดงผลการ์ดสรุปบนหน้าเว็บ (พร้อมปุ่มลบถ้าอยู่ในโหมดแอดมิน)
+// แสดงผลการ์ดสรุป (แสดงปุ่มลบเฉพาะแอดมิน)
 function renderNotes(notes) {
     notesGrid.innerHTML = '';
     noteCount.innerText = notes.length;
@@ -120,8 +157,7 @@ function renderNotes(notes) {
         const card = document.createElement('div');
         card.className = 'note-card';
         
-        // เช็กว่าถ้าเป็นแอดมิน ให้แสดงปุ่มลบ (display: block)
-        const deleteBtnStyle = isAdminLoggedIn ? 'display: block;' : 'display: none;';
+        const deleteBtnStyle = (currentUserRole === 'admin') ? 'display: block;' : 'display: none;';
 
         card.innerHTML = `
             <div>
@@ -151,13 +187,13 @@ function escapeHTML(str) {
     }[tag]));
 }
 
-// ฟังก์ชันสำหรับลบข้อมูลสรุปออกจาก Firestore
+// ฟังก์ชันลบข้อมูล
 window.deleteNote = async function(id) {
     if (confirm("⚠️ คุณต้องการลบชีทสรุปนี้ออกจากระบบใช่หรือไม่?")) {
         try {
             await deleteDoc(doc(db, "notes", id));
             alert("🗑️ ลบข้อมูลสำเร็จ!");
-            fetchNotes(); // โหลดข้อมูลใหม่ทันที
+            fetchNotes();
         } catch (error) {
             console.error("Error deleting note: ", error);
             alert("เกิดข้อผิดพลาดในการลบข้อมูล");
@@ -181,11 +217,13 @@ function filterNotes() {
     renderNotes(filtered);
 }
 
-searchInput.addEventListener('input', filterNotes);
-gradeFilter.addEventListener('change', filterNotes);
-subjectFilter.addEventListener('change', filterNotes);
+if (searchInput) {
+    searchInput.addEventListener('input', filterNotes);
+    gradeFilter.addEventListener('change', filterNotes);
+    subjectFilter.addEventListener('change', filterNotes);
+}
 
-// ระบบบันทึกข้อมูลลิงก์ Google Drive เข้า Firestore
+// ระบบบันทึกข้อมูลลิงก์ Google Drive
 uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fileUrlInput = document.getElementById('noteFileUrl').value.trim();
@@ -217,5 +255,3 @@ uploadForm.addEventListener('submit', async (e) => {
         submitBtn.innerText = "บันทึกสรุปขึ้นเว็บทันที";
     }
 });
-
-fetchNotes();
