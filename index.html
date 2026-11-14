@@ -16,7 +16,6 @@
                 <span>StudyHub</span> 
                 <span class="badge-demo">DEMO / BETA</span>
             </div>
-            <!-- ปุ่มเปลี่ยนข้อความตามที่ต้องการ -->
             <button id="adminLoginBtn" class="btn-admin-login">➕ เพิ่มเนื้อหาสรุป</button>
         </div>
     </nav>
@@ -41,10 +40,16 @@
                 <select id="subjectFilter">
                     <option value="all">ทุกกลุ่มสาระวิชา</option>
                     <option value="คณิตศาสตร์">คณิตศาสตร์</option>
-                    <option value="วิทยาศาสตร์">วิทยาศาสตร์</option>
+                    <option value="วิทยาศาสตร์ (ม.1-3)">วิทยาศาสตร์ (ม.1-3)</option>
+                    <option value="ชีววิทยา">ชีววิทยา</option>
+                    <option value="ฟิสิกส์">ฟิสิกส์</option>
+                    <option value="เคมี">เคมี</option>
                     <option value="ภาษาอังกฤษ">ภาษาอังกฤษ</option>
-                    <option value="ภาษาไทย/สังคม">ภาษาไทย / สังคมศึกษา</option>
-                    <option value="ภาษาจีน/อื่นๆ">ภาษาจีน / อื่นๆ</option>
+                    <option value="ภาษาไทย">ภาษาไทย</option>
+                    <option value="ภาษาจีน">ภาษาจีน</option>
+                    <option value="สังคมศึกษา">สังคมศึกษา</option>
+                    <option value="คอมพิวเตอร์">คอมพิวเตอร์</option>
+                    <option value="ประวัติศาสตร์">ประวัติศาสตร์</option>
                 </select>
             </div>
         </div>
@@ -60,7 +65,7 @@
         <div id="notesGrid" class="notes-grid"></div>
     </main>
 
-    <!-- หน้าต่างป๊อปอัปใส่รหัสผ่าน พร้อมข้อความชี้แจงตามที่คุณต้องการ -->
+    <!-- หน้าต่างป๊อปอัปใส่รหัสผ่าน -->
     <div id="passwordModal" class="modal">
         <div class="modal-content modal-sm">
             <span class="close-btn" id="closePassModal">&times;</span>
@@ -87,7 +92,7 @@
             <form id="uploadForm">
                 <div class="form-group">
                     <label>ชื่อเรื่องสรุป *</label>
-                    <input type="text" id="noteTitle" required placeholder="เช่น สรุปสูตรฟิสิกส์ ม.5 เรื่องคลื่น">
+                    <input type="text" id="noteTitle" required placeholder="เช่น สรุปโครงสร้างอะตอม เคมี ม.4">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -105,10 +110,16 @@
                         <label>วิชา *</label>
                         <select id="noteSubject" required>
                             <option value="คณิตศาสตร์">คณิตศาสตร์</option>
-                            <option value="วิทยาศาสตร์">วิทยาศาสตร์</option>
+                            <option value="วิทยาศาสตร์ (ม.1-3)">วิทยาศาสตร์ (ม.1-3)</option>
+                            <option value="ชีววิทยา">ชีววิทยา</option>
+                            <option value="ฟิสิกส์">ฟิสิกส์</option>
+                            <option value="เคมี">เคมี</option>
                             <option value="ภาษาอังกฤษ">ภาษาอังกฤษ</option>
-                            <option value="ภาษาไทย/สังคม">ภาษาไทย / สังคมศึกษา</option>
-                            <option value="ภาษาจีน/อื่นๆ">ภาษาจีน / อื่นๆ</option>
+                            <option value="ภาษาไทย">ภาษาไทย</option>
+                            <option value="ภาษาจีน">ภาษาจีน</option>
+                            <option value="สังคมศึกษา">สังคมศึกษา</option>
+                            <option value="คอมพิวเตอร์">คอมพิวเตอร์</option>
+                            <option value="ประวัติศาสตร์">ประวัติศาสตร์</option>
                         </select>
                     </div>
                 </div>
