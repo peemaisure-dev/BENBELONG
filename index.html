@@ -16,8 +16,8 @@
                 <span>StudyHub</span> 
                 <span class="badge-demo">DEMO / BETA</span>
             </div>
-            <!-- ปุ่มสำหรับให้ทีมงานพรรคคลิกเพื่อเข้าโหมดแอดมินเพิ่มลิงก์สรุป -->
-            <button id="adminLoginBtn" class="btn-admin-login">🔐 โหมดทีมงานพรรค (เพิ่มสรุป)</button>
+            <!-- ปุ่มเปลี่ยนข้อความตามที่ต้องการ -->
+            <button id="adminLoginBtn" class="btn-admin-login">➕ เพิ่มเนื้อหาสรุป</button>
         </div>
     </nav>
 
@@ -60,17 +60,19 @@
         <div id="notesGrid" class="notes-grid"></div>
     </main>
 
-    <!-- หน้าต่างป๊อปอัปใส่รหัสผ่านแอดมิน -->
+    <!-- หน้าต่างป๊อปอัปใส่รหัสผ่าน พร้อมข้อความชี้แจงตามที่คุณต้องการ -->
     <div id="passwordModal" class="modal">
         <div class="modal-content modal-sm">
             <span class="close-btn" id="closePassModal">&times;</span>
-            <h3>🔐 ยืนยันตัวตนทีมงานพรรค</h3>
-            <p class="modal-sub">กรุณากรอกรหัสผ่านเพื่อเข้าสู่ระบบเพิ่มสรุป</p>
+            <h3>🔐 เพิ่มเนื้อหาสรุป</h3>
+            <p class="modal-notice">
+                ตอนนี้พื้นที่สำหรับรวมสรุปยังเป็นแค่ตัว demo ให้ทดลอง เลยยังไม่สามารถให้ทุกคนอัพโหลดสรุปของตัวเองได้ต้องขออภัยไว้ ณ ที่นี้ด้วย แต่หากอยากอัพโหลดไฟล์สรุปจริงๆให้ลองทักมาหลังบ้าน BENBELONG ผ่านทางไอจีได้เลยนะะ
+            </p>
             <form id="passwordForm">
                 <div class="form-group">
-                    <input type="password" id="adminPasswordInput" required placeholder="กรอกรหัสผ่านพรรค...">
+                    <input type="password" id="adminPasswordInput" required placeholder="กรอกรหัสผ่านทีมงานพรรค...">
                 </div>
-                <button type="submit" class="btn-submit">ยืนยันรหัสผ่าน</button>
+                <button type="submit" class="btn-submit">ยืนยันรหัสผ่านเพื่อเพิ่มสรุป</button>
             </form>
         </div>
     </div>
@@ -80,7 +82,7 @@
         <div class="modal-content">
             <span class="close-btn" id="closeUploadModal">&times;</span>
             <h2>📤 เพิ่มชีทสรุปใหม่ (โหมดทีมงาน)</h2>
-            <p class="modal-sub">เพิ่มสรุปเข้าสู่ระบบกลางทันทีผ่านลิงก์ Google Drive</p>
+            <p class="modal-sub">ขนาดไฟล์ที่นำมาแชร์ควรมีขนาดไม่เกิน 10Mb เพื่อความรวดเร็วในการดาวน์โหลด</p>
             
             <form id="uploadForm">
                 <div class="form-group">
@@ -115,7 +117,7 @@
                     <input type="text" id="noteAuthor" required placeholder="เช่น ทีมวิชาการพรรค">
                 </div>
                 <div class="form-group">
-                    <label>ลิงก์ไฟล์สรุป (Google Drive ที่เปิดสิทธิ์ทุกคนที่มีลิงก์อ่านได้) *</label>
+                    <label>ลิงก์ Google Drive (ขนาดไฟล์ไม่เกิน 10MB) *</label>
                     <input type="text" id="noteFileUrl" required placeholder="https://drive.google.com/file/d/...">
                 </div>
                 <button type="submit" id="submitBtn" class="btn-submit">บันทึกสรุปขึ้นเว็บทันที</button>
