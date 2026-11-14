@@ -3,73 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StudyHub - คลังสรุปบทเรียนเพื่อชาวเบญจมฯ (Beta)</title>
+    <title>BENBELONG - ระบบกลางพรรคเบญบีลอง</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="logo">
-                <span class="logo-icon">📚</span> 
-                <span>StudyHub</span> 
-                <span class="badge-demo">DEMO / BETA</span>
-            </div>
-            <button id="adminLoginBtn" class="btn-admin-login">➕ เพิ่มเนื้อหาสรุป</button>
-        </div>
-    </nav>
-
-    <header class="hero">
-        <div class="hero-content">
-            <span class="hero-tag">นโยบายทดลองใช้จริงก่อนวันเลือกตั้ง</span>
-            <h1>StudyHub สำหรับเบญจมราชูทิศ ราชบุรี</h1>
-            <p>จัดทำโดยพรรค BENBELONG อ่านได้ฟรี</p>
+    <!-- ========================================= -->
+    <!-- หน้าที่ 1: Landing Page เลือกบทบาทเข้าใช้งาน -->
+    <!-- ========================================= -->
+    <div id="roleSelectionView" class="landing-container">
+        <div class="landing-card">
+            <div class="landing-logo">🏛️ BENBELONG HUB</div>
+            <h1>ยินดีต้อนรับสู่แพลตฟอร์มกลางพรรคเบญบีลอง</h1>
+            <p>โรงเรียนเบญจมราชูทิศ ราชบุรี • เลือกสถานะเพื่อเข้าใช้งานระบบ</p>
             
-            <div class="filter-bar">
-                <input type="text" id="searchInput" placeholder="ค้นหาชื่อเรื่อง, วิชา หรือคนทำสรุป...">
-                <select id="gradeFilter">
-                    <option value="all">ทุกระดับชั้น (ม.1 - ม.6)</option>
-                    <option value="ม.1">ม.1</option>
-                    <option value="ม.2">ม.2</option>
-                    <option value="ม.3">ม.3</option>
-                    <option value="ม.4">ม.4</option>
-                    <option value="ม.5">ม.5</option>
-                    <option value="ม.6">ม.6</option>
-                </select>
-                <select id="subjectFilter">
-                    <option value="all">ทุกกลุ่มสาระวิชา</option>
-                    <option value="คณิตศาสตร์">คณิตศาสตร์</option>
-                    <option value="วิทยาศาสตร์ (ม.1-3)">วิทยาศาสตร์ (ม.1-3)</option>
-                    <option value="ชีววิทยา">ชีววิทยา</option>
-                    <option value="ฟิสิกส์">ฟิสิกส์</option>
-                    <option value="เคมี">เคมี</option>
-                    <option value="ภาษาอังกฤษ">ภาษาอังกฤษ</option>
-                    <option value="ภาษาไทย">ภาษาไทย</option>
-                    <option value="ภาษาจีน">ภาษาจีน</option>
-                    <option value="สังคมศึกษา">สังคมศึกษา</option>
-                    <option value="คอมพิวเตอร์">คอมพิวเตอร์</option>
-                    <option value="ประวัติศาสตร์">ประวัติศาสตร์</option>
-                </select>
+            <div class="role-buttons">
+                <button class="role-btn btn-student" onclick="selectRole('student')">
+                    <span class="role-icon">🎓</span>
+                    <div>
+                        <h3>คุณครู / นักเรียนทั่วไป</h3>
+                        <p>เข้าชมคลังสรุปและใช้งานฟีเจอร์พรรค</p>
+                    </div>
+                </button>
+                
+                <button class="role-btn btn-admin" onclick="openAdminPasswordModal()">
+                    <span class="role-icon">🔐</span>
+                    <div>
+                        <h3>สมาชิกพรรค / ทีมงาน</h3>
+                        <p>จัดการข้อมูล เพิ่ม/ลบเนื้อหาและสรุป</p>
+                    </div>
+                </button>
             </div>
         </div>
-    </header>
+    </div>
 
-    <main class="container">
-        <div class="section-header">
-            <h2>รายการสรุปแนะนำ (<span id="noteCount">0</span> รายการ)</h2>
-            <p class="subtitle">คัดสรรและอัปเดตสรุปคุณภาพโดยทีมงานพรรค</p>
+    <!-- ========================================= -->
+    <!-- หน้าที่ 2: Hub Dashboard (เมนูหลักเลือกบริการ) -->
+    <!-- ========================================= -->
+    <div id="hubDashboardView" class="app-view" style="display: none;">
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="logo">
+                    <span class="logo-icon">🏛️</span> 
+                    <span>BENBELONG HUB</span> 
+                    <span id="userRoleBadge" class="badge-demo">นักเรียน / คุณครู</span>
+                </div>
+                <button class="btn-logout" onclick="logoutToLanding()">ออกจากระบบ</button>
+            </div>
+        </nav>
+
+        <div class="hub-hero">
+            <div class="hero-content">
+                <h1>ระบบสนับสนุนการเรียนรู้และกิจกรรมพรรค</h1>
+                <p>เลือกบริการที่คุณต้องการใช้งานด้านล่างนี้</p>
+            </div>
         </div>
 
-        <div id="loading" class="loading-text">กำลังโหลดคลังสรุปจากระบบ...</div>
-        <div id="notesGrid" class="notes-grid"></div>
-    </main>
+        <main class="container">
+            <div class="menu-grid">
+                <!-- การ์ดเข้าสู่ StudyHub -->
+                <div class="menu-card" onclick="goToStudyHub()">
+                    <div class="menu-card-icon">📚</div>
+                    <h2>StudyHub (คลังสรุปบทเรียน)</h2>
+                    <p>รวบรวมชีทสรุปทุกกลุ่มสาระวิชา ม.1 - ม.6 อ่านง่าย เตรียมพร้อมทุกสนามสอบ</p>
+                    <span class="menu-link">เข้าสู่ระบบคลังสรุป &rarr;</span>
+                </div>
 
-    <!-- หน้าต่างป๊อปอัปใส่รหัสผ่าน -->
+                <!-- การ์ดเตรียมรองรับฟีเจอร์อนาคต -->
+                <div class="menu-card menu-card-disabled">
+                    <div class="menu-card-icon">💡</div>
+                    <h2>กล่องร่วมนโยบายพรรค (เร็วๆ นี้)</h2>
+                    <p>พื้นที่เสนอความคิดเห็นและติดตามนโยบายกิจกรรมของพรรค BENBELONG</p>
+                    <span class="menu-link text-muted">กำลังพัฒนา...</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ========================================= -->
+    <!-- หน้าที่ 3: StudyHub (คลังสรุปบทเรียน) -->
+    <!-- ========================================= -->
+    <div id="studyHubView" class="app-view" style="display: none;">
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="logo" style="cursor: pointer;" onclick="backToHub()">
+                    <span class="logo-icon">📚</span> 
+                    <span>StudyHub</span> 
+                    <span class="badge-demo">BENBELONG</span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-admin-login" onclick="backToHub()">🏠 เมนูหลัก</button>
+                    <button id="adminActionBtn" class="btn-admin-login" onclick="handleAdminAction()" style="display: none;">⚙️ โหมดแอดมิน (จัดการข้อมูล)</button>
+                </div>
+            </div>
+        </nav>
+
+        <header class="hero">
+            <div class="hero-content">
+                <span class="hero-tag">นโยบายทดลองใช้จริงก่อนวันเลือกตั้ง</span>
+                <h1>StudyHub สำหรับเบญจมราชูทิศ ราชบุรี</h1>
+                <p>จัดทำโดยพรรค BENBELONG อ่านได้ฟรี</p>
+                
+                <div class="filter-bar">
+                    <input type="text" id="searchInput" placeholder="ค้นหาชื่อเรื่อง, วิชา หรือคนทำสรุป...">
+                    <select id="gradeFilter">
+                        <option value="all">ทุกระดับชั้น (ม.1 - ม.6)</option>
+                        <option value="ม.1">ม.1</option>
+                        <option value="ม.2">ม.2</option>
+                        <option value="ม.3">ม.3</option>
+                        <option value="ม.4">ม.4</option>
+                        <option value="ม.5">ม.5</option>
+                        <option value="ม.6">ม.6</option>
+                    </select>
+                    <select id="subjectFilter">
+                        <option value="all">ทุกกลุ่มสาระวิชา</option>
+                        <option value="คณิตศาสตร์">คณิตศาสตร์</option>
+                        <option value="วิทยาศาสตร์ (ม.1-3)">วิทยาศาสตร์ (ม.1-3)</option>
+                        <option value="ชีววิทยา">ชีววิทยา</option>
+                        <option value="ฟิสิกส์">ฟิสิกส์</option>
+                        <option value="เคมี">เคมี</option>
+                        <option value="ภาษาอังกฤษ">ภาษาอังกฤษ</option>
+                        <option value="ภาษาไทย">ภาษาไทย</option>
+                        <option value="ภาษาจีน">ภาษาจีน</option>
+                        <option value="สังคมศึกษา">สังคมศึกษา</option>
+                        <option value="คอมพิวเตอร์">คอมพิวเตอร์</option>
+                        <option value="ประวัติศาสตร์">ประวัติศาสตร์</option>
+                    </select>
+                </div>
+            </div>
+        </header>
+
+        <main class="container">
+            <div class="section-header">
+                <h2>รายการสรุปแนะนำ (<span id="noteCount">0</span> รายการ)</h2>
+                <p class="subtitle">คัดสรรและอัปเดตสรุปคุณภาพโดยทีมงานพรรค</p>
+            </div>
+
+            <div id="loading" class="loading-text">กำลังโหลดคลังสรุปจากระบบ...</div>
+            <div id="notesGrid" class="notes-grid"></div>
+        </main>
+    </div>
+
+    <!-- Modal ใส่รหัสผ่านสมาชิกพรรค -->
     <div id="passwordModal" class="modal">
         <div class="modal-content modal-sm">
-            <span class="close-btn" id="closePassModal">&times;</span>
-            <h3>🔐 เพิ่มเนื้อหาสรุป</h3>
+            <span class="close-btn" onclick="closeModal('passwordModal')">&times;</span>
+            <h3>🔐 เข้าสู่ระบบสมาชิกพรรค</h3>
             <p class="modal-notice">
                 ตอนนี้พื้นที่สำหรับรวมสรุปยังเป็นแค่ตัว demo ให้ทดลอง เลยยังไม่สามารถให้ทุกคนอัพโหลดสรุปของตัวเองได้ต้องขออภัยไว้ ณ ที่นี้ด้วย แต่หากอยากอัพโหลดไฟล์สรุปจริงๆให้ลองทักมาหลังบ้าน BENBELONG ผ่านทางไอจีได้เลยนะะ
             </p>
@@ -77,15 +157,15 @@
                 <div class="form-group">
                     <input type="password" id="adminPasswordInput" required placeholder="กรอกรหัสผ่านทีมงานพรรค...">
                 </div>
-                <button type="submit" class="btn-submit">ยืนยันรหัสผ่านเพื่อเพิ่มสรุป</button>
+                <button type="submit" class="btn-submit">ยืนยันรหัสผ่าน</button>
             </form>
         </div>
     </div>
 
-    <!-- หน้าต่างป๊อปอัปสำหรับเพิ่มลิงก์สรุป -->
+    <!-- Modal เพิ่มชีทสรุปใหม่ -->
     <div id="uploadModal" class="modal">
         <div class="modal-content">
-            <span class="close-btn" id="closeUploadModal">&times;</span>
+            <span class="close-btn" onclick="closeModal('uploadModal')">&times;</span>
             <h2>📤 เพิ่มชีทสรุปใหม่ (โหมดทีมงาน)</h2>
             <p class="modal-sub">ขนาดไฟล์ที่นำมาแชร์ควรมีขนาดไม่เกิน 10Mb เพื่อความรวดเร็วในการดาวน์โหลด</p>
             
