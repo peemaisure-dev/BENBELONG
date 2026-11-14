@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // =========================================================================
 // ตั้งค่ารหัสผ่านแอดมินสำหรับทีมงานพรรค
@@ -45,9 +45,18 @@ const uploadForm = document.getElementById('uploadForm');
 const submitBtn = document.getElementById('submitBtn');
 
 let allNotes = [];
+let isAdminLoggedIn = false; // ตัวแปรเช็กสถานะแอดมิน
 
 // จัดการเปิด-ปิดหน้าต่างรหัสผ่าน
-adminLoginBtn.onclick = () => passwordModal.style.display = 'flex';
+adminLoginBtn.onclick = () => {
+    if (isAdminLoggedIn) {
+        // ถ้าล็อกอินอยู่แล้ว กดปุ่มเพื่อเปิดหน้าเพิ่มข้อมูลได้เลย
+        uploadModal.style.display = 'flex';
+    } else {
+        passwordModal.style.display = 'flex';
+    }
+};
+
 closePassModal.onclick = () => passwordModal.style.display = 'none';
 closeUploadModal.onclick = () => uploadModal.style.display = 'none';
 window.onclick = (e) => {
@@ -59,9 +68,18 @@ window.onclick = (e) => {
 passwordForm.addEventListener('submit', (e) => {
     e.preventDefault();
     if (adminPasswordInput.value === ADMIN_PASSWORD) {
+        isAdminLoggedIn = true; // ยืนยันสถานะแอดมิน
         passwordModal.style.display = 'none';
         adminPasswordInput.value = '';
+        
+        // เปลี่ยนข้อความปุ่มด้านบนให้รู้ว่าอยู่ในโหมดแอดมินแล้ว
+        adminLoginBtn.innerText = "⚙️ โหมดแอดมิน (จัดการข้อมูล)";
+        adminLoginBtn.style.background = "#E0F2FE";
+        adminLoginBtn.style.borderColor = "#0284C7";
+
+        // เปิดหน้าต่างเพิ่มข้อมูลต่อทันที
         uploadModal.style.display = 'flex';
+        renderNotes(allNotes); // เรนเดอร์การ์ดใหม่เพื่อให้ปุ่มลบแสดงขึ้นมา
     } else {
         alert("❌ รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง");
     }
@@ -84,7 +102,7 @@ async function fetchNotes() {
     }
 }
 
-// แสดงผลการ์ดสรุปบนหน้าเว็บ
+// แสดงผลการ์ดสรุปบนหน้าเว็บ (พร้อมปุ่มลบถ้าอยู่ในโหมดแอดมิน)
 function renderNotes(notes) {
     notesGrid.innerHTML = '';
     noteCount.innerText = notes.length;
@@ -101,6 +119,10 @@ function renderNotes(notes) {
     notes.forEach(note => {
         const card = document.createElement('div');
         card.className = 'note-card';
+        
+        // เช็กว่าถ้าเป็นแอดมิน ให้แสดงปุ่มลบ (display: block)
+        const deleteBtnStyle = isAdminLoggedIn ? 'display: block;' : 'display: none;';
+
         card.innerHTML = `
             <div>
                 <div class="card-tags">
@@ -113,7 +135,10 @@ function renderNotes(notes) {
                 <div class="note-meta">
                     <span>✍️ จัดทำโดย: <strong>${escapeHTML(note.author)}</strong></span>
                 </div>
-                <a href="${note.fileUrl}" target="_blank" class="btn-download">เปิดอ่าน / ดาวน์โหลดสรุป</a>
+                <div class="card-actions">
+                    <a href="${note.fileUrl}" target="_blank" class="btn-download">เปิดอ่าน / ดาวน์โหลดสรุป</a>
+                    <button class="btn-delete" style="${deleteBtnStyle}" onclick="window.deleteNote('${note.id}')">🗑️ ลบสรุปนี้ออกจากระบบ</button>
+                </div>
             </div>
         `;
         notesGrid.appendChild(card);
@@ -125,6 +150,20 @@ function escapeHTML(str) {
         '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
     }[tag]));
 }
+
+// ฟังก์ชันสำหรับลบข้อมูลสรุปออกจาก Firestore
+window.deleteNote = async function(id) {
+    if (confirm("⚠️ คุณต้องการลบชีทสรุปนี้ออกจากระบบใช่หรือไม่?")) {
+        try {
+            await deleteDoc(doc(db, "notes", id));
+            alert("🗑️ ลบข้อมูลสำเร็จ!");
+            fetchNotes(); // โหลดข้อมูลใหม่ทันที
+        } catch (error) {
+            console.error("Error deleting note: ", error);
+            alert("เกิดข้อผิดพลาดในการลบข้อมูล");
+        }
+    }
+};
 
 // ระบบค้นหาและกรองข้อมูล
 function filterNotes() {
