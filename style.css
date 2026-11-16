@@ -111,3 +111,4 @@ input:focus, select:focus { border-color: var(--royal-blue); }
 .btn-submit:disabled { background: #94A3B8; cursor: not-allowed; }
 
 .footer { text-align: center; padding: 1.5rem; background: white; border-top: 1px solid #E2E8F0; color: var(--text-muted); font-size: 0.85rem; margin-top: 3rem; }
+ 
