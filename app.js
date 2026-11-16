@@ -3,7 +3,6 @@ import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, order
 
 const ADMIN_PASSWORD = "PongpichiTLnwZa555";
 
-// แยกส่วนข้อความ API Key เพื่อป้องกัน GitHub Secret Scanning บล็อก
 const k1 = "AQ.Ab8RN6KQcOCXM";
 const k2 = "7jtMa43FCZ3sFHS";
 const k3 = "JtY2MpYIMzX6dt0z_rwV9w";
@@ -119,14 +118,16 @@ window.onclick = (e) => {
     if (e.target === uploadModal) uploadModal.style.display = 'none';
 };
 
+// 🤖 ระบบ AI ติวเตอร์ อ่านไฟล์ PDF ชีทสรุปจริงผ่าน Gemini API
 window.askAI = async function(type) {
     const topic = document.getElementById('aiTopicInput').value.trim();
+    const pdfInput = document.getElementById('aiPdfInput');
     const aiLoading = document.getElementById('aiLoading');
     const aiResultBox = document.getElementById('aiResultBox');
     const aiOutputContent = document.getElementById('aiOutputContent');
 
-    if (!topic) {
-        alert("กรุณาพิมพ์หัวข้อหรือเนื้อหาที่ต้องการให้ AI ช่วยติวก่อนครับ!");
+    if (pdfInput.files.length === 0) {
+        alert("กรุณาอัปโหลดไฟล์ PDF ชีทสรุปก่อนใช้งาน AI ติวเตอร์ครับ!");
         return;
     }
 
@@ -135,17 +136,30 @@ window.askAI = async function(type) {
 
     let promptText = "";
     if (type === 'summary') {
-        promptText = `คุณคือ AI ติวเตอร์ประจำพรรค BENBELONG โรงเรียนเบญจมราชูทิศ ราชบุรี จงสรุปเนื้อหาเรื่อง "${topic}" ออกมาให้สั้นกระชับ เป็นข้อๆ (Bullet points) เข้าใจง่าย ตรงประเด็น เหมาะสำหรับนักเรียนอ่านเตรียมสอบ`;
+        promptText = `คุณคือ AI ติวเตอร์ประจำพรรค BENBELONG โรงเรียนเบญจมราชูทิศ ราชบุรี จงอ่านเนื้อหาทั้งหมดจากไฟล์ PDF ชีทสรุปนี้ และสรุปประเด็นสำคัญออกมาให้สั้นกระชับ เป็นข้อๆ (Bullet points) เข้าใจง่าย ตรงประเด็น เหมาะสำหรับนักเรียนอ่านเตรียมสอบ ${topic ? 'เพิ่มเติมเรื่อง: ' + topic : ''}`;
     } else {
-        promptText = `คุณคือ AI ติวเตอร์ประจำพรรค BENBELONG โรงเรียนเบญจมราชูทิศ ราชบุรี จงจำลองโจทย์ข้อสอบ จำนวน 3 ข้อ พร้อมเฉลยและคำอธิบายอย่างละเอียด เกี่ยวกับเรื่อง "${topic}" เพื่อให้นักเรียนฝึกทำเตรียมสอบ`;
+        promptText = `คุณคือ AI ติวเตอร์ประจำพรรค BENBELONG โรงเรียนเบญจมราชูทิศ ราชบุรี จงอ่านเนื้อหาทั้งหมดจากไฟล์ PDF ชีทสรุปนี้ แล้วจำลองโจทย์ข้อสอบ จำนวน 3 ข้อ พร้อมเฉลยและคำอธิบายอย่างละเอียด เพื่อให้นักเรียนฝึกทำเตรียมสอบ ${topic ? 'เน้นเรื่อง: ' + topic : ''}`;
     }
 
     try {
+        let contentsArray = [{ text: promptText }];
+
+        const file = pdfInput.files[0];
+        const base64Data = await toBase64(file);
+        const cleanBase64 = base64Data.split(',')[1]; // ตัดหัว header ของ base64 ออก
+
+        contentsArray.push({
+            inline_data: {
+                mime_type: "application/pdf",
+                data: cleanBase64
+            }
+        });
+
         const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: promptText }] }]
+                contents: [{ parts: contentsArray }]
             })
         });
 
@@ -157,16 +171,26 @@ window.askAI = async function(type) {
             aiResultBox.style.display = 'block';
         } else {
             console.error("API Response Error:", data);
-            alert("ไม่สามารถดึงข้อมูลจาก AI ได้ กรุณาลองใหม่อีกครั้ง");
+            alert("ไม่สามารถอ่านข้อมูลจากไฟล์ PDF นี้ได้ กรุณาลองใหม่อีกครั้ง");
         }
 
     } catch (error) {
         console.error("AI Error:", error);
-        alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI ติวเตอร์ กรุณาตรวจสอบอินเทอร์เน็ต");
+        alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI ติวเตอร์ หรือไฟล์ PDF มีขนาดใหญ่เกินไป");
     } finally {
         aiLoading.style.display = 'none';
     }
 };
+
+// ฟังก์ชันแปลงไฟล์ PDF เป็น Base64
+function toBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+}
 
 async function fetchNotes() {
     try {
