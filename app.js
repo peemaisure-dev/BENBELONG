@@ -118,7 +118,7 @@ window.onclick = (e) => {
     if (e.target === uploadModal) uploadModal.style.display = 'none';
 };
 
-// 🤖 ระบบ AI ติวเตอร์อัจฉริยะ (รับข้อมูลวิชาและบทเรียนเพื่อสร้างสรุปและข้อสอบ)
+// 🤖 ระบบ AI ติวเตอร์อัจฉริยะ (ใช้ gemini-1.5-pro บน v1beta เพื่อความเสถียรสูงสุด)
 window.askAI = async function(type) {
     const subject = document.getElementById('aiSubjectInput').value.trim();
     const topic = document.getElementById('aiTopicInput').value.trim();
@@ -142,8 +142,7 @@ window.askAI = async function(type) {
     }
 
     try {
-        // เปลี่ยนมาเรียกใช้ endpoint v1 เพื่อความเสถียรสูงสุด
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -170,8 +169,6 @@ window.askAI = async function(type) {
         aiLoading.style.display = 'none';
     }
 };
-
-
 
 async function fetchNotes() {
     try {
