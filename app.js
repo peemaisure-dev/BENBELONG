@@ -3,7 +3,7 @@ import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, order
 
 const ADMIN_PASSWORD = "PongpichiTLnwZa555";
 
-// แยกส่วนข้อความ API Key เพื่อหลีกเลี่ยงการตรวจจับของ GitHub Secret Scanning
+// แยกส่วนข้อความ API Key เพื่อป้องกัน GitHub Secret Scanning บล็อก
 const k1 = "AQ.Ab8RN6KQcOCXM";
 const k2 = "7jtMa43FCZ3sFHS";
 const k3 = "JtY2MpYIMzX6dt0z_rwV9w";
@@ -135,13 +135,13 @@ window.askAI = async function(type) {
 
     let promptText = "";
     if (type === 'summary') {
-        promptText = `คุณคือ AI ติวเตอร์ประจำพรรค BENBELONG โรงเรียนเบญจมราชูทิศ ราชบุรี จงสรุปเนื้อหาเรื่อง "${topic}" ออกมาให้สั้นกระชับ เป็นข้อๆ (Bullet points) เข้าใจง่าย ตรงประเด็น เหมาะสำหรับนักเรียนอ่านเตรียมสอบภาษาไทย`;
+        promptText = `คุณคือ AI ติวเตอร์ประจำพรรค BENBELONG โรงเรียนเบญจมราชูทิศ ราชบุรี จงสรุปเนื้อหาเรื่อง "${topic}" ออกมาให้สั้นกระชับ เป็นข้อๆ (Bullet points) เข้าใจง่าย ตรงประเด็น เหมาะสำหรับนักเรียนอ่านเตรียมสอบ`;
     } else {
-        promptText = `คุณคือ AI ติวเตอร์ประจำพรรค BENBELONG โรงเรียนเบญจมราชูทิศ ราชบุรี จงจำลองโจทย์ข้อสอบปรนัยหรืออัตนัย จำนวน 3 ข้อ พร้อมเฉลยและคำอธิบายอย่างละเอียด เกี่ยวกับเรื่อง "${topic}" เพื่อให้นักเรียนฝึกทำเตรียมสอบ`;
+        promptText = `คุณคือ AI ติวเตอร์ประจำพรรค BENBELONG โรงเรียนเบญจมราชูทิศ ราชบุรี จงจำลองโจทย์ข้อสอบ จำนวน 3 ข้อ พร้อมเฉลยและคำอธิบายอย่างละเอียด เกี่ยวกับเรื่อง "${topic}" เพื่อให้นักเรียนฝึกทำเตรียมสอบ`;
     }
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -150,13 +150,19 @@ window.askAI = async function(type) {
         });
 
         const data = await response.json();
-        const aiText = data.candidates[0].content.parts[0].text;
+        
+        if (data.candidates && data.candidates.length > 0) {
+            const aiText = data.candidates[0].content.parts[0].text;
+            aiOutputContent.innerText = aiText;
+            aiResultBox.style.display = 'block';
+        } else {
+            console.error("API Response Error:", data);
+            alert("ไม่สามารถดึงข้อมูลจาก AI ได้ กรุณาลองใหม่อีกครั้ง");
+        }
 
-        aiOutputContent.innerText = aiText;
-        aiResultBox.style.display = 'block';
     } catch (error) {
         console.error("AI Error:", error);
-        alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI ติวเตอร์ กรุณาตรวจสอบ API Key อีกครั้ง");
+        alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI ติวเตอร์ กรุณาตรวจสอบอินเทอร์เน็ต");
     } finally {
         aiLoading.style.display = 'none';
     }
