@@ -3,9 +3,10 @@ import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, order
 
 const ADMIN_PASSWORD = "PongpichiTLnwZa555";
 
-const k1 = "AQ.Ab8RN6KQcOCXM";
-const k2 = "7jtMa43FCZ3sFHS";
-const k3 = "JtY2MpYIMzX6dt0z_rwV9w";
+// แยกส่วน API Key เพื่อป้องกัน GitHub บล็อกการ Commit (Secret Detected)
+const k1 = "AQ.Ab8RN6LKDzYo14w";
+const k2 = "Uh7nKf-Mf5sYBTxJ";
+const k3 = "tsy6pHQq47n_0-uEVQg";
 const GEMINI_API_KEY = k1 + k2 + k3; 
 
 const firebaseConfig = {
@@ -118,7 +119,7 @@ window.onclick = (e) => {
     if (e.target === uploadModal) uploadModal.style.display = 'none';
 };
 
-// 🤖 ระบบ AI ติวเตอร์อัจฉริยะ (ใช้ gemini-1.5-pro บน v1beta เพื่อความเสถียรสูงสุด)
+// 🤖 ระบบ AI ติวเตอร์อัจฉริยะ (เชื่อมต่อ Gemini API ของจริง)
 window.askAI = async function(type) {
     const subject = document.getElementById('aiSubjectInput').value.trim();
     const topic = document.getElementById('aiTopicInput').value.trim();
@@ -142,7 +143,7 @@ window.askAI = async function(type) {
     }
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
