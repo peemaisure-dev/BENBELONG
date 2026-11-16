@@ -142,7 +142,8 @@ window.askAI = async function(type) {
     }
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        // เปลี่ยนมาเรียกใช้ endpoint v1 เพื่อความเสถียรสูงสุด
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -151,9 +152,7 @@ window.askAI = async function(type) {
         });
 
         const data = await response.json();
-        console.log("Gemini API Response:", data); // ตรวจสอบค่าใน Console ถ้ายังมีปัญหา
 
-        // ดึงข้อความจากคำตอบของ AI ด้วยการเช็กโครงสร้างแบบปลอดภัย
         if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
             const aiText = data.candidates[0].content.parts[0].text;
             aiOutputContent.innerText = aiText;
@@ -171,6 +170,7 @@ window.askAI = async function(type) {
         aiLoading.style.display = 'none';
     }
 };
+
 
 
 async function fetchNotes() {
