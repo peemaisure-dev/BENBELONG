@@ -1,14 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// =========================================================================
-// ตั้งค่ารหัสผ่านแอดมินสำหรับทีมงานพรรค
-// =========================================================================
 const ADMIN_PASSWORD = "PongpichiTLnwZa555";
 
-// =========================================================================
-// Firebase Config (ค่าจริงจากโปรเจกต์ของคุณ)
-// =========================================================================
+// 🔑 ใส่วาง Gemini API Key ที่ได้จาก Google AI Studio ตรงนี้
+const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"; 
+
 const firebaseConfig = {
     apiKey: "AIzaSyAZBNNxWgnkCH2RbmM-wJ4qDtuqW_pZWaQ",
     authDomain: "benbelong-fcd54.firebaseapp.com",
@@ -22,14 +19,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ตัวแปรควบคุมหน้าจอและสิทธิ์
-let currentUserRole = null; // 'student' หรือ 'admin'
+let currentUserRole = null;
 let allNotes = [];
 
-// DOM Elements
 const roleSelectionView = document.getElementById('roleSelectionView');
 const hubDashboardView = document.getElementById('hubDashboardView');
 const studyHubView = document.getElementById('studyHubView');
+const aiTutorView = document.getElementById('aiTutorView'); // หน้า AI
 
 const passwordModal = document.getElementById('passwordModal');
 const uploadModal = document.getElementById('uploadModal');
@@ -47,7 +43,6 @@ const subjectFilter = document.getElementById('subjectFilter');
 const adminActionBtn = document.getElementById('adminActionBtn');
 const userRoleBadge = document.getElementById('userRoleBadge');
 
-// ฟังก์ชันเลือกบทบาทจากหน้า Landing
 window.selectRole = function(role) {
     currentUserRole = role;
     roleSelectionView.style.display = 'none';
@@ -63,12 +58,10 @@ window.selectRole = function(role) {
     }
 }
 
-// เปิด Modal รหัสผ่านแอดมินจากหน้า Landing
 window.openAdminPasswordModal = function() {
     passwordModal.style.display = 'flex';
 }
 
-// ตรวจสอบรหัสผ่านแอดมิน
 passwordForm.addEventListener('submit', (e) => {
     e.preventDefault();
     if (adminPasswordInput.value === ADMIN_PASSWORD) {
@@ -81,33 +74,36 @@ passwordForm.addEventListener('submit', (e) => {
     }
 });
 
-// ออกจากระบบกลับสู่หน้า Landing
 window.logoutToLanding = function() {
     currentUserRole = null;
     hubDashboardView.style.display = 'none';
     studyHubView.style.display = 'none';
+    aiTutorView.style.display = 'none';
     roleSelectionView.style.display = 'flex';
 }
 
-// กดเข้า StudyHub จากหน้า Hub
 window.goToStudyHub = function() {
     hubDashboardView.style.display = 'none';
     studyHubView.style.display = 'block';
     fetchNotes();
 }
 
-// กลับสู่หน้า Hub
+// ฟังก์ชันกดเข้าหน้า AI ติวเตอร์
+window.goToAITutor = function() {
+    hubDashboardView.style.display = 'none';
+    aiTutorView.style.display = 'block';
+}
+
 window.backToHub = function() {
     studyHubView.style.display = 'none';
+    aiTutorView.style.display = 'none';
     hubDashboardView.style.display = 'block';
 }
 
-// ปิด Modal ต่างๆ
 window.closeModal = function(modalId) {
     document.getElementById(modalId).style.display = 'none';
 }
 
-// จัดการปุ่มโหมดแอดมินในหน้า StudyHub
 window.handleAdminAction = function() {
     if (currentUserRole === 'admin') {
         uploadModal.style.display = 'flex';
@@ -116,13 +112,55 @@ window.handleAdminAction = function() {
     }
 }
 
-// ปิด Modal เมื่อคลิกนอกกรอบ
 window.onclick = (e) => {
     if (e.target === passwordModal) passwordModal.style.display = 'none';
     if (e.target === uploadModal) uploadModal.style.display = 'none';
 };
 
-// ดึงข้อมูลสรุปจาก Firestore
+// 🤖 ระบบเรียก Gemini API เพื่อสร้างสรุปหรือโจทย์ข้อสอบ
+window.askAI = async function(type) {
+    const topic = document.getElementById('aiTopicInput').value.trim();
+    const aiLoading = document.getElementById('aiLoading');
+    const aiResultBox = document.getElementById('aiResultBox');
+    const aiOutputContent = document.getElementById('aiOutputContent');
+
+    if (!topic) {
+        alert("กรุณาพิมพ์หัวข้อหรือเนื้อหาที่ต้องการให้ AI ช่วยติวก่อนครับ!");
+        return;
+    }
+
+    aiLoading.style.display = 'block';
+    aiResultBox.style.display = 'none';
+
+    let promptText = "";
+    if (type === 'summary') {
+        promptText = `คุณคือ AI ติวเตอร์ประจำพรรค BENBELONG โรงเรียนเบญจมราชูทิศ ราชบุรี จงสรุปเนื้อหาเรื่อง "${topic}" ออกมาให้สั้นกระชับ เป็นข้อๆ (Bullet points) เข้าใจง่าย ตรงประเด็น เหมาะสำหรับนักเรียนอ่านเตรียมสอบภาษาไทย`;
+    } else {
+        promptText = `คุณคือ AI ติวเตอร์ประจำพรรค BENBELONG โรงเรียนเบญจมราชูทิศ ราชบุรี จงจำลองโจทย์ข้อสอบปรนัยหรืออัตนัย จำนวน 3 ข้อ พร้อมเฉลยและคำอธิบายอย่างละเอียด เกี่ยวกับเรื่อง "${topic}" เพื่อให้นักเรียนฝึกทำเตรียมสอบ`;
+    }
+
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: promptText }] }]
+            })
+        });
+
+        const data = await response.json();
+        const aiText = data.candidates[0].content.parts[0].text;
+
+        aiOutputContent.innerText = aiText;
+        aiResultBox.style.display = 'block';
+    } catch (error) {
+        console.error("AI Error:", error);
+        alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI ติวเตอร์ กรุณาตรวจสอบ API Key อีกครั้ง");
+    } finally {
+        aiLoading.style.display = 'none';
+    }
+};
+
 async function fetchNotes() {
     try {
         const q = query(collection(db, "notes"), orderBy("createdAt", "desc"));
@@ -139,7 +177,6 @@ async function fetchNotes() {
     }
 }
 
-// แสดงผลการ์ดสรุป (แสดงปุ่มลบเฉพาะแอดมิน)
 function renderNotes(notes) {
     notesGrid.innerHTML = '';
     noteCount.innerText = notes.length;
@@ -156,7 +193,6 @@ function renderNotes(notes) {
     notes.forEach(note => {
         const card = document.createElement('div');
         card.className = 'note-card';
-        
         const deleteBtnStyle = (currentUserRole === 'admin') ? 'display: block;' : 'display: none;';
 
         card.innerHTML = `
@@ -187,7 +223,6 @@ function escapeHTML(str) {
     }[tag]));
 }
 
-// ฟังก์ชันลบข้อมูล
 window.deleteNote = async function(id) {
     if (confirm("⚠️ คุณต้องการลบชีทสรุปนี้ออกจากระบบใช่หรือไม่?")) {
         try {
@@ -201,7 +236,6 @@ window.deleteNote = async function(id) {
     }
 };
 
-// ระบบค้นหาและกรองข้อมูล
 function filterNotes() {
     const keyword = searchInput.value.toLowerCase().trim();
     const grade = gradeFilter.value;
@@ -223,7 +257,6 @@ if (searchInput) {
     subjectFilter.addEventListener('change', filterNotes);
 }
 
-// ระบบบันทึกข้อมูลลิงก์ Google Drive
 uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fileUrlInput = document.getElementById('noteFileUrl').value.trim();
