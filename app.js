@@ -118,25 +118,16 @@ window.onclick = (e) => {
     if (e.target === uploadModal) uploadModal.style.display = 'none';
 };
 
-// 🤖 ระบบ AI ติวเตอร์ อ่านไฟล์ PDF พร้อมดักจับขนาดไฟล์ไม่ให้เกิน 10MB
+// 🤖 ระบบ AI ติวเตอร์อัจฉริยะ (รับข้อมูลวิชาและบทเรียนเพื่อสร้างสรุปและข้อสอบ)
 window.askAI = async function(type) {
+    const subject = document.getElementById('aiSubjectInput').value.trim();
     const topic = document.getElementById('aiTopicInput').value.trim();
-    const pdfInput = document.getElementById('aiPdfInput');
     const aiLoading = document.getElementById('aiLoading');
     const aiResultBox = document.getElementById('aiResultBox');
     const aiOutputContent = document.getElementById('aiOutputContent');
 
-    if (pdfInput.files.length === 0) {
-        alert("กรุณาอัปโหลดไฟล์ PDF ชีทสรุปก่อนใช้งาน AI ติวเตอร์ครับ!");
-        return;
-    }
-
-    const file = pdfInput.files[0];
-    
-    // ตรวจสอบขนาดไฟล์ (ไม่ให้เกิน 10MB = 10 * 1024 * 1024 bytes)
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-        alert("⚠️ ไฟล์ PDF มีขนาดใหญ่เกิน 10 MB กรุณาเลือกไฟล์ที่มีขนาดเล็กกว่า 10 MB เพื่อประสิทธิภาพในการอ่านของ AI ครับ");
+    if (!subject || !topic) {
+        alert("กรุณากรอกข้อมูลทั้ง 'วิชาและระดับชั้น' และ 'บทเรียนหรือหัวข้อ' ให้ครบถ้วนก่อนใช้งานครับ!");
         return;
     }
 
@@ -145,29 +136,17 @@ window.askAI = async function(type) {
 
     let promptText = "";
     if (type === 'summary') {
-        promptText = `คุณคือ AI ติวเตอร์ประจำพรรค BENBELONG โรงเรียนเบญจมราชูทิศ ราชบุรี จงอ่านเนื้อหาทั้งหมดจากไฟล์ PDF ชีทสรุปนี้ และสรุปประเด็นสำคัญออกมาให้สั้นกระชับ เป็นข้อๆ (Bullet points) เข้าใจง่าย ตรงประเด็น เหมาะสำหรับนักเรียนอ่านเตรียมสอบ ${topic ? 'เพิ่มเติมเรื่อง: ' + topic : ''}`;
+        promptText = `คุณคือ AI ติวเตอร์อัจฉริยะประจำพรรค BENBELONG โรงเรียนเบญจมราชูทิศ ราชบุรี จงสรุปเนื้อหาสำคัญของวิชา "${subject}" ในบทเรียนเรื่อง "${topic}" ออกมาให้สั้นกระชับ เป็นข้อๆ (Bullet points) เข้าใจง่าย ตรงประเด็น เหมาะสำหรับนักเรียนอ่านเตรียมสอบ`;
     } else {
-        promptText = `คุณคือ AI ติวเตอร์ประจำพรรค BENBELONG โรงเรียนเบญจมราชูทิศ ราชบุรี จงอ่านเนื้อหาทั้งหมดจากไฟล์ PDF ชีทสรุปนี้ แล้วจำลองโจทย์ข้อสอบ จำนวน 3 ข้อ พร้อมเฉลยและคำอธิบายอย่างละเอียด เพื่อให้นักเรียนฝึกทำเตรียมสอบ ${topic ? 'เน้นเรื่อง: ' + topic : ''}`;
+        promptText = `คุณคือ AI ติวเตอร์อัจฉริยะประจำพรรค BENBELONG โรงเรียนเบญจมราชูทิศ ราชบุรี จงจำลองโจทย์ข้อสอบเตรียมสอบของวิชา "${subject}" ในบทเรียนเรื่อง "${topic}" จำนวน 3 ข้อ พร้อมเฉลยและคำอธิบายอย่างละเอียด เพื่อให้นักเรียนฝึกทำ`;
     }
 
     try {
-        let contentsArray = [{ text: promptText }];
-
-        const base64Data = await toBase64(file);
-        const cleanBase64 = base64Data.split(',')[1];
-
-        contentsArray.push({
-            inline_data: {
-                mime_type: "application/pdf",
-                data: cleanBase64
-            }
-        });
-
         const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [{ parts: contentsArray }]
+                contents: [{ parts: [{ text: promptText }] }]
             })
         });
 
@@ -179,7 +158,7 @@ window.askAI = async function(type) {
             aiResultBox.style.display = 'block';
         } else {
             console.error("API Response Error:", data);
-            alert("ไม่สามารถอ่านข้อมูลจากไฟล์ PDF นี้ได้ กรุณาลองใหม่อีกครั้ง");
+            alert("ไม่สามารถดึงข้อมูลจาก AI ได้ กรุณาลองใหม่อีกครั้ง");
         }
 
     } catch (error) {
@@ -189,15 +168,6 @@ window.askAI = async function(type) {
         aiLoading.style.display = 'none';
     }
 };
-
-function toBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-    });
-}
 
 async function fetchNotes() {
     try {
@@ -211,7 +181,7 @@ async function fetchNotes() {
         renderNotes(allNotes);
     } catch (error) {
         console.error("Error loading notes:", error);
-        loadingText.innerText = "ยังไม่มีข้อมูลสรุปในระบบ หรือตรวจสอบการตั้งค่า Firestore";
+        loadingText.innerText = "ยังไม่มีข้อมูลสรุป PDF ในระบบ หรือตรวจสอบการตั้งค่า Firestore";
     }
 }
 
@@ -222,7 +192,7 @@ function renderNotes(notes) {
     if (notes.length === 0) {
         notesGrid.innerHTML = `
             <div style="grid-column: 1/-1; text-align:center; padding: 3rem; background: white; border-radius: 16px; color: #64748b;">
-                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">ยังไม่มีรายการสรุปในระบบ</p>
+                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">ยังไม่มีรายการสรุป PDF ในระบบ</p>
                 <p style="font-size: 0.9rem;">ทีมงานพรรคกำลังทยอยเพิ่มชีทสรุปเร็วๆ นี้!</p>
             </div>`;
         return;
@@ -246,8 +216,8 @@ function renderNotes(notes) {
                     <span>✍️ จัดทำโดย: <strong>${escapeHTML(note.author)}</strong></span>
                 </div>
                 <div class="card-actions">
-                    <a href="${note.fileUrl}" target="_blank" class="btn-download">เปิดอ่าน / ดาวน์โหลดสรุป</a>
-                    <button class="btn-delete" style="${deleteBtnStyle}" onclick="window.deleteNote('${note.id}')">🗑️ ลบชีทสรุปนี้ออกจากระบบ</button>
+                    <a href="${note.fileUrl}" target="_blank" class="btn-download">📥 ดาวน์โหลดไฟล์ PDF สรุป</a>
+                    <button class="btn-delete" style="${deleteBtnStyle}" onclick="window.deleteNote('${note.id}')">🗑️ ลบสรุปนี้ออกจากระบบ</button>
                 </div>
             </div>
         `;
@@ -262,7 +232,7 @@ function escapeHTML(str) {
 }
 
 window.deleteNote = async function(id) {
-    if (confirm("⚠️ คุณต้องการลบชีทสรุปนี้ออกจากระบบใช่หรือไม่?")) {
+    if (confirm("⚠️ คุณต้องการลบชีทสรุป PDF นี้ออกจากระบบใช่หรือไม่?")) {
         try {
             await deleteDoc(doc(db, "notes", id));
             alert("🗑️ ลบข้อมูลสำเร็จ!");
@@ -313,7 +283,7 @@ uploadForm.addEventListener('submit', async (e) => {
             createdAt: serverTimestamp()
         });
 
-        alert("🎉 เพิ่มสรุปเข้าสู่ระบบสำเร็จ!");
+        alert("🎉 เพิ่มสรุป PDF เข้าสู่ระบบสำเร็จ!");
         uploadForm.reset();
         uploadModal.style.display = 'none';
         fetchNotes();
@@ -323,6 +293,6 @@ uploadForm.addEventListener('submit', async (e) => {
         alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาตรวจสอบการตั้งค่า Firestore");
     } finally {
         submitBtn.disabled = false;
-        submitBtn.innerText = "บันทึกสรุปขึ้นเว็บทันที";
+        submitBtn.innerText = "บันทึกสรุป PDF ขึ้นเว็บทันที";
     }
 });
