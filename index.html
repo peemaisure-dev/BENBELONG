@@ -21,7 +21,7 @@
                     <span class="role-icon">🎓</span>
                     <div>
                         <h3>คุณครู / นักเรียนทั่วไป</h3>
-                        <p>เข้าชมคลังสรุปและใช้งาน AI ติวเตอร์พรรค</p>
+                        <p>เข้าชมคลังสรุปและใช้งาน AI ติวเตอร์อ่านไฟล์ PDF</p>
                     </div>
                 </button>
                 
@@ -29,14 +29,14 @@
                     <span class="role-icon">🔐</span>
                     <div>
                         <h3>สมาชิกพรรค / ทีมงาน</h3>
-                        <p>จัดการข้อมูล เพิ่ม/ลบเนื้อหาและสรุป</p>
+                        <p>จัดการข้อมูล อัปโหลดชีทสรุปและจัดการระบบ</p>
                     </div>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- หน้าที่ 2: Hub Dashboard (เมนูหลักเลือกบริการ) -->
+    <!-- หน้าที่ 2: Hub Dashboard -->
     <div id="hubDashboardView" class="app-view" style="display: none;">
         <nav class="navbar">
             <div class="nav-container">
@@ -58,7 +58,6 @@
 
         <main class="container">
             <div class="menu-grid">
-                <!-- StudyHub -->
                 <div class="menu-card" onclick="goToStudyHub()">
                     <div class="menu-card-icon">📚</div>
                     <h2>StudyHub (คลังสรุปบทเรียน)</h2>
@@ -66,11 +65,10 @@
                     <span class="menu-link">เข้าสู่ระบบคลังสรุป &rarr;</span>
                 </div>
 
-                <!-- AI Tutor Hub -->
                 <div class="menu-card" onclick="goToAITutor()">
                     <div class="menu-card-icon">🤖</div>
-                    <h2>BENBELONG AI ติวเตอร์</h2>
-                    <p>ผู้ช่วยอัจฉริยะ ดึงเนื้อหาจากชีทสรุปมาช่วยสรุปประเด็นสั้น และจำลองโจทย์ฝึกทำสอบ</p>
+                    <h2>BENBELONG AI ติวเตอร์อัจฉริยะ</h2>
+                    <p>ผู้ช่วย AI อ่านไฟล์ PDF ชีทสรุปจริง ช่วยสรุปย่อประเด็นสำคัญ และจำลองโจทย์ข้อสอบ</p>
                     <span class="menu-link">ใช้งาน AI ติวเตอร์ &rarr;</span>
                 </div>
             </div>
@@ -139,14 +137,14 @@
         </main>
     </div>
 
-    <!-- หน้าที่ 4: AI Tutor View (หน้าต่างติวเตอร์อัจฉริยะ) -->
+    <!-- หน้าที่ 4: AI Tutor View (รองรับเฉพาะไฟล์ PDF) -->
     <div id="aiTutorView" class="app-view" style="display: none;">
         <nav class="navbar">
             <div class="nav-container">
                 <div class="logo" style="cursor: pointer;" onclick="backToHub()">
                     <span class="logo-icon">🤖</span> 
                     <span>BENBELONG AI ติวเตอร์</span> 
-                    <span class="badge-demo">AI อัจฉริยะ</span>
+                    <span class="badge-demo">AI อ่านไฟล์ PDF</span>
                 </div>
                 <button class="btn-admin-login" onclick="backToHub()">🏠 เมนูหลัก</button>
             </div>
@@ -154,20 +152,25 @@
 
         <div class="container" style="max-width: 800px; margin-top: 2rem;">
             <div class="ai-box">
-                <h2>🎓 ผู้ช่วยติวเตอร์ AI ประจำพรรค</h2>
-                <p class="subtitle">เลือกหัวข้อหรือพิมพ์เนื้อหาที่อยากให้ AI ช่วยสรุปย่อ และสร้างโจทย์ฝึกทำได้ทันที</p>
+                <h2>🎓 ติวเตอร์ AI อ่านไฟล์ PDF สรุปอัจฉริยะ</h2>
+                <p class="subtitle">อัปโหลดไฟล์ PDF ชีทสรุป แล้วให้ AI ช่วยสรุปเนื้อหาและออกข้อสอบให้ทันที</p>
                 
                 <div class="form-group" style="margin-top: 1.5rem;">
-                    <label>พิมพ์หัวข้อ หรือ เนื้อหา / ชื่อเรื่องที่ต้องการให้ AI ติว:</label>
-                    <input type="text" id="aiTopicInput" placeholder="เช่น สรุปสูตรคลื่น ฟิสิกส์ ม.5 หรือโครงสร้างอะตอม...">
+                    <label>1. อัปโหลดไฟล์ PDF ชีทสรุป (.pdf เท่านั้น):</label>
+                    <input type="file" id="aiPdfInput" accept="application/pdf" style="padding: 0.5rem; background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 10px; width: 100%; cursor: pointer;">
+                </div>
+
+                <div class="form-group">
+                    <label>2. หัวข้อหรือคำถามเพิ่มเติม (ถ้ามี):</label>
+                    <input type="text" id="aiTopicInput" placeholder="เช่น ขอสรุปเน้นๆ จุดที่ชอบออกสอบ หรือ ออกข้อสอบ 3 ข้อ...">
                 </div>
 
                 <div class="ai-buttons">
-                    <button class="btn-submit" onclick="askAI('summary')">📝 สรุปประเด็นสั้นตรงประเด็น</button>
-                    <button class="btn-submit" style="background: #10B981;" onclick="askAI('quiz')">💡 จำลองโจทย์ฝึกทำสอบพร้อมเฉลย</button>
+                    <button class="btn-submit" onclick="askAI('summary')">📝 สรุปย่อจากไฟล์ PDF นี้</button>
+                    <button class="btn-submit" style="background: #10B981;" onclick="askAI('quiz')">💡 จำลองโจทย์จากไฟล์ PDF พร้อมเฉลย</button>
                 </div>
 
-                <div id="aiLoading" class="loading-text" style="display: none;">🤖 AI กำลังคิดและวิเคราะห์ข้อมูล... รอสักครู่</div>
+                <div id="aiLoading" class="loading-text" style="display: none;">🤖 AI กำลังอ่านไฟล์ PDF และวิเคราะห์ข้อมูล... รอสักครู่</div>
                 
                 <div id="aiResultBox" class="ai-result-card" style="display: none;">
                     <h3>ผลลัพธ์จากติวเตอร์ AI:</h3>
