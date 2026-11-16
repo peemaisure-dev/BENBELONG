@@ -9,9 +9,7 @@
 </head>
 <body>
 
-    <!-- ========================================= -->
-    <!-- หน้าที่ 1: Landing Page เลือกบทบาทเข้าใช้งาน -->
-    <!-- ========================================= -->
+    <!-- หน้าที่ 1: Landing Page เลือกบทบาท -->
     <div id="roleSelectionView" class="landing-container">
         <div class="landing-card">
             <div class="landing-logo">🏛️ BENBELONG HUB</div>
@@ -23,7 +21,7 @@
                     <span class="role-icon">🎓</span>
                     <div>
                         <h3>คุณครู / นักเรียนทั่วไป</h3>
-                        <p>เข้าชมคลังสรุปและใช้งานฟีเจอร์พรรค</p>
+                        <p>เข้าชมคลังสรุปและใช้งาน AI ติวเตอร์พรรค</p>
                     </div>
                 </button>
                 
@@ -38,9 +36,7 @@
         </div>
     </div>
 
-    <!-- ========================================= -->
     <!-- หน้าที่ 2: Hub Dashboard (เมนูหลักเลือกบริการ) -->
-    <!-- ========================================= -->
     <div id="hubDashboardView" class="app-view" style="display: none;">
         <nav class="navbar">
             <div class="nav-container">
@@ -62,7 +58,7 @@
 
         <main class="container">
             <div class="menu-grid">
-                <!-- การ์ดเข้าสู่ StudyHub -->
+                <!-- StudyHub -->
                 <div class="menu-card" onclick="goToStudyHub()">
                     <div class="menu-card-icon">📚</div>
                     <h2>StudyHub (คลังสรุปบทเรียน)</h2>
@@ -70,20 +66,18 @@
                     <span class="menu-link">เข้าสู่ระบบคลังสรุป &rarr;</span>
                 </div>
 
-                <!-- การ์ดเตรียมรองรับฟีเจอร์อนาคต -->
-                <div class="menu-card menu-card-disabled">
-                    <div class="menu-card-icon">💡</div>
-                    <h2>กล่องร่วมนโยบายพรรค (เร็วๆ นี้)</h2>
-                    <p>พื้นที่เสนอความคิดเห็นและติดตามนโยบายกิจกรรมของพรรค BENBELONG</p>
-                    <span class="menu-link text-muted">กำลังพัฒนา...</span>
+                <!-- AI Tutor Hub (ฟีเจอร์ใหม่ที่เราจะทำ) -->
+                <div class="menu-card" onclick="goToAITutor()">
+                    <div class="menu-card-icon">🤖</div>
+                    <h2>BENBELONG AI ติวเตอร์</h2>
+                    <p>ผู้ช่วยอัจฉริยะ ดึงเนื้อหาจากชีทสรุปมาช่วยสรุปประเด็นสั้น และจำลองโจทย์ฝึกทำสอบ</p>
+                    <span class="menu-link">ใช้งาน AI ติวเตอร์ &rarr;</span>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- ========================================= -->
     <!-- หน้าที่ 3: StudyHub (คลังสรุปบทเรียน) -->
-    <!-- ========================================= -->
     <div id="studyHubView" class="app-view" style="display: none;">
         <nav class="navbar">
             <div class="nav-container">
@@ -143,6 +137,44 @@
             <div id="loading" class="loading-text">กำลังโหลดคลังสรุปจากระบบ...</div>
             <div id="notesGrid" class="notes-grid"></div>
         </main>
+    </div>
+
+    <!-- หน้าที่ 4: AI Tutor View (หน้าต่างติวเตอร์อัจฉริยะ) -->
+    <div id="aiTutorView" class="app-view" style="display: none;">
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="logo" style="cursor: pointer;" onclick="backToHub()">
+                    <span class="logo-icon">🤖</span> 
+                    <span>BENBELONG AI ติวเตอร์</span> 
+                    <span class="badge-demo">AI อัจฉริยะ</span>
+                </div>
+                <button class="btn-admin-login" onclick="backToHub()">🏠 เมนูหลัก</button>
+            </div>
+        </nav>
+
+        <div class="container" style="max-width: 800px; margin-top: 2rem;">
+            <div class="ai-box">
+                <h2>🎓 ผู้ช่วยติวเตอร์ AI ประจำพรรค</h2>
+                <p class="subtitle">เลือกหัวข้อหรือพิมพ์เนื้อหาที่อยากให้ AI ช่วยสรุปย่อ และสร้างโจทย์ฝึกทำได้ทันที</p>
+                
+                <div class="form-group" style="margin-top: 1.5rem;">
+                    <label>พิมพ์หัวข้อ หรือ เนื้อหา / ชื่อเรื่องที่ต้องการให้ AI ติว:</label>
+                    <input type="text" id="aiTopicInput" placeholder="เช่น สรุปสูตรคลื่น ฟิสิกส์ ม.5 หรือโครงสร้างอะตอม...">
+                </div>
+
+                <div class="ai-buttons">
+                    <button class="btn-submit" onclick="askAI('summary')">📝 สรุปประเด็นสั้นตรงประเด็น</button>
+                    <button class="btn-submit" style="background: #10B981;" onclick="askAI('quiz')">💡 จำลองโจทย์ฝึกทำสอบพร้อมเฉลย</button>
+                </div>
+
+                <div id="aiLoading" class="loading-text" style="display: none;">🤖 AI กำลังคิดและวิเคราะห์ข้อมูล... รอสักครู่</div>
+                
+                <div id="aiResultBox" class="ai-result-card" style="display: none;">
+                    <h3>ผลลัพธ์จากติวเตอร์ AI:</h3>
+                    <div id="aiOutputContent"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Modal ใส่รหัสผ่านสมาชิกพรรค -->
