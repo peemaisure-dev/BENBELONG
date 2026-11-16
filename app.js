@@ -118,7 +118,7 @@ window.onclick = (e) => {
     if (e.target === uploadModal) uploadModal.style.display = 'none';
 };
 
-// 🤖 ระบบ AI ติวเตอร์ อ่านไฟล์ PDF ชีทสรุปจริงผ่าน Gemini API
+// 🤖 ระบบ AI ติวเตอร์ อ่านไฟล์ PDF พร้อมดักจับขนาดไฟล์ไม่ให้เกิน 10MB
 window.askAI = async function(type) {
     const topic = document.getElementById('aiTopicInput').value.trim();
     const pdfInput = document.getElementById('aiPdfInput');
@@ -128,6 +128,15 @@ window.askAI = async function(type) {
 
     if (pdfInput.files.length === 0) {
         alert("กรุณาอัปโหลดไฟล์ PDF ชีทสรุปก่อนใช้งาน AI ติวเตอร์ครับ!");
+        return;
+    }
+
+    const file = pdfInput.files[0];
+    
+    // ตรวจสอบขนาดไฟล์ (ไม่ให้เกิน 10MB = 10 * 1024 * 1024 bytes)
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+        alert("⚠️ ไฟล์ PDF มีขนาดใหญ่เกิน 10 MB กรุณาเลือกไฟล์ที่มีขนาดเล็กกว่า 10 MB เพื่อประสิทธิภาพในการอ่านของ AI ครับ");
         return;
     }
 
@@ -144,9 +153,8 @@ window.askAI = async function(type) {
     try {
         let contentsArray = [{ text: promptText }];
 
-        const file = pdfInput.files[0];
         const base64Data = await toBase64(file);
-        const cleanBase64 = base64Data.split(',')[1]; // ตัดหัว header ของ base64 ออก
+        const cleanBase64 = base64Data.split(',')[1];
 
         contentsArray.push({
             inline_data: {
@@ -176,13 +184,12 @@ window.askAI = async function(type) {
 
     } catch (error) {
         console.error("AI Error:", error);
-        alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI ติวเตอร์ หรือไฟล์ PDF มีขนาดใหญ่เกินไป");
+        alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI ติวเตอร์ กรุณาตรวจสอบอินเทอร์เน็ต");
     } finally {
         aiLoading.style.display = 'none';
     }
 };
 
-// ฟังก์ชันแปลงไฟล์ PDF เป็น Base64
 function toBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -240,7 +247,7 @@ function renderNotes(notes) {
                 </div>
                 <div class="card-actions">
                     <a href="${note.fileUrl}" target="_blank" class="btn-download">เปิดอ่าน / ดาวน์โหลดสรุป</a>
-                    <button class="btn-delete" style="${deleteBtnStyle}" onclick="window.deleteNote('${note.id}')">🗑️ ลบสรุปนี้ออกจากระบบ</button>
+                    <button class="btn-delete" style="${deleteBtnStyle}" onclick="window.deleteNote('${note.id}')">🗑️ ลบชีทสรุปนี้ออกจากระบบ</button>
                 </div>
             </div>
         `;
