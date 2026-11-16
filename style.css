@@ -12,7 +12,6 @@
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Prompt', sans-serif; }
 body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1.6; display: flex; flex-direction: column; min-height: 100vh; }
 
-/* Landing Page Styles */
 .landing-container { min-height: 100vh; background: linear-gradient(125deg, #5CE1E6 0%, #818CF8 45%, #E879F9 85%, #F472B6 100%); display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
 .landing-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); padding: 2.5rem; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); width: 100%; max-width: 550px; text-align: center; }
 .landing-logo { font-size: 1.1rem; font-weight: 700; color: var(--royal-blue); margin-bottom: 1rem; background: #E0F2FE; display: inline-block; padding: 6px 16px; border-radius: 50px; }
@@ -26,18 +25,16 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .role-btn h3 { font-size: 1.05rem; color: var(--text-dark); margin-bottom: 2px; }
 .role-btn p { font-size: 0.85rem; color: var(--text-muted); margin: 0; }
 
-/* Hub Dashboard Styles */
 .hub-hero { background: linear-gradient(135deg, var(--royal-blue), #818CF8); color: white; padding: 3.5rem 1.5rem; text-align: center; }
 .hub-hero h1 { font-size: 2rem; margin-bottom: 0.5rem; }
 .menu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-top: -2rem; }
-.menu-card { background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); border: 1px solid #E2E8F0; cursor: pointer; transition: 0.25s; display: flex; flex-direction: column; justify-content: space-between; }
+.menu-card { background: white; padding: 2.0rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); border: 1px solid #E2E8F0; cursor: pointer; transition: 0.25s; display: flex; flex-direction: column; justify-content: space-between; }
 .menu-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(29, 86, 184, 0.12); border-color: var(--cyan-glow); }
 .menu-card-icon { font-size: 2.5rem; margin-bottom: 1rem; background: #F8FAFC; width: 65px; height: 65px; display: flex; align-items: center; justify-content: center; border-radius: 16px; }
 .menu-card h2 { font-size: 1.25rem; margin-bottom: 0.5rem; color: var(--text-dark); }
 .menu-card p { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem; }
 .menu-link { font-size: 0.9rem; font-weight: 600; color: var(--royal-blue); }
 
-/* Navbar & Common */
 .navbar { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); box-shadow: 0 2px 10px rgba(29, 86, 184, 0.08); position: sticky; top: 0; z-index: 100; }
 .nav-container { max-width: 1100px; margin: 0 auto; padding: 0.9rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
 .logo { font-size: 1.35rem; font-weight: 700; color: var(--royal-blue); display: flex; align-items: center; gap: 8px; }
