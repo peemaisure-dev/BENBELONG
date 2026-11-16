@@ -108,3 +108,12 @@ input:focus, select:focus { border-color: var(--royal-blue); }
 .btn-submit:disabled { background: #94A3B8; cursor: not-allowed; }
 
 .footer { text-align: center; padding: 1.5rem; background: white; border-top: 1px solid #E2E8F0; color: var(--text-muted); font-size: 0.85rem; margin-top: 3rem; }
+
+/* เพิ่มเติมดีไซน์หน้า AI ติวเตอร์ */
+.ai-box { background: white; padding: 2.5rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); border: 1px solid #E2E8F0; }
+.ai-buttons { display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; }
+.ai-buttons button { flex: 1; min-width: 200px; }
+.ai-result-card { margin-top: 1.5rem; background: #F8FAFC; border: 1px solid #CBD5E1; padding: 1.5rem; border-radius: 14px; text-align: left; }
+.ai-result-card h3 { color: var(--royal-blue); margin-bottom: 0.8rem; font-size: 1.1rem; }
+#aiOutputContent { white-space: pre-wrap; font-size: 0.95rem; color: #1E293B; line-height: 1.7; }
+
