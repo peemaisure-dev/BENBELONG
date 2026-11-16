@@ -68,7 +68,7 @@
                 <div class="menu-card" onclick="goToAITutor()">
                     <div class="menu-card-icon">🤖</div>
                     <h2>BENBELONG AI ติวเตอร์อัจฉริยะ</h2>
-                    <p>ผู้ช่วย AI อ่านไฟล์ PDF ชีทสรุปจริง ช่วยสรุปย่อประเด็นสำคัญ และจำลองโจทย์ข้อสอบ</p>
+                    <p>ผู้ช่วย AI อ่านไฟล์ PDF ชีทสรุปจริง (จำกัดไม่เกิน 10MB) ช่วยสรุปและออกข้อสอบ</p>
                     <span class="menu-link">ใช้งาน AI ติวเตอร์ &rarr;</span>
                 </div>
             </div>
@@ -137,7 +137,7 @@
         </main>
     </div>
 
-    <!-- หน้าที่ 4: AI Tutor View (รองรับเฉพาะไฟล์ PDF) -->
+    <!-- หน้าที่ 4: AI Tutor View -->
     <div id="aiTutorView" class="app-view" style="display: none;">
         <nav class="navbar">
             <div class="nav-container">
@@ -153,10 +153,10 @@
         <div class="container" style="max-width: 800px; margin-top: 2rem;">
             <div class="ai-box">
                 <h2>🎓 ติวเตอร์ AI อ่านไฟล์ PDF สรุปอัจฉริยะ</h2>
-                <p class="subtitle">อัปโหลดไฟล์ PDF ชีทสรุป แล้วให้ AI ช่วยสรุปเนื้อหาและออกข้อสอบให้ทันที</p>
+                <p class="subtitle">อัปโหลดไฟล์ PDF ชีทสรุป (ขนาดไม่เกิน 10MB) แล้วให้ AI ช่วยสรุปเนื้อหาและออกข้อสอบได้ทันที</p>
                 
                 <div class="form-group" style="margin-top: 1.5rem;">
-                    <label>1. อัปโหลดไฟล์ PDF ชีทสรุป (.pdf เท่านั้น):</label>
+                    <label>1. อัปโหลดไฟล์ PDF ชีทสรุป (.pdf ขนาดไม่เกิน 10MB):</label>
                     <input type="file" id="aiPdfInput" accept="application/pdf" style="padding: 0.5rem; background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 10px; width: 100%; cursor: pointer;">
                 </div>
 
