@@ -214,7 +214,39 @@
         </div>
     </div>
 
-    <!-- Modals ต่างๆ -->
+    <!-- Modal แสดงรายละเอียดอีเวนต์แบบเต็มจอชัดเจน -->
+    <div id="eventDetailModal" class="modal">
+        <div class="modal-content event-detail-content">
+            <span class="close-btn" onclick="closeModal('eventDetailModal')">&times;</span>
+            <div class="event-detail-header">
+                <span class="tag tag-grade">📅 รายละเอียดอีเวนต์</span>
+                <h2 id="modalEventTitle" class="modal-title-text">ชื่องานกิจกรรม</h2>
+            </div>
+            <div class="event-detail-body">
+                <div class="detail-row">
+                    <span class="detail-label">🗓️ วันที่จัดงาน:</span>
+                    <span id="modalEventDate" class="detail-value">--/--/----</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">⏰ เวลา:</span>
+                    <span id="modalEventTime" class="detail-value">--:-- น.</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">📍 สถานที่:</span>
+                    <span id="modalEventLocation" class="detail-value">สถานที่จัดงาน</span>
+                </div>
+                <div class="detail-box">
+                    <span class="detail-label" style="display: block; margin-bottom: 6px;">📝 รายละเอียดกิจกรรม:</span>
+                    <p id="modalEventDesc" class="detail-desc-text">รายละเอียดเนื้อหาทั้งหมด...</p>
+                </div>
+            </div>
+            <div id="modalDeleteActionContainer" style="margin-top: 1.5rem; text-align: right;">
+                <!-- ปุ่มลบจะแสดงเฉพาะแอดมิน -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals อื่นๆ -->
     <div id="passwordModal" class="modal">
         <div class="modal-content modal-sm">
             <span class="close-btn" onclick="closeModal('passwordModal')">&times;</span>
