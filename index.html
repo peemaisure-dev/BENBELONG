@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BENBELONG - Event Calendar & Community</title>
+    <title>BENBELONG - BJ'S Event Calendar</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -47,7 +47,7 @@
 
             <nav class="sidebar-menu">
                 <a href="#" class="menu-item active" onclick="switchMainTab('calendar')">
-                    <span>📅</span> ปฏิทินกิจกรรมพรรค
+                    <span>📅</span> ปฏิทินกิจกรรมโรงเรียน
                 </a>
                 <a href="#" class="menu-item" onclick="switchMainTab('community')">
                     <span>💬</span> กระดานพรรค (Community)
@@ -79,10 +79,10 @@
                 </div>
             </header>
 
-            <!-- หน้าปฏิทินกิจกรรม -->
+            <!-- หน้าปฏิทินกิจกรรมโรงเรียน -->
             <div id="calendarViewContainer" class="content-view-panel">
                 <div class="calendar-hero">
-                    <h1 class="hero-brand-title">Event Calendar</h1>
+                    <h1 class="hero-brand-title">BJ'S EVENT CALENDAR</h1>
                 </div>
 
                 <div class="calendar-container">
@@ -127,17 +127,15 @@
                 </div>
             </div>
 
-            <!-- หน้ากระดานพรรค (สไตล์ X) -->
+            <!-- หน้ากระดานพรรค (X Style Community Feed) -->
             <div id="communityViewContainer" class="content-view-panel" style="display: none;">
                 <div class="x-layout-container">
                     
-                    <!-- ส่วนฟีดหลักตรงกลาง -->
                     <main class="x-main-feed">
                         <div class="x-feed-header">
                             <h2>Home</h2>
                         </div>
 
-                        <!-- กล่องโพสต์ (What's happening?) -->
                         <div class="x-compose-box">
                             <form id="postForm">
                                 <input type="text" id="postAuthorName" class="x-input-name" required placeholder="ชื่อของคุณ หรือชื่อเล่น...">
@@ -149,12 +147,10 @@
                             </form>
                         </div>
 
-                        <!-- รายการโพสต์ -->
                         <div id="postsLoading" class="loading-text">กำลังโหลดโพสต์...</div>
                         <div id="postsFeed"></div>
                     </main>
 
-                    <!-- แถบ Sidebar ขวา (Search & Trends) -->
                     <aside class="x-sidebar-right">
                         <div class="x-search-box">
                             <span class="x-search-icon">🔍</span>
@@ -164,7 +160,6 @@
                         <div class="x-trends-card">
                             <h3>Trends for you</h3>
                             <div id="trendingTagsList" class="x-trends-list">
-                                <!-- แฮชแท็กยอดฮิตจะถูกแสดงที่นี่อัตโนมัติ -->
                                 <p style="font-size: 0.85rem; color: #64748B;">ยังไม่มีเทรนด์แฮชแท็ก</p>
                             </div>
                         </div>
