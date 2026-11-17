@@ -138,10 +138,12 @@
 
                         <div class="x-compose-box">
                             <form id="postForm">
-                                <input type="text" id="postAuthorName" class="x-input-name" required placeholder="ชื่อของคุณ หรือชื่อเล่น...">
-                                <textarea id="postContentInput" class="x-textarea" rows="3" required placeholder="What is happening?! (ใส่ #แฮชแท็ก เพื่อคุยเรื่องเทรนด์ได้เลย)"></textarea>
+                                <input type="text" id="postAuthorName" class="x-input-name" required maxlength="30" placeholder="ชื่อของคุณ หรือชื่อเล่น (สูงสุด 30 ตัวอักษร)...">
+                                <textarea id="postContentInput" class="x-textarea" rows="3" required maxlength="300" placeholder="What is happening?! (พิมพ์ได้สูงสุด 300 ตัวอักษร)"></textarea>
                                 <div class="x-compose-footer">
-                                    <div class="x-helper-text">พิมพ์ # เพื่อสร้างเทรนด์</div>
+                                    <div class="x-helper-text">
+                                        <span id="charCount">0</span>/300 ตัวอักษร (พิมพ์ # เพื่อสร้างเทรนด์)
+                                    </div>
                                     <button type="submit" class="x-post-btn">Post</button>
                                 </div>
                             </form>
@@ -214,7 +216,7 @@
         </div>
     </div>
 
-    <!-- Modal แสดงรายละเอียดอีเวนต์แบบเต็มจอชัดเจน -->
+    <!-- Modal แสดงรายละเอียดอีเวนต์ -->
     <div id="eventDetailModal" class="modal">
         <div class="modal-content event-detail-content">
             <span class="close-btn" onclick="closeModal('eventDetailModal')">&times;</span>
@@ -240,9 +242,7 @@
                     <p id="modalEventDesc" class="detail-desc-text">รายละเอียดเนื้อหาทั้งหมด...</p>
                 </div>
             </div>
-            <div id="modalDeleteActionContainer" style="margin-top: 1.5rem; text-align: right;">
-                <!-- ปุ่มลบจะแสดงเฉพาะแอดมิน -->
-            </div>
+            <div id="modalDeleteActionContainer" style="margin-top: 1.5rem; text-align: right;"></div>
         </div>
     </div>
 
