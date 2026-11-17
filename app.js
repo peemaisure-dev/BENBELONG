@@ -34,6 +34,7 @@ const studyHubViewContainer = document.getElementById('studyHubViewContainer');
 const passwordModal = document.getElementById('passwordModal');
 const eventModal = document.getElementById('eventModal');
 const uploadModal = document.getElementById('uploadModal');
+const eventDetailModal = document.getElementById('eventDetailModal');
 
 const passwordForm = document.getElementById('passwordForm');
 const adminPasswordInput = document.getElementById('adminPasswordInput');
@@ -211,6 +212,7 @@ window.onclick = (e) => {
     if (e.target === passwordModal) passwordModal.style.display = 'none';
     if (e.target === eventModal) eventModal.style.display = 'none';
     if (e.target === uploadModal) uploadModal.style.display = 'none';
+    if (e.target === eventDetailModal) eventDetailModal.style.display = 'none';
 };
 
 /* จัดการระบบปฏิทิน */
@@ -263,8 +265,8 @@ function renderEvents(events) {
 
     events.forEach(ev => {
         const card = document.createElement('div');
-        card.className = 'event-card';
-        const deleteBtnHtml = (currentUserRole === 'admin') ? `<button class="btn-delete-event" onclick="window.deleteEvent('${ev.id}')">🗑️ ลบอีเวนต์</button>` : '';
+        card.className = 'event-card clickable-card';
+        card.onclick = () => openEventDetail(ev);
 
         card.innerHTML = `
             <div class="event-date-badge">
@@ -276,10 +278,30 @@ function renderEvents(events) {
                 <p class="ev-loc">📍 <strong>สถานที่:</strong> ${escapeHTML(ev.location)}</p>
                 <p class="ev-desc">${escapeHTML(ev.desc)}</p>
             </div>
-            ${deleteBtnHtml}
+            <div class="event-card-footer">
+                <span style="font-size: 0.8rem; color: var(--royal-blue); font-weight: 600;">🔍 คลิกเพื่อดูรายละเอียดเต็มๆ</span>
+            </div>
         `;
         eventsGrid.appendChild(card);
     });
+}
+
+// ฟังก์ชันเปิด Modal ดูรายละเอียดอีเวนต์
+window.openEventDetail = function(ev) {
+    document.getElementById('modalEventTitle').innerText = ev.title;
+    document.getElementById('modalEventDate').innerText = ev.eventDate;
+    document.getElementById('modalEventTime').innerText = ev.eventTime;
+    document.getElementById('modalEventLocation').innerText = ev.location;
+    document.getElementById('modalEventDesc').innerText = ev.desc;
+
+    const deleteContainer = document.getElementById('modalDeleteActionContainer');
+    if (currentUserRole === 'admin') {
+        deleteContainer.innerHTML = `<button class="btn-delete-event" onclick="window.deleteEvent('${ev.id}')">🗑️ ลบอีเวนต์นี้</button>`;
+    } else {
+        deleteContainer.innerHTML = '';
+    }
+
+    eventDetailModal.style.display = 'flex';
 }
 
 eventForm.addEventListener('submit', async (e) => {
@@ -316,6 +338,7 @@ window.deleteEvent = async function(id) {
         try {
             await deleteDoc(doc(db, "events", id));
             alert("🗑️ ลบอีเวนต์สำเร็จ!");
+            eventDetailModal.style.display = 'none';
             fetchEvents();
         } catch (error) {
             console.error("Error deleting event:", error);
@@ -324,7 +347,7 @@ window.deleteEvent = async function(id) {
     }
 };
 
-/* จัดการระบบกระดานพรรค (X Style Community Feed) พร้อมระบบสิทธิ์การลบ */
+/* จัดการระบบกระดานพรรค (X Style Community Feed) */
 async function fetchPosts() {
     try {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
@@ -354,14 +377,12 @@ function renderPosts(posts) {
         return;
     }
 
-    // ดึงชื่อผู้ใช้ที่กำลังใช้งานเบราว์เซอร์นี้อยู่ (จำแนกจากช่องชื่อที่พิมพ์โพสต์ล่าสุด หรือกำหนดค่าเก็บไว้)
     const currentAuthorName = localStorage.getItem('benbelong_author') || "";
 
     posts.forEach(post => {
         const card = document.createElement('div');
         card.className = 'x-post-item';
         
-        // เงื่อนไขสิทธิ์การลบ: ถ้าเป็น Admin (ทีมงานพรรค) หรือเป็นเจ้าของโพสต์เอง ให้แสดงปุ่มลบ
         let deleteBtnHtml = '';
         if (currentUserRole === 'admin' || (currentAuthorName && post.author === currentAuthorName)) {
             deleteBtnHtml = `<button class="x-delete-btn" onclick="window.deletePost('${post.id}')">🗑️ ลบ</button>`;
@@ -433,13 +454,11 @@ postForm.addEventListener('submit', async (e) => {
     const content = document.getElementById('postContentInput').value.trim();
     if (!author || !content) return;
 
-    // ตรวจสอบคำหยาบแบบเข้มงวด
     if (containsBadWord(author) || containsBadWord(content)) {
         alert("⚠️ ขออภัยครับ ตรวจพบคำที่ไม่สุภาพในโพสต์ ระบบไม่อนุญาตให้เผยแพร่ครับ");
         return; 
     }
 
-    // บันทึกชื่อผู้โพสต์ลงในเครื่อง (Local Storage) เพื่อให้จดจำว่าเป็นเจ้าของโพสต์นี้
     localStorage.setItem('benbelong_author', author);
 
     try {
