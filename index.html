@@ -79,7 +79,7 @@
                 </div>
             </header>
 
-            <!-- 1. หน้าปฏิทินกิจกรรม -->
+            <!-- หน้าปฏิทินกิจกรรม -->
             <div id="calendarViewContainer" class="content-view-panel">
                 <div class="calendar-hero">
                     <h1 class="hero-brand-title">Event Calendar</h1>
@@ -127,34 +127,53 @@
                 </div>
             </div>
 
-            <!-- 2. หน้ากระดานพรรค (Community Feed สไตล์ X) -->
+            <!-- หน้ากระดานพรรค (สไตล์ X) -->
             <div id="communityViewContainer" class="content-view-panel" style="display: none;">
-                <div class="calendar-hero">
-                    <h1 class="hero-brand-title">Community Feed</h1>
-                </div>
+                <div class="x-layout-container">
+                    
+                    <!-- ส่วนฟีดหลักตรงกลาง -->
+                    <main class="x-main-feed">
+                        <div class="x-feed-header">
+                            <h2>Home</h2>
+                        </div>
 
-                <div class="community-container">
-                    <!-- กล่องโพสต์ข้อความใหม่ -->
-                    <div class="post-box-card">
-                        <form id="postForm">
-                            <div class="post-input-row">
-                                <input type="text" id="postAuthorName" required placeholder="ชื่อของคุณ หรือชื่อเล่น...">
-                            </div>
-                            <div class="post-input-row" style="margin-top: 10px;">
-                                <textarea id="postContentInput" rows="3" required placeholder="คุณกำลังคิดอะไรอยู่? พูดคุยหรือแชร์เรื่องพรรคได้ที่นี่..."></textarea>
-                            </div>
-                            <div class="post-box-footer">
-                                <button type="submit" class="btn-primary-sm" style="padding: 0.6rem 1.5rem;">โพสต์ข้อความ</button>
-                            </div>
-                        </form>
-                    </div>
+                        <!-- กล่องโพสต์ (What's happening?) -->
+                        <div class="x-compose-box">
+                            <form id="postForm">
+                                <input type="text" id="postAuthorName" class="x-input-name" required placeholder="ชื่อของคุณ หรือชื่อเล่น...">
+                                <textarea id="postContentInput" class="x-textarea" rows="3" required placeholder="What is happening?! (ใส่ #แฮชแท็ก เพื่อคุยเรื่องเทรนด์ได้เลย)"></textarea>
+                                <div class="x-compose-footer">
+                                    <div class="x-helper-text">พิมพ์ # เพื่อสร้างเทรนด์</div>
+                                    <button type="submit" class="x-post-btn">Post</button>
+                                </div>
+                            </form>
+                        </div>
 
-                    <div id="postsLoading" class="loading-text">กำลังโหลดโพสต์...</div>
-                    <div id="postsFeed" class="posts-feed"></div>
+                        <!-- รายการโพสต์ -->
+                        <div id="postsLoading" class="loading-text">กำลังโหลดโพสต์...</div>
+                        <div id="postsFeed"></div>
+                    </main>
+
+                    <!-- แถบ Sidebar ขวา (Search & Trends) -->
+                    <aside class="x-sidebar-right">
+                        <div class="x-search-box">
+                            <span class="x-search-icon">🔍</span>
+                            <input type="text" id="searchInputFeed" placeholder="Search posts or #tags..." oninput="filterPostsBySearch()">
+                        </div>
+
+                        <div class="x-trends-card">
+                            <h3>Trends for you</h3>
+                            <div id="trendingTagsList" class="x-trends-list">
+                                <!-- แฮชแท็กยอดฮิตจะถูกแสดงที่นี่อัตโนมัติ -->
+                                <p style="font-size: 0.85rem; color: #64748B;">ยังไม่มีเทรนด์แฮชแท็ก</p>
+                            </div>
+                        </div>
+                    </aside>
+
                 </div>
             </div>
 
-            <!-- 3. หน้าคลังสรุป PDF -->
+            <!-- หน้าคลังสรุป PDF -->
             <div id="studyHubViewContainer" class="content-view-panel" style="display: none;">
                 <div class="studyhub-hero">
                     <h1 class="hero-brand-title">StudyHub</h1>
