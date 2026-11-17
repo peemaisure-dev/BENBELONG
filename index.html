@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BENBELONG - Event Calendar</title>
+    <title>BENBELONG - Event Calendar & Community</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -49,6 +49,9 @@
                 <a href="#" class="menu-item active" onclick="switchMainTab('calendar')">
                     <span>📅</span> ปฏิทินกิจกรรมพรรค
                 </a>
+                <a href="#" class="menu-item" onclick="switchMainTab('community')">
+                    <span>💬</span> กระดานพรรค (Community)
+                </a>
                 <a href="#" class="menu-item" onclick="switchMainTab('studyhub')">
                     <span>📚</span> คลังสรุป PDF (StudyHub)
                 </a>
@@ -76,6 +79,7 @@
                 </div>
             </header>
 
+            <!-- 1. หน้าปฏิทินกิจกรรม -->
             <div id="calendarViewContainer" class="content-view-panel">
                 <div class="calendar-hero">
                     <h1 class="hero-brand-title">Event Calendar</h1>
@@ -85,7 +89,7 @@
                     <div class="calendar-toolbar-card">
                         <div class="month-navigator">
                             <button class="btn-icon-nav" onclick="changeMonth(-1)">◀</button>
-                            <h3 id="currentMonthYearLabel">พฤศจิกายน 2569</h3>
+                            <h3 id="currentMonthYearLabel">อีเวนต์ทั้งหมด</h3>
                             <button class="btn-icon-nav" onclick="changeMonth(1)">▶</button>
                         </div>
                         <div class="calendar-toolbar-actions">
@@ -123,6 +127,34 @@
                 </div>
             </div>
 
+            <!-- 2. หน้ากระดานพรรค (Community Feed สไตล์ X) -->
+            <div id="communityViewContainer" class="content-view-panel" style="display: none;">
+                <div class="calendar-hero">
+                    <h1 class="hero-brand-title">Community Feed</h1>
+                </div>
+
+                <div class="community-container">
+                    <!-- กล่องโพสต์ข้อความใหม่ -->
+                    <div class="post-box-card">
+                        <form id="postForm">
+                            <div class="post-input-row">
+                                <input type="text" id="postAuthorName" required placeholder="ชื่อของคุณ หรือชื่อเล่น...">
+                            </div>
+                            <div class="post-input-row" style="margin-top: 10px;">
+                                <textarea id="postContentInput" rows="3" required placeholder="คุณกำลังคิดอะไรอยู่? พูดคุยหรือแชร์เรื่องพรรคได้ที่นี่..."></textarea>
+                            </div>
+                            <div class="post-box-footer">
+                                <button type="submit" class="btn-primary-sm" style="padding: 0.6rem 1.5rem;">โพสต์ข้อความ</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="postsLoading" class="loading-text">กำลังโหลดโพสต์...</div>
+                    <div id="postsFeed" class="posts-feed"></div>
+                </div>
+            </div>
+
+            <!-- 3. หน้าคลังสรุป PDF -->
             <div id="studyHubViewContainer" class="content-view-panel" style="display: none;">
                 <div class="studyhub-hero">
                     <h1 class="hero-brand-title">StudyHub</h1>
@@ -168,6 +200,7 @@
         </div>
     </div>
 
+    <!-- Modals ต่างๆ -->
     <div id="passwordModal" class="modal">
         <div class="modal-content modal-sm">
             <span class="close-btn" onclick="closeModal('passwordModal')">&times;</span>
