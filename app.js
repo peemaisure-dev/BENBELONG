@@ -19,6 +19,7 @@ const db = getFirestore(app);
 let currentUserRole = null;
 let allNotes = [];
 let allEvents = [];
+let allPosts = [];
 
 let currentCalendarDate = new Date(2026, 10, 1); 
 
@@ -27,6 +28,7 @@ const mainDashboardView = document.getElementById('mainDashboardView');
 const sidebar = document.getElementById('sidebar');
 
 const calendarViewContainer = document.getElementById('calendarViewContainer');
+const communityViewContainer = document.getElementById('communityViewContainer');
 const studyHubViewContainer = document.getElementById('studyHubViewContainer');
 
 const passwordModal = document.getElementById('passwordModal');
@@ -37,6 +39,7 @@ const passwordForm = document.getElementById('passwordForm');
 const adminPasswordInput = document.getElementById('adminPasswordInput');
 const eventForm = document.getElementById('eventForm');
 const uploadForm = document.getElementById('uploadForm');
+const postForm = document.getElementById('postForm');
 
 const userRoleBadge = document.getElementById('userRoleBadge');
 const userRoleIndicator = document.getElementById('userRoleIndicator');
@@ -48,6 +51,9 @@ const eventsLoading = document.getElementById('eventsLoading');
 const currentMonthYearLabel = document.getElementById('currentMonthYearLabel');
 const monthSelect = document.getElementById('monthSelect');
 const yearSelect = document.getElementById('yearSelect');
+
+const postsFeed = document.getElementById('postsFeed');
+const postsLoading = document.getElementById('postsLoading');
 
 const notesGrid = document.getElementById('notesGrid');
 const notesLoading = document.getElementById('notesLoading');
@@ -87,6 +93,7 @@ window.toggleSidebar = function() {
 
 window.switchMainTab = function(tabName) {
     calendarViewContainer.style.display = 'none';
+    communityViewContainer.style.display = 'none';
     studyHubViewContainer.style.display = 'none';
 
     document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
@@ -95,6 +102,10 @@ window.switchMainTab = function(tabName) {
         calendarViewContainer.style.display = 'block';
         event.currentTarget.classList.add('active');
         fetchEvents();
+    } else if (tabName === 'community') {
+        communityViewContainer.style.display = 'block';
+        event.currentTarget.classList.add('active');
+        fetchPosts();
     } else if (tabName === 'studyhub') {
         studyHubViewContainer.style.display = 'block';
         event.currentTarget.classList.add('active');
@@ -189,6 +200,7 @@ window.onclick = (e) => {
     if (e.target === uploadModal) uploadModal.style.display = 'none';
 };
 
+/* จัดการระบบปฏิทิน */
 async function fetchEvents() {
     try {
         const q = query(collection(db, "events"), orderBy("eventDate", "asc"));
@@ -299,6 +311,87 @@ window.deleteEvent = async function(id) {
     }
 };
 
+/* จัดการระบบกระดานพรรค (Community Feed) */
+async function fetchPosts() {
+    try {
+        const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+        const querySnapshot = await getDocs(q);
+        allPosts = [];
+        querySnapshot.forEach((doc) => {
+            allPosts.push({ id: doc.id, ...doc.data() });
+        });
+        postsLoading.style.display = 'none';
+        renderPosts(allPosts);
+    } catch (error) {
+        console.error("Error loading posts:", error);
+        postsLoading.innerText = "ยังไม่มีโพสต์ในระบบ";
+        renderPosts([]);
+    }
+}
+
+function renderPosts(posts) {
+    postsFeed.innerHTML = '';
+    if (posts.length === 0) {
+        postsFeed.innerHTML = `
+            <div style="text-align:center; padding: 3rem; background: white; border-radius: 16px; color: #64748b;">
+                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">💬 ยังไม่มีข้อความในกระดานพรรค</p>
+                <p style="font-size: 0.9rem;">มาเริ่มโพสต์พูดคุยคนแรกกันเลย!</p>
+            </div>`;
+        return;
+    }
+
+    posts.forEach(post => {
+        const card = document.createElement('div');
+        card.className = 'post-card';
+        const deleteBtnHtml = (currentUserRole === 'admin') ? `<button class="btn-delete-event" onclick="window.deletePost('${post.id}')">🗑️ ลบโพสต์</button>` : '';
+
+        card.innerHTML = `
+            <div class="post-header-info">
+                <span class="post-author">🗣️ ${escapeHTML(post.author)}</span>
+                ${deleteBtnHtml}
+            </div>
+            <div class="post-body-text">
+                <p>${escapeHTML(post.content)}</p>
+            </div>
+        `;
+        postsFeed.appendChild(card);
+    });
+}
+
+postForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const author = document.getElementById('postAuthorName').value.trim();
+    const content = document.getElementById('postContentInput').value.trim();
+    if (!author || !content) return;
+
+    try {
+        await addDoc(collection(db, "posts"), {
+            author: author,
+            content: content,
+            createdAt: serverTimestamp()
+        });
+
+        document.getElementById('postContentInput').value = '';
+        fetchPosts();
+    } catch (error) {
+        console.error("Firestore Error:", error);
+        alert("เกิดข้อผิดพลาดในการโพสต์ข้อความ");
+    }
+});
+
+window.deletePost = async function(id) {
+    if (confirm("⚠️ คุณต้องการลบโพสต์นี้ใช่หรือไม่?")) {
+        try {
+            await deleteDoc(doc(db, "posts", id));
+            fetchPosts();
+        } catch (error) {
+            console.error("Error deleting post:", error);
+            alert("เกิดข้อผิดพลาดในการลบโพสต์");
+        }
+    }
+};
+
+/* จัดการคลังสรุป PDF */
 async function fetchNotes() {
     try {
         const q = query(collection(db, "notes"), orderBy("createdAt", "desc"));
