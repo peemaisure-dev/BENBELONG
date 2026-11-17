@@ -54,6 +54,8 @@ const yearSelect = document.getElementById('yearSelect');
 
 const postsFeed = document.getElementById('postsFeed');
 const postsLoading = document.getElementById('postsLoading');
+const searchInputFeed = document.getElementById('searchInputFeed');
+const trendingTagsList = document.getElementById('trendingTagsList');
 
 const notesGrid = document.getElementById('notesGrid');
 const notesLoading = document.getElementById('notesLoading');
@@ -311,7 +313,7 @@ window.deleteEvent = async function(id) {
     }
 };
 
-/* จัดการระบบกระดานพรรค (Community Feed) */
+/* จัดการระบบกระดานพรรค (X Style Community Feed) */
 async function fetchPosts() {
     try {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
@@ -322,6 +324,7 @@ async function fetchPosts() {
         });
         postsLoading.style.display = 'none';
         renderPosts(allPosts);
+        extractAndRenderTrends(allPosts);
     } catch (error) {
         console.error("Error loading posts:", error);
         postsLoading.innerText = "ยังไม่มีโพสต์ในระบบ";
@@ -333,28 +336,77 @@ function renderPosts(posts) {
     postsFeed.innerHTML = '';
     if (posts.length === 0) {
         postsFeed.innerHTML = `
-            <div style="text-align:center; padding: 3rem; background: white; border-radius: 16px; color: #64748b;">
-                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">💬 ยังไม่มีข้อความในกระดานพรรค</p>
-                <p style="font-size: 0.9rem;">มาเริ่มโพสต์พูดคุยคนแรกกันเลย!</p>
+            <div style="text-align:center; padding: 3rem; background: white; border-radius: 16px; color: #64748b; margin: 1rem;">
+                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">💬 ไม่มีโพสต์ที่ค้นหา</p>
+                <p style="font-size: 0.9rem;">ลองพิมพ์ค้นหาด้วยคำอื่น หรือสร้างโพสต์ใหม่ได้เลย!</p>
             </div>`;
         return;
     }
 
     posts.forEach(post => {
         const card = document.createElement('div');
-        card.className = 'post-card';
-        const deleteBtnHtml = (currentUserRole === 'admin') ? `<button class="btn-delete-event" onclick="window.deletePost('${post.id}')">🗑️ ลบโพสต์</button>` : '';
+        card.className = 'x-post-item';
+        
+        const deleteBtnHtml = (currentUserRole === 'admin') ? `<button class="x-delete-btn" onclick="window.deletePost('${post.id}')">🗑️ ลบ</button>` : '';
+
+        // แปลงแฮชแท็ก # ในข้อความให้เป็นสีฟ้าโดดเด่น
+        let formattedContent = escapeHTML(post.content);
+        formattedContent = formattedContent.replace(/#([A-Za-zก-ฮ0-9_]+)/g, '<span class="x-hashtag">#$1</span>');
 
         card.innerHTML = `
-            <div class="post-header-info">
-                <span class="post-author">🗣️ ${escapeHTML(post.author)}</span>
-                ${deleteBtnHtml}
-            </div>
-            <div class="post-body-text">
-                <p>${escapeHTML(post.content)}</p>
+            <div class="x-post-avatar">👤</div>
+            <div class="x-post-content-wrap">
+                <div class="x-post-header">
+                    <span class="x-post-author">${escapeHTML(post.author)}</span>
+                    ${deleteBtnHtml}
+                </div>
+                <div class="x-post-text">${formattedContent}</div>
             </div>
         `;
         postsFeed.appendChild(card);
+    });
+}
+
+window.filterPostsBySearch = function() {
+    const keyword = searchInputFeed.value.toLowerCase().trim();
+    const filtered = allPosts.filter(post => {
+        return post.content.toLowerCase().includes(keyword) || post.author.toLowerCase().includes(keyword);
+    });
+    renderPosts(filtered);
+}
+
+window.filterByHashtag = function(tag) {
+    searchInputFeed.value = tag;
+    filterPostsBySearch();
+}
+
+function extractAndRenderTrends(posts) {
+    const tagCounts = {};
+    posts.forEach(post => {
+        const matches = post.content.match(/#([A-Za-zก-ฮ0-9_]+)/g);
+        if (matches) {
+            matches.forEach(tag => {
+                tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+            });
+        }
+    });
+
+    const sortedTags = Object.keys(tagCounts).sort((a, b) => tagCounts[b] - tagCounts[a]);
+
+    trendingTagsList.innerHTML = '';
+    if (sortedTags.length === 0) {
+        trendingTagsList.innerHTML = `<p style="font-size: 0.85rem; color: #64748B;">ยังไม่มีเทรนด์แฮชแท็ก</p>`;
+        return;
+    }
+
+    sortedTags.slice(0, 5).forEach(tag => {
+        const item = document.createElement('div');
+        item.className = 'x-trend-item';
+        item.innerHTML = `
+            <span class="x-trend-tag" onclick="window.filterByHashtag('${tag}')">${tag}</span>
+            <span class="x-trend-count">${tagCounts[tag]} Posts</span>
+        `;
+        trendingTagsList.appendChild(item);
     });
 }
 
