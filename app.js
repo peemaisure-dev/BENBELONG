@@ -324,7 +324,7 @@ window.deleteEvent = async function(id) {
     }
 };
 
-/* จัดการระบบกระดานพรรค (X Style Community Feed) พร้อมระบบกรองคำหยาบ */
+/* จัดการระบบกระดานพรรค (X Style Community Feed) พร้อมระบบสิทธิ์การลบ */
 async function fetchPosts() {
     try {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
@@ -354,11 +354,18 @@ function renderPosts(posts) {
         return;
     }
 
+    // ดึงชื่อผู้ใช้ที่กำลังใช้งานเบราว์เซอร์นี้อยู่ (จำแนกจากช่องชื่อที่พิมพ์โพสต์ล่าสุด หรือกำหนดค่าเก็บไว้)
+    const currentAuthorName = localStorage.getItem('benbelong_author') || "";
+
     posts.forEach(post => {
         const card = document.createElement('div');
         card.className = 'x-post-item';
         
-        const deleteBtnHtml = (currentUserRole === 'admin') ? `<button class="x-delete-btn" onclick="window.deletePost('${post.id}')">🗑️ ลบ</button>` : '';
+        // เงื่อนไขสิทธิ์การลบ: ถ้าเป็น Admin (ทีมงานพรรค) หรือเป็นเจ้าของโพสต์เอง ให้แสดงปุ่มลบ
+        let deleteBtnHtml = '';
+        if (currentUserRole === 'admin' || (currentAuthorName && post.author === currentAuthorName)) {
+            deleteBtnHtml = `<button class="x-delete-btn" onclick="window.deletePost('${post.id}')">🗑️ ลบ</button>`;
+        }
 
         let formattedContent = escapeHTML(post.content);
         formattedContent = formattedContent.replace(/#([A-Za-zก-ฮ0-9_]+)/g, '<span class="x-hashtag">#$1</span>');
@@ -429,8 +436,11 @@ postForm.addEventListener('submit', async (e) => {
     // ตรวจสอบคำหยาบแบบเข้มงวด
     if (containsBadWord(author) || containsBadWord(content)) {
         alert("⚠️ ขออภัยครับ ตรวจพบคำที่ไม่สุภาพในโพสต์ ระบบไม่อนุญาตให้เผยแพร่ครับ");
-        return; // สั่งหยุดทำงานทันที โพสต์จะไม่ถูกส่งขึ้นระบบ
+        return; 
     }
+
+    // บันทึกชื่อผู้โพสต์ลงในเครื่อง (Local Storage) เพื่อให้จดจำว่าเป็นเจ้าของโพสต์นี้
+    localStorage.setItem('benbelong_author', author);
 
     try {
         await addDoc(collection(db, "posts"), {
