@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BENBELONG - ปฏิทินและกิจกรรมพรรค</title>
+    <title>BENBELONG - Event Calendar</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 
     <div id="roleSelectionView" class="landing-container">
         <div class="landing-card">
-            <div class="landing-logo">BENBELONG</div>
-            <h1>ยินดีต้อนรับสู่แพลตฟอร์มกลางพรรคเบญบีลอง</h1>
+            <div class="brand-logo-text">BENBELONG</div>
+            <h1>ยินดีต้อนรับสู่แพลตฟอร์มกลางพรรค</h1>
             <p>โรงเรียนเบญจมราชูทิศ ราชบุรี • เลือกสถานะเพื่อเข้าใช้งานระบบ</p>
             
             <div class="role-buttons">
@@ -39,7 +39,7 @@
         
         <aside id="sidebar" class="sidebar sidebar-closed">
             <div class="sidebar-header">
-                <h3>BENBELONG</h3>
+                <div class="brand-logo-small">BENBELONG</div>
                 <button class="btn-close-sidebar" onclick="toggleSidebar()">✕</button>
             </div>
             
@@ -80,8 +80,7 @@
 
             <div id="calendarViewContainer" class="content-view-panel">
                 <div class="calendar-hero">
-                    <h1>✨ กำหนดการและอีเวนต์สำคัญ</h1>
-                    <p>ติดตามกิจกรรม หาเสียง และตารางนัดหมายสำคัญทั้งหมดได้ที่นี่</p>
+                    <h1 class="hero-brand-title">Event Calendar</h1>
                 </div>
 
                 <div class="calendar-container">
@@ -107,9 +106,13 @@
                                 <option value="11">ธันวาคม</option>
                             </select>
                             <select id="yearSelect" class="date-dropdown" onchange="onYearSelectChange(this.value)">
-                                <option value="2025">2568</option>
                                 <option value="2026">2569</option>
                                 <option value="2027">2570</option>
+                                <option value="2028">2571</option>
+                                <option value="2029">2572</option>
+                                <option value="2030">2573</option>
+                                <option value="2031">2574</option>
+                                <option value="2032">2575</option>
                             </select>
                             <button id="addEventQuickBtn" class="btn-primary-sm" onclick="openEventModal()" style="display: none;">+ เพิ่มอีเวนต์</button>
                         </div>
@@ -122,8 +125,8 @@
 
             <div id="studyHubViewContainer" class="content-view-panel" style="display: none;">
                 <div class="studyhub-hero">
-                    <h1>📚 StudyHub คลังสรุป PDF เบญจมราชูทิศ</h1>
-                    <p>ดาวน์โหลดชีทสรุปวิชาต่างๆ จัดทำโดยพรรค BENBELONG ฟรี</p>
+                    <h1 class="hero-brand-title">StudyHub</h1>
+                    <p>คลังสรุป PDF เบญจมราชูทิศ จัดทำโดยพรรค BENBELONG</p>
                     
                     <div class="filter-bar">
                         <input type="text" id="searchInput" placeholder="ค้นหาชื่อเรื่อง, วิชา หรือคนทำสรุป...">
