@@ -9,7 +9,7 @@
 </head>
 <body>
 
-    <!-- หน้าที่ 1: Landing Page เลือกบทบาท -->
+    <!-- หน้า Landing เลือกบทบาท -->
     <div id="roleSelectionView" class="landing-container">
         <div class="landing-card">
             <div class="landing-logo">🏛️ BENBELONG HUB</div>
@@ -36,11 +36,11 @@
         </div>
     </div>
 
-    <!-- หน้าที่ 2: Main Dashboard (หน้าหลัก Calendar พร้อม Sidebar เมนูด้านซ้าย) -->
+    <!-- หน้า Dashboard หลัก -->
     <div id="mainDashboardView" class="app-layout" style="display: none;">
         
-        <!-- Sidebar เมนูด้านซ้าย (เปิด-ปิด พับเก็บได้) -->
-        <aside id="sidebar" class="sidebar">
+        <!-- Sidebar เมนูด้านซ้าย -->
+        <aside id="sidebar" class="sidebar sidebar-closed">
             <div class="sidebar-header">
                 <h3>🏛️ BENBELONG</h3>
                 <button class="btn-close-sidebar" onclick="toggleSidebar()">✕</button>
@@ -57,7 +57,7 @@
                 <a href="#" class="menu-item" onclick="switchMainTab('studyhub')">
                     <span>📚</span> คลังสรุป PDF (StudyHub)
                 </a>
-                <div id="adminMenuSection" style="display: none; margin-top: 1rem; border-top: 1px solid #E2E8F0; padding-top: 1rem;">
+                <div id="adminMenuSection" style="display: none; margin-top: 1rem; border-top: 1px solid #E2E8F0; paddingTop: 1rem;">
                     <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 0.5rem; padding: 0 0.5rem;">เครื่องมือทีมงานพรรค</p>
                     <button class="btn-sidebar-action" onclick="openEventModal()">➕ เพิ่มอีเวนต์ปฏิทิน</button>
                     <button class="btn-sidebar-action" onclick="openUploadModal()" style="margin-top: 0.5rem;">📄 เพิ่มชีทสรุป PDF</button>
@@ -69,18 +69,21 @@
             </div>
         </aside>
 
-        <!-- Main Content Area (พื้นที่หลักทางขวา) -->
+        <!-- พื้นที่หลักทางขวา -->
         <div class="main-content-wrapper">
-            <!-- Navbar ด้านบน -->
+            
+            <!-- Navbar ด้านบนสุด -->
             <header class="top-navbar">
-                <button class="btn-toggle-sidebar" onclick="toggleSidebar()">☰ เมนูพรรค</button>
-                <div class="top-nav-title" id="topNavTitle">📅 ปฏิทินกิจกรรมพรรค BENBELONG</div>
+                <div class="nav-left-group">
+                    <button class="btn-toggle-sidebar" onclick="toggleSidebar()">☰ เมนูพรรค</button>
+                    <div class="top-nav-brand">🏛️ BENBELONG HUB</div>
+                </div>
                 <div class="top-nav-right">
-                    <span id="currentDateDisplay">พฤศจิกายน 2026</span>
+                    <span id="userRoleIndicator" class="text-role">ผู้ใช้งานทั่วไป</span>
                 </div>
             </header>
 
-            <!-- View 1: Calendar View (หน้าหลัก) -->
+            <!-- 1. มุมมองปฏิทินกิจกรรม (Calendar View) -->
             <div id="calendarViewContainer" class="content-view-panel">
                 <div class="calendar-hero">
                     <h1>✨ กำหนดการและอีเวนต์สำคัญของพรรค</h1>
@@ -88,9 +91,17 @@
                 </div>
 
                 <div class="calendar-container">
-                    <div class="calendar-toolbar">
-                        <h3 id="calendarMonthTitle">ตารางกิจกรรมเดือนนี้</h3>
-                        <button id="addEventQuickBtn" class="btn-primary-sm" onclick="openEventModal()" style="display: none;">+ เพิ่มอีเวนต์ใหม่</button>
+                    <!-- แถบควบคุมเปลี่ยนเดือนแบบสมบูรณ์ -->
+                    <div class="calendar-toolbar-card">
+                        <div class="month-navigator">
+                            <button class="btn-month-nav" onclick="changeMonth(-1)">◀ เดือนก่อนหน้า</button>
+                            <h3 id="currentMonthYearLabel">พฤศจิกายน 2026</h3>
+                            <button class="btn-month-nav" onclick="changeMonth(1)">เดือนถัดไป ▶</button>
+                        </div>
+                        <div class="calendar-toolbar-actions">
+                            <input type="month" id="monthPickerInput" class="month-picker-input" onchange="onMonthPickerChange(this.value)">
+                            <button id="addEventQuickBtn" class="btn-primary-sm" onclick="openEventModal()" style="display: none;">+ เพิ่มอีเวนต์</button>
+                        </div>
                     </div>
 
                     <div id="eventsLoading" class="loading-text">กำลังโหลดปฏิทินกิจกรรม...</div>
@@ -98,7 +109,7 @@
                 </div>
             </div>
 
-            <!-- View 2: StudyHub View (คลังสรุป PDF) -->
+            <!-- 2. มุมมองคลังสรุป PDF (StudyHub) -->
             <div id="studyHubViewContainer" class="content-view-panel" style="display: none;">
                 <div class="studyhub-hero">
                     <h1>📚 StudyHub คลังสรุป PDF เบญจมราชูทิศ</h1>
@@ -144,7 +155,7 @@
         </div>
     </div>
 
-    <!-- Modal ใส่รหัสผ่านสมาชิกพรรค -->
+    <!-- Modals ต่างๆ -->
     <div id="passwordModal" class="modal">
         <div class="modal-content modal-sm">
             <span class="close-btn" onclick="closeModal('passwordModal')">&times;</span>
@@ -159,7 +170,6 @@
         </div>
     </div>
 
-    <!-- Modal เพิ่มอีเวนต์ปฏิทินใหม่ (สำหรับแอดมิน) -->
     <div id="eventModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal('eventModal')">&times;</span>
@@ -193,7 +203,6 @@
         </div>
     </div>
 
-    <!-- Modal เพิ่มชีทสรุป PDF ใหม่ (สำหรับแอดมิน) -->
     <div id="uploadModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal('uploadModal')">&times;</span>
