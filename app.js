@@ -159,7 +159,6 @@ window.askAI = async function(type) {
         aiLoading.style.display = 'none';
     }
 };
-};
 
 async function fetchNotes() {
     try {
