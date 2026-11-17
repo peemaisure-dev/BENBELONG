@@ -20,13 +20,15 @@ let currentUserRole = null;
 let allNotes = [];
 let allEvents = [];
 
+// ตัวแปรเก็บเดือนปัจจุบันที่กำลังแสดงในปฏิทิน (ตั้งค่าเริ่มต้นเป็นเดือนปัจจุบัน พ.ย. 2026)
+let currentCalendarDate = new Date(2026, 10, 1); 
+
 const roleSelectionView = document.getElementById('roleSelectionView');
 const mainDashboardView = document.getElementById('mainDashboardView');
 const sidebar = document.getElementById('sidebar');
 
 const calendarViewContainer = document.getElementById('calendarViewContainer');
 const studyHubViewContainer = document.getElementById('studyHubViewContainer');
-const topNavTitle = document.getElementById('topNavTitle');
 
 const passwordModal = document.getElementById('passwordModal');
 const eventModal = document.getElementById('eventModal');
@@ -38,11 +40,15 @@ const eventForm = document.getElementById('eventForm');
 const uploadForm = document.getElementById('uploadForm');
 
 const userRoleBadge = document.getElementById('userRoleBadge');
+const userRoleIndicator = document.getElementById('userRoleIndicator');
 const adminMenuSection = document.getElementById('adminMenuSection');
 const addEventQuickBtn = document.getElementById('addEventQuickBtn');
 
 const eventsGrid = document.getElementById('eventsGrid');
 const eventsLoading = document.getElementById('eventsLoading');
+const currentMonthYearLabel = document.getElementById('currentMonthYearLabel');
+const monthPickerInput = document.getElementById('monthPickerInput');
+
 const notesGrid = document.getElementById('notesGrid');
 const notesLoading = document.getElementById('notesLoading');
 const noteCount = document.getElementById('noteCount');
@@ -50,7 +56,11 @@ const searchInput = document.getElementById('searchInput');
 const gradeFilter = document.getElementById('gradeFilter');
 const subjectFilter = document.getElementById('subjectFilter');
 
-// ควบคุมการเลือกบทบาท
+const thaiMonths = [
+    "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+    "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+];
+
 window.selectRole = function(role) {
     currentUserRole = role;
     roleSelectionView.style.display = 'none';
@@ -58,14 +68,16 @@ window.selectRole = function(role) {
     
     if (role === 'admin') {
         userRoleBadge.innerText = "⚙️ สมาชิกพรรค / ทีมงาน";
-        userRoleBadge.style.background = "#E0F2FE";
+        userRoleIndicator.innerText = "⚙️ ทีมงานพรรค";
         adminMenuSection.style.display = 'block';
         addEventQuickBtn.style.display = 'inline-block';
     } else {
         userRoleBadge.innerText = "🎓 นักเรียน / คุณครู";
+        userRoleIndicator.innerText = "🎓 นักเรียน / คุณครู";
         adminMenuSection.style.display = 'none';
         addEventQuickBtn.style.display = 'none';
     }
+    updateCalendarDisplay();
     fetchEvents();
 }
 
@@ -74,31 +86,52 @@ window.toggleSidebar = function() {
     sidebar.classList.toggle('sidebar-closed');
 }
 
-// สลับหน้าจอหลัก (Calendar <-> StudyHub)
+// สลับหน้าจอหลัก
 window.switchMainTab = function(tabName) {
-    // ปิดทุกหน้าจอ
     calendarViewContainer.style.display = 'none';
     studyHubViewContainer.style.display = 'none';
 
-    // เอา active ออกจากเมนูทั้งหมด
     document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
 
     if (tabName === 'calendar') {
         calendarViewContainer.style.display = 'block';
-        topNavTitle.innerText = "📅 ปฏิทินกิจกรรมพรรค BENBELONG";
         event.currentTarget.classList.add('active');
         fetchEvents();
     } else if (tabName === 'studyhub') {
         studyHubViewContainer.style.display = 'block';
-        topNavTitle.innerText = "📚 คลังสรุป PDF (StudyHub)";
         event.currentTarget.classList.add('active');
         fetchNotes();
     }
     
-    // บนมือถือพับ sidebar อัตโนมัติเมื่อเลือกเมนู
     if (window.innerWidth <= 768) {
         sidebar.classList.add('sidebar-closed');
     }
+}
+
+// ฟังก์ชันเปลี่ยนเดือน (กดปุ่ม ก่อนหน้า / ถัดไป)
+window.changeMonth = function(direction) {
+    currentCalendarDate.setMonth(currentCalendarDate.getMonth() + direction);
+    updateCalendarDisplay();
+    filterAndRenderEvents();
+}
+
+// เลือกเดือนจาก input type="month"
+window.onMonthPickerChange = function(value) {
+    if (!value) return;
+    const [year, month] = value.split('-');
+    currentCalendarDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+    updateCalendarDisplay();
+    filterAndRenderEvents();
+}
+
+function updateCalendarDisplay() {
+    const year = currentCalendarDate.getFullYear();
+    const month = currentCalendarDate.getMonth();
+    currentMonthYearLabel.innerText = `${thaiMonths[month]} ${year + 543}`;
+    
+    // ตั้งค่าให้ input type="month" ตรงกัน
+    const mm = String(month + 1).padStart(2, '0');
+    monthPickerInput.value = `${year}-${mm}`;
 }
 
 window.openAdminPasswordModal = function() {
@@ -141,7 +174,7 @@ window.onclick = (e) => {
     if (e.target === uploadModal) uploadModal.style.display = 'none';
 };
 
-// 📅 ดึงข้อมูลอีเวนต์ปฏิทินจาก Firestore
+// 📅 ดึงข้อมูลอีเวนต์
 async function fetchEvents() {
     try {
         const q = query(collection(db, "events"), orderBy("eventDate", "asc"));
@@ -151,12 +184,26 @@ async function fetchEvents() {
             allEvents.push({ id: doc.id, ...doc.data() });
         });
         eventsLoading.style.display = 'none';
-        renderEvents(allEvents);
+        filterAndRenderEvents();
     } catch (error) {
         console.error("Error loading events:", error);
-        eventsLoading.innerText = "ยังไม่มีอีเวนต์ในระบบ หรือกำลังเริ่มต้นฐานข้อมูล";
+        eventsLoading.innerText = "ยังไม่มีอีเวนต์ในระบบ";
         renderEvents([]);
     }
+}
+
+// กรองอีเวนต์ตามเดือนและปีที่เลือก
+function filterAndRenderEvents() {
+    const targetYear = currentCalendarDate.getFullYear();
+    const targetMonth = currentCalendarDate.getMonth();
+
+    const filtered = allEvents.filter(ev => {
+        if (!ev.eventDate) return false;
+        const evDate = new Date(ev.eventDate);
+        return evDate.getFullYear() === targetYear && evDate.getMonth() === targetMonth;
+    });
+
+    renderEvents(filtered);
 }
 
 function renderEvents(events) {
@@ -164,8 +211,8 @@ function renderEvents(events) {
     if (events.length === 0) {
         eventsGrid.innerHTML = `
             <div style="grid-column: 1/-1; text-align:center; padding: 3rem; background: white; border-radius: 16px; color: #64748b;">
-                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">📅 ยังไม่มีกิจกรรมหรืออีเวนต์ในปฏิทินตอนนี้</p>
-                <p style="font-size: 0.9rem;">ทีมงานพรรคสามารถกดเพิ่มอีเวนต์สำคัญได้เลย!</p>
+                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">📅 ไม่มีกิจกรรมในเดือน${thaiMonths[currentCalendarDate.getMonth()]}นี้</p>
+                <p style="font-size: 0.9rem;">สามารถเลือกเดือนอื่นด้านบน หรือเพิ่มอีเวนต์ใหม่ได้เลย!</p>
             </div>`;
         return;
     }
@@ -234,7 +281,7 @@ window.deleteEvent = async function(id) {
     }
 };
 
-// 📚 ระบบ StudyHub
+// 📚 StudyHub
 async function fetchNotes() {
     try {
         const q = query(collection(db, "notes"), orderBy("createdAt", "desc"));
