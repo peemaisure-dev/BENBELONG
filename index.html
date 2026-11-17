@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BENBELONG - ระบบกลางพรรคเบญบีลอง</title>
+    <title>BENBELONG HUB - ปฏิทินและกิจกรรมพรรค</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -21,7 +21,7 @@
                     <span class="role-icon">🎓</span>
                     <div>
                         <h3>คุณครู / นักเรียนทั่วไป</h3>
-                        <p>เข้าชมคลังสรุป PDF และใช้งาน AI ติวเตอร์อัจฉริยะ</p>
+                        <p>ดูปฏิทินกิจกรรมพรรค และเข้าชมคลังสรุป PDF</p>
                     </div>
                 </button>
                 
@@ -29,154 +29,118 @@
                     <span class="role-icon">🔐</span>
                     <div>
                         <h3>สมาชิกพรรค / ทีมงาน</h3>
-                        <p>จัดการข้อมูล อัปโหลดชีทสรุป PDF และจัดการระบบ</p>
+                        <p>จัดการอีเวนต์ปฏิทิน, เพิ่มชีทสรุป PDF และดูแลระบบ</p>
                     </div>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- หน้าที่ 2: Hub Dashboard -->
-    <div id="hubDashboardView" class="app-view" style="display: none;">
-        <nav class="navbar">
-            <div class="nav-container">
-                <div class="logo">
-                    <span class="logo-icon">🏛️</span> 
-                    <span>BENBELONG HUB</span> 
-                    <span id="userRoleBadge" class="badge-demo">นักเรียน / คุณครู</span>
-                </div>
-                <button class="btn-logout" onclick="logoutToLanding()">ออกจากระบบ</button>
+    <!-- หน้าที่ 2: Main Dashboard (หน้าหลัก Calendar พร้อม Sidebar เมนูด้านซ้าย) -->
+    <div id="mainDashboardView" class="app-layout" style="display: none;">
+        
+        <!-- Sidebar เมนูด้านซ้าย (เปิด-ปิด พับเก็บได้) -->
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h3>🏛️ BENBELONG</h3>
+                <button class="btn-close-sidebar" onclick="toggleSidebar()">✕</button>
             </div>
-        </nav>
-
-        <div class="hub-hero">
-            <div class="hero-content">
-                <h1>ระบบสนับสนุนการเรียนรู้และกิจกรรมพรรค</h1>
-                <p>เลือกบริการที่คุณต้องการใช้งานด้านล่างนี้</p>
-            </div>
-        </div>
-
-        <main class="container">
-            <div class="menu-grid">
-                <div class="menu-card" onclick="goToStudyHub()">
-                    <div class="menu-card-icon">📚</div>
-                    <h2>StudyHub (คลังสรุป PDF)</h2>
-                    <p>รวบรวมชีทสรุป PDF ทุกกลุ่มสาระวิชา ม.1 - ม.6 อ่านง่าย ดาวน์โหลดฟรี</p>
-                    <span class="menu-link">เข้าสู่ระบบคลังสรุป &rarr;</span>
-                </div>
-
-                <div class="menu-card" onclick="goToAITutor()">
-                    <div class="menu-card-icon">🤖</div>
-                    <h2>BENBELONG AI ติวเตอร์</h2>
-                    <p>ผู้ช่วย AI อัจฉริยะ ช่วยสรุปเนื้อหาและจำลองข้อสอบตามวิชาและบทเรียนที่คุณต้องการ</p>
-                    <span class="menu-link">ใช้งาน AI ติวเตอร์ &rarr;</span>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- หน้าที่ 3: StudyHub (คลังสรุป PDF) -->
-    <div id="studyHubView" class="app-view" style="display: none;">
-        <nav class="navbar">
-            <div class="nav-container">
-                <div class="logo" style="cursor: pointer;" onclick="backToHub()">
-                    <span class="logo-icon">📚</span> 
-                    <span>StudyHub</span> 
-                    <span class="badge-demo">BENBELONG</span>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn-admin-login" onclick="backToHub()">🏠 เมนูหลัก</button>
-                    <button id="adminActionBtn" class="btn-admin-login" onclick="handleAdminAction()" style="display: none;">⚙️ โหมดแอดมิน (จัดการข้อมูล)</button>
-                </div>
-            </div>
-        </nav>
-
-        <header class="hero">
-            <div class="hero-content">
-                <span class="hero-tag">นโยบายทดลองใช้จริงก่อนวันเลือกตั้ง</span>
-                <h1>StudyHub คลังสรุป PDF เบญจมราชูทิศ</h1>
-                <p>ดาวน์โหลดชีทสรุปวิชาต่างๆ จัดทำโดยพรรค BENBELONG ฟรี</p>
-                
-                <div class="filter-bar">
-                    <input type="text" id="searchInput" placeholder="ค้นหาชื่อเรื่อง, วิชา หรือคนทำสรุป...">
-                    <select id="gradeFilter">
-                        <option value="all">ทุกระดับชั้น (ม.1 - ม.6)</option>
-                        <option value="ม.1">ม.1</option>
-                        <option value="ม.2">ม.2</option>
-                        <option value="ม.3">ม.3</option>
-                        <option value="ม.4">ม.4</option>
-                        <option value="ม.5">ม.5</option>
-                        <option value="ม.6">ม.6</option>
-                    </select>
-                    <select id="subjectFilter">
-                        <option value="all">ทุกกลุ่มสาระวิชา</option>
-                        <option value="คณิตศาสตร์">คณิตศาสตร์</option>
-                        <option value="วิทยาศาสตร์ (ม.1-3)">วิทยาศาสตร์ (ม.1-3)</option>
-                        <option value="ชีววิทยา">ชีววิทยา</option>
-                        <option value="ฟิสิกส์">ฟิสิกส์</option>
-                        <option value="เคมี">เคมี</option>
-                        <option value="ภาษาอังกฤษ">ภาษาอังกฤษ</option>
-                        <option value="ภาษาไทย">ภาษาไทย</option>
-                        <option value="ภาษาจีน">ภาษาจีน</option>
-                        <option value="สังคมศึกษา">สังคมศึกษา</option>
-                        <option value="คอมพิวเตอร์">คอมพิวเตอร์</option>
-                        <option value="ประวัติศาสตร์">ประวัติศาสตร์</option>
-                    </select>
-                </div>
-            </div>
-        </header>
-
-        <main class="container">
-            <div class="section-header">
-                <h2>รายการสรุป PDF ทั้งหมด (<span id="noteCount">0</span> รายการ)</h2>
-                <p class="subtitle">คัดสรรและอัปเดตชีทสรุปคุณภาพโดยทีมงานพรรค</p>
+            
+            <div class="sidebar-user-info">
+                <span id="userRoleBadge" class="badge-demo">นักเรียน / คุณครู</span>
             </div>
 
-            <div id="loading" class="loading-text">กำลังโหลดคลังสรุป PDF จากระบบ...</div>
-            <div id="notesGrid" class="notes-grid"></div>
-        </main>
-    </div>
-
-    <!-- หน้าที่ 4: AI Tutor View (แจ้งวิชา บทเรียน เพื่อให้ AI ดึงข้อมูลสรุปมาติว) -->
-    <div id="aiTutorView" class="app-view" style="display: none;">
-        <nav class="navbar">
-            <div class="nav-container">
-                <div class="logo" style="cursor: pointer;" onclick="backToHub()">
-                    <span class="logo-icon">🤖</span> 
-                    <span>BENBELONG AI ติวเตอร์</span> 
-                    <span class="badge-demo">AI อัจฉริยะ</span>
+            <nav class="sidebar-menu">
+                <a href="#" class="menu-item active" onclick="switchMainTab('calendar')">
+                    <span>📅</span> ปฏิทินกิจกรรมพรรค
+                </a>
+                <a href="#" class="menu-item" onclick="switchMainTab('studyhub')">
+                    <span>📚</span> คลังสรุป PDF (StudyHub)
+                </a>
+                <div id="adminMenuSection" style="display: none; margin-top: 1rem; border-top: 1px solid #E2E8F0; padding-top: 1rem;">
+                    <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 0.5rem; padding: 0 0.5rem;">เครื่องมือทีมงานพรรค</p>
+                    <button class="btn-sidebar-action" onclick="openEventModal()">➕ เพิ่มอีเวนต์ปฏิทิน</button>
+                    <button class="btn-sidebar-action" onclick="openUploadModal()" style="margin-top: 0.5rem;">📄 เพิ่มชีทสรุป PDF</button>
                 </div>
-                <button class="btn-admin-login" onclick="backToHub()">🏠 เมนูหลัก</button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button class="btn-logout" onclick="logoutToLanding()">🚪 ออกจากระบบ</button>
             </div>
-        </nav>
+        </aside>
 
-        <div class="container" style="max-width: 800px; margin-top: 2rem;">
-            <div class="ai-box">
-                <h2>🎓 ผู้ช่วยติวเตอร์ AI ประจำพรรค</h2>
-                <p class="subtitle">ระบุวิชา บทเรียน และเนื้อหาที่ต้องการ แล้วให้ AI ช่วยสรุปย่อหรือจำลองโจทย์ข้อสอบให้ทันที</p>
-                
-                <div class="form-group" style="margin-top: 1.5rem;">
-                    <label>วิชาและระดับชั้น *</label>
-                    <input type="text" id="aiSubjectInput" placeholder="เช่น ฟิสิกส์ ม.5 หรือ เคมี ม.4">
+        <!-- Main Content Area (พื้นที่หลักทางขวา) -->
+        <div class="main-content-wrapper">
+            <!-- Navbar ด้านบน -->
+            <header class="top-navbar">
+                <button class="btn-toggle-sidebar" onclick="toggleSidebar()">☰ เมนูพรรค</button>
+                <div class="top-nav-title" id="topNavTitle">📅 ปฏิทินกิจกรรมพรรค BENBELONG</div>
+                <div class="top-nav-right">
+                    <span id="currentDateDisplay">พฤศจิกายน 2026</span>
+                </div>
+            </header>
+
+            <!-- View 1: Calendar View (หน้าหลัก) -->
+            <div id="calendarViewContainer" class="content-view-panel">
+                <div class="calendar-hero">
+                    <h1>✨ กำหนดการและอีเวนต์สำคัญของพรรค</h1>
+                    <p>ติดตามกิจกรรม หาเสียง และตารางนัดหมายสำคัญทั้งหมดได้ที่นี่</p>
                 </div>
 
-                <div class="form-group">
-                    <label>บทเรียน หรือ หัวข้อเนื้อหาที่ต้องการติว *</label>
-                    <input type="text" id="aiTopicInput" placeholder="เช่น เรื่อง คลื่นกล หรือ โครงสร้างอะตอม">
-                </div>
+                <div class="calendar-container">
+                    <div class="calendar-toolbar">
+                        <h3 id="calendarMonthTitle">ตารางกิจกรรมเดือนนี้</h3>
+                        <button id="addEventQuickBtn" class="btn-primary-sm" onclick="openEventModal()" style="display: none;">+ เพิ่มอีเวนต์ใหม่</button>
+                    </div>
 
-                <div class="ai-buttons">
-                    <button class="btn-submit" onclick="askAI('summary')">📝 สรุปเนื้อหาสำคัญแบบตรงประเด็น</button>
-                    <button class="btn-submit" style="background: #10B981;" onclick="askAI('quiz')">💡 จำลองโจทย์ข้อสอบพร้อมเฉลย</button>
-                </div>
-
-                <div id="aiLoading" class="loading-text" style="display: none;">🤖 AI กำลังเรียบเรียงเนื้อหาและวิเคราะห์ข้อมูล... รอสักครู่</div>
-                
-                <div id="aiResultBox" class="ai-result-card" style="display: none;">
-                    <h3>ผลลัพธ์จากติวเตอร์ AI:</h3>
-                    <div id="aiOutputContent"></div>
+                    <div id="eventsLoading" class="loading-text">กำลังโหลดปฏิทินกิจกรรม...</div>
+                    <div id="eventsGrid" class="events-grid"></div>
                 </div>
             </div>
+
+            <!-- View 2: StudyHub View (คลังสรุป PDF) -->
+            <div id="studyHubViewContainer" class="content-view-panel" style="display: none;">
+                <div class="studyhub-hero">
+                    <h1>📚 StudyHub คลังสรุป PDF เบญจมราชูทิศ</h1>
+                    <p>ดาวน์โหลดชีทสรุปวิชาต่างๆ จัดทำโดยพรรค BENBELONG ฟรี</p>
+                    
+                    <div class="filter-bar">
+                        <input type="text" id="searchInput" placeholder="ค้นหาชื่อเรื่อง, วิชา หรือคนทำสรุป...">
+                        <select id="gradeFilter">
+                            <option value="all">ทุกระดับชั้น (ม.1 - ม.6)</option>
+                            <option value="ม.1">ม.1</option>
+                            <option value="ม.2">ม.2</option>
+                            <option value="ม.3">ม.3</option>
+                            <option value="ม.4">ม.4</option>
+                            <option value="ม.5">ม.5</option>
+                            <option value="ม.6">ม.6</option>
+                        </select>
+                        <select id="subjectFilter">
+                            <option value="all">ทุกกลุ่มสาระวิชา</option>
+                            <option value="คณิตศาสตร์">คณิตศาสตร์</option>
+                            <option value="วิทยาศาสตร์ (ม.1-3)">วิทยาศาสตร์ (ม.1-3)</option>
+                            <option value="ชีววิทยา">ชีววิทยา</option>
+                            <option value="ฟิสิกส์">ฟิสิกส์</option>
+                            <option value="เคมี">เคมี</option>
+                            <option value="ภาษาอังกฤษ">ภาษาอังกฤษ</option>
+                            <option value="ภาษาไทย">ภาษาไทย</option>
+                            <option value="ภาษาจีน">ภาษาจีน</option>
+                            <option value="สังคมศึกษา">สังคมศึกษา</option>
+                            <option value="คอมพิวเตอร์">คอมพิวเตอร์</option>
+                            <option value="ประวัติศาสตร์">ประวัติศาสตร์</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="container" style="max-width: 100%; padding: 1.5rem;">
+                    <div class="section-header">
+                        <h2>รายการสรุป PDF ทั้งหมด (<span id="noteCount">0</span> รายการ)</h2>
+                    </div>
+                    <div id="notesLoading" class="loading-text">กำลังโหลดคลังสรุป...</div>
+                    <div id="notesGrid" class="notes-grid"></div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -185,9 +149,7 @@
         <div class="modal-content modal-sm">
             <span class="close-btn" onclick="closeModal('passwordModal')">&times;</span>
             <h3>🔐 เข้าสู่ระบบสมาชิกพรรค</h3>
-            <p class="modal-notice">
-                สำหรับทีมงานพรรคใช้ยืนยันตัวตนเพื่อเพิ่มหรือลบลิงก์ชีทสรุป PDF ในระบบ StudyHub ครับ
-            </p>
+            <p class="modal-notice">สำหรับทีมงานพรรคใช้ยืนยันตัวตนเพื่อจัดการปฏิทินและเพิ่มชีทสรุป PDF ครับ</p>
             <form id="passwordForm">
                 <div class="form-group">
                     <input type="password" id="adminPasswordInput" required placeholder="กรอกรหัสผ่านทีมงานพรรค...">
@@ -197,13 +159,46 @@
         </div>
     </div>
 
+    <!-- Modal เพิ่มอีเวนต์ปฏิทินใหม่ (สำหรับแอดมิน) -->
+    <div id="eventModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('eventModal')">&times;</span>
+            <h2>📅 เพิ่มอีเวนต์ / กิจกรรมสำคัญในปฏิทิน</h2>
+            <p class="modal-sub">กำหนดวันเวลาและรายละเอียดกิจกรรมเพื่อให้ทุกคนในโรงเรียนได้รับทราบ</p>
+            <form id="eventForm">
+                <div class="form-group">
+                    <label>ชื่องาน / กิจกรรม *</label>
+                    <input type="text" id="eventTitle" required placeholder="เช่น ดีเบตผู้สมัครประธานนักเรียน">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>วันที่จัดงาน *</label>
+                        <input type="date" id="eventDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>เวลา *</label>
+                        <input type="text" id="eventTime" required placeholder="เช่น 09:00 - 11:30 น.">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>สถานที่ *</label>
+                    <input type="text" id="eventLocation" required placeholder="เช่น หอประชุมโรงเรียนเบญจมราชูทิศ">
+                </div>
+                <div class="form-group">
+                    <label>รายละเอียดเพิ่มเติม *</label>
+                    <input type="text" id="eventDesc" required placeholder="เช่น แจกนโยบายหาเสียงรอบสุดท้าย">
+                </div>
+                <button type="submit" id="eventSubmitBtn" class="btn-submit">บันทึกอีเวนต์ลงปฏิทิน</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal เพิ่มชีทสรุป PDF ใหม่ (สำหรับแอดมิน) -->
     <div id="uploadModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal('uploadModal')">&times;</span>
-            <h2>📤 เพิ่มชีทสรุป PDF ใหม่ (โหมดทีมงาน)</h2>
-            <p class="modal-sub">แชร์ลิงก์ไฟล์ PDF (เช่น Google Drive) ขนาดไม่เกิน 10MB เพื่อให้เพื่อนๆ ดาวน์โหลด</p>
-            
+            <h2>📤 เพิ่มชีทสรุป PDF ใหม่</h2>
+            <p class="modal-sub">แชร์ลิงก์ไฟล์ PDF (เช่น Google Drive) ให้เพื่อนๆ ดาวน์โหลด</p>
             <form id="uploadForm">
                 <div class="form-group">
                     <label>ชื่อเรื่องสรุป *</label>
@@ -250,10 +245,6 @@
             </form>
         </div>
     </div>
-
-    <footer class="footer">
-        <p>พัฒนาและดูแลระบบโดย <strong>พรรคเบญบีลอง</strong> • เวอร์ชันทดลอง (Beta Preview)</p>
-    </footer>
 
     <script type="module" src="app.js"></script>
 </body>
