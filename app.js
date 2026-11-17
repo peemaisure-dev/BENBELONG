@@ -20,7 +20,6 @@ let currentUserRole = null;
 let allNotes = [];
 let allEvents = [];
 
-// ตัวแปรเก็บเดือนปัจจุบันที่กำลังแสดงในปฏิทิน (ตั้งค่าเริ่มต้นเป็นเดือนปัจจุบัน พ.ย. 2026)
 let currentCalendarDate = new Date(2026, 10, 1); 
 
 const roleSelectionView = document.getElementById('roleSelectionView');
@@ -47,7 +46,8 @@ const addEventQuickBtn = document.getElementById('addEventQuickBtn');
 const eventsGrid = document.getElementById('eventsGrid');
 const eventsLoading = document.getElementById('eventsLoading');
 const currentMonthYearLabel = document.getElementById('currentMonthYearLabel');
-const monthPickerInput = document.getElementById('monthPickerInput');
+const monthSelect = document.getElementById('monthSelect');
+const yearSelect = document.getElementById('yearSelect');
 
 const notesGrid = document.getElementById('notesGrid');
 const notesLoading = document.getElementById('notesLoading');
@@ -81,12 +81,10 @@ window.selectRole = function(role) {
     fetchEvents();
 }
 
-// เปิด/ปิด Sidebar
 window.toggleSidebar = function() {
     sidebar.classList.toggle('sidebar-closed');
 }
 
-// สลับหน้าจอหลัก
 window.switchMainTab = function(tabName) {
     calendarViewContainer.style.display = 'none';
     studyHubViewContainer.style.display = 'none';
@@ -108,18 +106,21 @@ window.switchMainTab = function(tabName) {
     }
 }
 
-// ฟังก์ชันเปลี่ยนเดือน (กดปุ่ม ก่อนหน้า / ถัดไป)
 window.changeMonth = function(direction) {
     currentCalendarDate.setMonth(currentCalendarDate.getMonth() + direction);
     updateCalendarDisplay();
     filterAndRenderEvents();
 }
 
-// เลือกเดือนจาก input type="month"
-window.onMonthPickerChange = function(value) {
-    if (!value) return;
-    const [year, month] = value.split('-');
-    currentCalendarDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+window.onMonthSelectChange = function(monthVal) {
+    currentCalendarDate.setMonth(parseInt(monthVal));
+    updateCalendarDisplay();
+    filterAndRenderEvents();
+}
+
+window.onYearSelectChange = function(yearVal) {
+    const ceYear = parseInt(yearVal) - 543;
+    currentCalendarDate.setFullYear(ceYear);
     updateCalendarDisplay();
     filterAndRenderEvents();
 }
@@ -129,9 +130,8 @@ function updateCalendarDisplay() {
     const month = currentCalendarDate.getMonth();
     currentMonthYearLabel.innerText = `${thaiMonths[month]} ${year + 543}`;
     
-    // ตั้งค่าให้ input type="month" ตรงกัน
-    const mm = String(month + 1).padStart(2, '0');
-    monthPickerInput.value = `${year}-${mm}`;
+    monthSelect.value = month;
+    yearSelect.value = year + 543;
 }
 
 window.openAdminPasswordModal = function() {
@@ -174,7 +174,6 @@ window.onclick = (e) => {
     if (e.target === uploadModal) uploadModal.style.display = 'none';
 };
 
-// 📅 ดึงข้อมูลอีเวนต์
 async function fetchEvents() {
     try {
         const q = query(collection(db, "events"), orderBy("eventDate", "asc"));
@@ -192,7 +191,6 @@ async function fetchEvents() {
     }
 }
 
-// กรองอีเวนต์ตามเดือนและปีที่เลือก
 function filterAndRenderEvents() {
     const targetYear = currentCalendarDate.getFullYear();
     const targetMonth = currentCalendarDate.getMonth();
@@ -238,7 +236,6 @@ function renderEvents(events) {
     });
 }
 
-// บันทึกอีเวนต์ใหม่
 eventForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const submitBtn = document.getElementById('eventSubmitBtn');
@@ -281,7 +278,6 @@ window.deleteEvent = async function(id) {
     }
 };
 
-// 📚 StudyHub
 async function fetchNotes() {
     try {
         const q = query(collection(db, "notes"), orderBy("createdAt", "desc"));
