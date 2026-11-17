@@ -69,6 +69,14 @@ const thaiMonths = [
     "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
 ];
 
+// รายการคำหยาบและคำไม่สุภาพที่ต้องการตรวจจับและบล็อก
+const badWords = ["ควย", "หี", "เหี้ย", "สัส", "ควาย", "เย็ด", "โง่"];
+
+function containsBadWord(text) {
+    const lowerText = text.toLowerCase();
+    return badWords.some(word => lowerText.includes(word));
+}
+
 window.selectRole = function(role) {
     currentUserRole = role;
     roleSelectionView.style.display = 'none';
@@ -313,7 +321,7 @@ window.deleteEvent = async function(id) {
     }
 };
 
-/* จัดการระบบกระดานพรรค (X Style Community Feed) */
+/* จัดการระบบกระดานพรรค (X Style Community Feed) พร้อมระบบกรองคำหยาบ */
 async function fetchPosts() {
     try {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
@@ -349,7 +357,6 @@ function renderPosts(posts) {
         
         const deleteBtnHtml = (currentUserRole === 'admin') ? `<button class="x-delete-btn" onclick="window.deletePost('${post.id}')">🗑️ ลบ</button>` : '';
 
-        // แปลงแฮชแท็ก # ในข้อความให้เป็นสีฟ้าโดดเด่น
         let formattedContent = escapeHTML(post.content);
         formattedContent = formattedContent.replace(/#([A-Za-zก-ฮ0-9_]+)/g, '<span class="x-hashtag">#$1</span>');
 
@@ -415,6 +422,12 @@ postForm.addEventListener('submit', async (e) => {
     const author = document.getElementById('postAuthorName').value.trim();
     const content = document.getElementById('postContentInput').value.trim();
     if (!author || !content) return;
+
+    // ตรวจสอบคำหยาบก่อนบันทึก
+    if (containsBadWord(author) || containsBadWord(content)) {
+        alert("⚠️ ขออภัยครับ ตรวจพบคำที่ไม่สุภาพในโพสต์ กรุณาแก้ไขข้อความให้เรียบร้อยก่อนโพสต์อีกครั้งครับ");
+        return;
+    }
 
     try {
         await addDoc(collection(db, "posts"), {
