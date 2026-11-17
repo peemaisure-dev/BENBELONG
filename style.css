@@ -12,6 +12,37 @@
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Prompt', sans-serif; }
 body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1.6; min-height: 100vh; overflow-x: hidden; }
 
+/* ดีไซน์การแสดงผลโลโก้รูปภาพ logo.jpg */
+.brand-logo-container {
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.brand-logo-img {
+    max-height: 70px;
+    width: auto;
+    object-fit: contain;
+    border-radius: 12px;
+}
+
+.sidebar-logo-container {
+    display: flex;
+    align-items: center;
+}
+.sidebar-logo-img {
+    max-height: 36px;
+    width: auto;
+    object-fit: contain;
+}
+
+.topnav-logo-img {
+    max-height: 32px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+}
+
 .brand-logo-text {
     font-size: 1.8rem;
     font-weight: 800;
@@ -73,6 +104,7 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .nav-left-group { display: flex; align-items: center; gap: 12px; }
 .btn-toggle-sidebar { background: var(--royal-blue); color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; }
 .btn-toggle-sidebar:hover { background: var(--royal-dark); }
+.top-nav-brand-container { display: flex; align-items: center; }
 .top-nav-brand { font-size: 1.2rem; font-weight: 800; letter-spacing: 0.5px; background: linear-gradient(135deg, var(--royal-blue), #E879F9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .text-role { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
 
@@ -189,12 +221,10 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
     margin-bottom: 0.8rem;
 }
 
-/* ปุ่ม Like และ Comment ในโพสต์ */
 .x-post-actions { display: flex; gap: 1.5rem; margin-top: 0.5rem; }
 .x-action-btn { background: none; border: none; cursor: pointer; font-size: 0.9rem; color: #64748B; display: flex; align-items: center; gap: 5px; font-weight: 600; transition: 0.2s; }
 .x-action-btn:hover { color: var(--royal-blue); }
 
-/* ส่วนแสดงคอมเม้นต์ใต้โพสต์ */
 .x-comment-section { margin-top: 0.8rem; background: #F8FAFC; border-radius: 12px; padding: 0.8rem; border: 1px solid #E2E8F0; }
 .x-comments-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 0.8rem; max-height: 200px; overflow-y: auto; }
 .x-comment-item { background: white; padding: 8px 10px; border-radius: 8px; border: 1px solid #E2E8F0; position: relative; }
