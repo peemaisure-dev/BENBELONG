@@ -14,7 +14,7 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 
 .landing-container { min-height: 100vh; background: linear-gradient(125deg, #5CE1E6 0%, #818CF8 45%, #E879F9 85%, #F472B6 100%); display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
 .landing-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); padding: 2.5rem; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); width: 100%; max-width: 550px; text-align: center; }
-.landing-logo { font-size: 1.1rem; font-weight: 700; color: var(--royal-blue); margin-bottom: 1rem; background: #E0F2FE; display: inline-block; padding: 6px 16px; border-radius: 50px; }
+.landing-logo { font-size: 1.2rem; font-weight: 700; color: var(--royal-blue); margin-bottom: 1rem; background: #E0F2FE; display: inline-block; padding: 6px 16px; border-radius: 50px; }
 .landing-card h1 { font-size: 1.7rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-dark); }
 .landing-card p { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 2rem; }
 
@@ -25,10 +25,8 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .role-btn h3 { font-size: 1.05rem; color: var(--text-dark); margin-bottom: 2px; }
 .role-btn p { font-size: 0.85rem; color: var(--text-muted); margin: 0; }
 
-/* Layout หลัก */
 .app-layout { display: flex; height: 100vh; overflow: hidden; }
 
-/* Sidebar ด้านซ้าย */
 .sidebar { width: 280px; background: white; border-right: 1px solid #E2E8F0; display: flex; flex-direction: column; transition: transform 0.3s ease; z-index: 150; position: absolute; height: 100%; }
 .sidebar-closed { transform: translateX(-100%); }
 
@@ -50,33 +48,31 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .btn-logout { width: 100%; background: #FEE2E2; color: #DC2626; border: none; padding: 0.6rem; border-radius: 10px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
 .btn-logout:hover { background: #FDC2C2; }
 
-/* Main Content Wrapper */
 .main-content-wrapper { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; background: var(--bg-page); width: 100%; }
 
-/* Navbar ด้านบน */
 .top-navbar { background: white; padding: 0.8rem 1.5rem; border-bottom: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
 .nav-left-group { display: flex; align-items: center; gap: 12px; }
-.btn-toggle-sidebar { background: var(--royal-blue); color: white; border: none; padding: 0.5rem 0.9rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+.btn-toggle-sidebar { background: var(--royal-blue); color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; }
 .btn-toggle-sidebar:hover { background: var(--royal-dark); }
-.top-nav-brand { font-size: 1rem; font-weight: 700; color: var(--royal-blue); }
+.top-nav-brand { font-size: 1.1rem; font-weight: 700; color: var(--royal-blue); }
 .text-role { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
 
-/* Calendar Panel */
 .calendar-hero { background: linear-gradient(135deg, var(--royal-blue), #818CF8); color: white; padding: 2.5rem 1.5rem; text-align: center; }
 .calendar-hero h1 { font-size: 1.6rem; margin-bottom: 0.4rem; }
 .calendar-hero p { font-size: 0.9rem; opacity: 0.9; }
 
 .calendar-container { max-width: 950px; margin: 1.5rem auto; padding: 0 1rem; width: 100%; }
 
-/* การจัดการแถบเปลี่ยนเดือน */
-.calendar-toolbar-card { background: white; padding: 1rem 1.25rem; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); border: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
-.month-navigator { display: flex; align-items: center; gap: 10px; }
+.calendar-toolbar-card { background: white; padding: 1.2rem; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); border: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+.month-navigator { display: flex; align-items: center; gap: 12px; }
 .month-navigator h3 { font-size: 1.15rem; color: var(--royal-blue); min-width: 150px; text-align: center; }
-.btn-month-nav { background: #F1F5F9; border: 1px solid #CBD5E1; padding: 0.45rem 0.8rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--text-dark); transition: 0.2s; }
-.btn-month-nav:hover { background: #E2E8F0; border-color: var(--royal-blue); }
 
-.calendar-toolbar-actions { display: flex; align-items: center; gap: 10px; }
-.month-picker-input { padding: 0.45rem 0.8rem; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 0.85rem; outline: none; background: #F8FAFC; cursor: pointer; }
+.btn-icon-nav { background: #F1F5F9; border: 1px solid #CBD5E1; width: 38px; height: 38px; border-radius: 8px; font-size: 0.9rem; font-weight: bold; cursor: pointer; color: var(--text-dark); display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+.btn-icon-nav:hover { background: #E2E8F0; border-color: var(--royal-blue); }
+
+.calendar-toolbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.date-dropdown { padding: 0.5rem 0.8rem; border-radius: 8px; border: 1px solid #CBD5E1; font-size: 0.88rem; outline: none; background: #F8FAFC; cursor: pointer; font-weight: 500; color: var(--text-dark); }
+.date-dropdown:focus { border-color: var(--royal-blue); }
 
 .btn-primary-sm { background: var(--royal-blue); color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
 .btn-primary-sm:hover { background: var(--royal-dark); }
@@ -90,7 +86,6 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .ev-desc { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; }
 .btn-delete-event { background: #FEE2E2; color: #DC2626; border: none; padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; align-self: flex-start; }
 
-/* StudyHub Panel */
 .studyhub-hero { background: linear-gradient(125deg, #5CE1E6 0%, #818CF8 45%, #E879F9 85%, #F472B6 100%); padding: 2.5rem 1.5rem; text-align: center; }
 .studyhub-hero h1 { font-size: 1.6rem; margin-bottom: 0.4rem; color: #0F172A; }
 .studyhub-hero p { color: #1E293B; margin-bottom: 1.2rem; font-size: 0.9rem; }
@@ -113,7 +108,6 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .btn-download:hover { background: var(--royal-dark); }
 .btn-delete { background: #FEE2E2; color: #DC2626; border: none; padding: 0.4rem; border-radius: 50px; font-size: 0.8rem; cursor: pointer; }
 
-/* Modals */
 .modal { display: none; position: fixed; z-index: 300; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 1rem; }
 .modal-content { background: white; padding: 2rem; border-radius: 16px; width: 100%; max-width: 500px; position: relative; box-shadow: 0 20px 25px rgba(0,0,0,0.1); }
 .modal-sm { max-width: 400px; text-align: center; }
