@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, getDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const ADMIN_PASSWORD = "PongpichiTLnwZa555";
 
@@ -65,9 +65,43 @@ const searchInput = document.getElementById('searchInput');
 const gradeFilter = document.getElementById('gradeFilter');
 const subjectFilter = document.getElementById('subjectFilter');
 
-// ระบบตัวนับตัวอักษรสำหรับช่องโพสต์
+// ระบบตัวนับตัวอักษรและจำกัดโพสต์รายวัน
 const postContentInput = document.getElementById('postContentInput');
 const charCount = document.getElementById('charCount');
+const postsLeftBadge = document.getElementById('postsLeftBadge');
+const submitPostBtn = document.getElementById('submitPostBtn');
+
+let lastPostTime = 0; // ตัวแปรกันสแปม (Anti-Spam Cooldown)
+
+function getThaiDateString() {
+    const now = new Date();
+    // แปลงเวลาให้เป็นโซนไทย UTC+7 เพื่อคำนวณวันรีเซ็ต
+    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const thaiTime = new Date(utcTime + (7 * 3600000));
+    return thaiTime.toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
+function checkDailyPostLimit() {
+    const todayStr = getThaiDateString();
+    let record = JSON.parse(localStorage.getItem('benbelong_post_limit')) || { date: todayStr, count: 0 };
+    
+    if (record.date !== todayStr) {
+        record = { date: todayStr, count: 0 };
+        localStorage.setItem('benbelong_post_limit', JSON.stringify(record));
+    }
+    
+    const left = 5 - record.count;
+    if (postsLeftBadge) postsLeftBadge.innerText = Math.max(0, left);
+    return record.count;
+}
+
+function incrementDailyPostCount() {
+    const todayStr = getThaiDateString();
+    let record = JSON.parse(localStorage.getItem('benbelong_post_limit')) || { date: todayStr, count: 0 };
+    record.count += 1;
+    localStorage.setItem('benbelong_post_limit', JSON.stringify(record));
+    checkDailyPostLimit();
+}
 
 if (postContentInput) {
     postContentInput.addEventListener('input', () => {
@@ -87,7 +121,6 @@ const thaiMonths = [
     "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
 ];
 
-// รายการคำหยาบและคำไม่สุภาพที่ต้องการตรวจจับและบล็อก
 const badWords = ["ควย", "หี", "เหี้ย", "สัส", "ควาย", "เย็ด", "โง่"];
 
 function containsBadWord(text) {
@@ -136,6 +169,7 @@ window.switchMainTab = function(tabName) {
     } else if (tabName === 'community') {
         communityViewContainer.style.display = 'block';
         event.currentTarget.classList.add('active');
+        checkDailyPostLimit();
         fetchPosts();
     } else if (tabName === 'studyhub') {
         studyHubViewContainer.style.display = 'block';
@@ -363,14 +397,21 @@ window.deleteEvent = async function(id) {
     }
 };
 
-/* จัดการระบบกระดานพรรค */
+/* จัดการระบบกระดานพรรคพร้อมกดใจ, คอมเม้นท์ และกันสแปม */
 async function fetchPosts() {
     try {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
         const querySnapshot = await getDocs(q);
         allPosts = [];
         querySnapshot.forEach((doc) => {
-            allPosts.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            allPosts.push({ 
+                id: doc.id, 
+                ...data,
+                likes: data.likes || 0,
+                likedBy: data.likedBy || [],
+                comments: data.comments || [] 
+            });
         });
         postsLoading.style.display = 'none';
         renderPosts(allPosts);
@@ -394,6 +435,11 @@ function renderPosts(posts) {
     }
 
     const currentAuthorName = localStorage.getItem('benbelong_author') || "";
+    const clientId = localStorage.getItem('benbelong_client_id') || (() => {
+        const id = 'user_' + Math.random().toString(36).substring(2, 9);
+        localStorage.setItem('benbelong_client_id', id);
+        return id;
+    })();
 
     posts.forEach(post => {
         const card = document.createElement('div');
@@ -407,6 +453,29 @@ function renderPosts(posts) {
         let formattedContent = escapeHTML(post.content);
         formattedContent = formattedContent.replace(/#([A-Za-zก-ฮ0-9_]+)/g, '<span class="x-hashtag">#$1</span>');
 
+        const hasLiked = post.likedBy && post.likedBy.includes(clientId);
+        const heartIcon = hasLiked ? '❤️' : '🤍';
+
+        // เรนเดอร์คอมเม้นต์ใต้โพสต์
+        let commentsHtml = '';
+        if (post.comments && post.comments.length > 0) {
+            post.comments.forEach((comm, cIndex) => {
+                let commentDeleteBtn = '';
+                if (currentUserRole === 'admin' || (currentAuthorName && comm.author === currentAuthorName)) {
+                    commentDeleteBtn = `<button class="comm-delete-btn" onclick="window.deleteComment('${post.id}', ${cIndex})">✕</button>`;
+                }
+                commentsHtml += `
+                    <div class="x-comment-item">
+                        <div class="comm-header">
+                            <span class="comm-author">${escapeHTML(comm.author)}</span>
+                            ${commentDeleteBtn}
+                        </div>
+                        <div class="comm-text">${escapeHTML(comm.text)}</div>
+                    </div>
+                `;
+            });
+        }
+
         card.innerHTML = `
             <div class="x-post-avatar">👤</div>
             <div class="x-post-content-wrap">
@@ -415,11 +484,122 @@ function renderPosts(posts) {
                     ${deleteBtnHtml}
                 </div>
                 <div class="x-post-text">${formattedContent}</div>
+                
+                <div class="x-post-actions">
+                    <button class="x-action-btn" onclick="window.toggleLike('${post.id}')">
+                        ${heartIcon} <span>${post.likes || 0}</span>
+                    </button>
+                    <button class="x-action-btn" onclick="window.toggleCommentBox('${post.id}')">
+                        💬 <span>${post.comments ? post.comments.length : 0}</span>
+                    </button>
+                </div>
+
+                <div id="commentBox_${post.id}" class="x-comment-section" style="display: none;">
+                    <div class="x-comments-list">${commentsHtml}</div>
+                    <form class="x-comment-form" onsubmit="window.submitComment(event, '${post.id}')">
+                        <input type="text" class="x-comment-author-input" placeholder="ชื่อเล่น..." required maxlength="20" value="${escapeHTML(currentAuthorName)}">
+                        <input type="text" class="x-comment-input" placeholder="เขียนคอมเม้นต์..." required maxlength="150">
+                        <button type="submit" class="x-comment-btn">ส่ง</button>
+                    </form>
+                </div>
             </div>
         `;
         postsFeed.appendChild(card);
     });
 }
+
+// กดไลก์
+window.toggleLike = async function(postId) {
+    try {
+        const postRef = doc(db, "posts", postId);
+        const postSnap = await getDoc(postRef);
+        if (!postSnap.exists()) return;
+
+        const data = postSnap.data();
+        let likedBy = data.likedBy || [];
+        let likes = data.likes || 0;
+
+        const clientId = localStorage.getItem('benbelong_client_id');
+        const index = likedBy.indexOf(clientId);
+
+        if (index > -1) {
+            likedBy.splice(index, 1);
+            likes = Math.max(0, likes - 1);
+        } else {
+            likedBy.push(clientId);
+            likes += 1;
+        }
+
+        await updateDoc(postRef, { likes, likedBy });
+        fetchPosts();
+    } catch (error) {
+        console.error("Error liking post:", error);
+    }
+};
+
+// เปิด/ปิดกล่องคอมเม้นต์
+window.toggleCommentBox = function(postId) {
+    const box = document.getElementById(`commentBox_${postId}`);
+    if (box) {
+        box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    }
+};
+
+// ส่งคอมเม้นต์
+window.submitComment = async function(e, postId) {
+    e.preventDefault();
+    const form = e.target;
+    const authorInput = form.querySelector('.x-comment-author-input');
+    const textInput = form.querySelector('.x-comment-input');
+
+    const author = authorInput.value.trim();
+    const text = textInput.value.trim();
+    if (!author || !text) return;
+
+    if (containsBadWord(author) || containsBadWord(text)) {
+        alert("⚠️ ขออภัยครับ ตรวจพบคำที่ไม่สุภาพในคอมเม้นต์");
+        return;
+    }
+
+    localStorage.setItem('benbelong_author', author);
+
+    try {
+        const postRef = doc(db, "posts", postId);
+        const postSnap = await getDoc(postRef);
+        if (!postSnap.exists()) return;
+
+        const data = postSnap.data();
+        let comments = data.comments || [];
+        comments.push({ author, text, createdAt: new Date().toISOString() });
+
+        await updateDoc(postRef, { comments });
+        textInput.value = '';
+        fetchPosts();
+    } catch (error) {
+        console.error("Error adding comment:", error);
+        alert("เกิดข้อผิดพลาดในการส่งคอมเม้นต์");
+    }
+};
+
+// ลบคอมเม้นต์
+window.deleteComment = async function(postId, commentIndex) {
+    if (confirm("⚠️ คุณต้องการลบคอมเม้นต์นี้ใช่หรือไม่?")) {
+        try {
+            const postRef = doc(db, "posts", postId);
+            const postSnap = await getDoc(postRef);
+            if (!postSnap.exists()) return;
+
+            const data = postSnap.data();
+            let comments = data.comments || [];
+            comments.splice(commentIndex, 1);
+
+            await updateDoc(postRef, { comments });
+            fetchPosts();
+        } catch (error) {
+            console.error("Error deleting comment:", error);
+        }
+    }
+};
 
 window.filterPostsBySearch = function() {
     const keyword = searchInputFeed.value.toLowerCase().trim();
@@ -464,11 +644,27 @@ function extractAndRenderTrends(posts) {
     });
 }
 
+// โพสต์ข้อความใหม่ พร้อมระบบกันสแปมและลิมิต 5 โพสต์/วัน
 postForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    
+    // ระบบกันสแปม (Anti-Spam Cooldown 3 วินาทีระหว่างกดโพสต์)
+    const nowTime = Date.now();
+    if (nowTime - lastPostTime < 3000) {
+        alert("⏳ กรุณารอสักครู่ (ระบบป้องกันการสแปม)");
+        return;
+    }
+
     const author = document.getElementById('postAuthorName').value.trim();
     const content = postContentInput.value.trim();
     if (!author || !content) return;
+
+    // เช็กลิมิต 5 โพสต์ต่อวัน
+    const currentCount = checkDailyPostLimit();
+    if (currentCount >= 5) {
+        alert("⚠️ คุณโพสต์ครบโควตา 5 ครั้งสำหรับวันนี้แล้ว กรุณารอรีเซ็ตในวันพรุ่งนี้ครับ!");
+        return;
+    }
 
     if (content.length > 300) {
         alert("⚠️ ข้อความยาวเกินกำหนด (จำกัดไม่เกิน 300 ตัวอักษร)");
@@ -480,21 +676,32 @@ postForm.addEventListener('submit', async (e) => {
         return; 
     }
 
+    lastPostTime = nowTime; // บันทึกเวลาล่าสุดที่กดโพสต์
     localStorage.setItem('benbelong_author', author);
 
     try {
+        submitPostBtn.disabled = true;
+        submitPostBtn.innerText = "Posting...";
+
         await addDoc(collection(db, "posts"), {
             author: author,
             content: content,
+            likes: 0,
+            likedBy: [],
+            comments: [],
             createdAt: serverTimestamp()
         });
 
+        incrementDailyPostCount(); // เพิ่มจำนวนการโพสต์วันนี้
         postContentInput.value = '';
         if (charCount) charCount.innerText = '0';
         fetchPosts();
     } catch (error) {
         console.error("Firestore Error:", error);
         alert("เกิดข้อผิดพลาดในการโพสต์ข้อความ");
+    } finally {
+        submitPostBtn.disabled = false;
+        submitPostBtn.innerText = "Post";
     }
 });
 
