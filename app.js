@@ -73,8 +73,11 @@ const thaiMonths = [
 const badWords = ["ควย", "หี", "เหี้ย", "สัส", "ควาย", "เย็ด", "โง่"];
 
 function containsBadWord(text) {
-    const lowerText = text.toLowerCase();
-    return badWords.some(word => lowerText.includes(word));
+    const cleanText = text.toLowerCase().replace(/[\s\-_.,!@#$%^&*()+=]/g, '');
+    return badWords.some(word => {
+        const cleanWord = word.toLowerCase();
+        return cleanText.includes(cleanWord);
+    });
 }
 
 window.selectRole = function(role) {
@@ -423,10 +426,10 @@ postForm.addEventListener('submit', async (e) => {
     const content = document.getElementById('postContentInput').value.trim();
     if (!author || !content) return;
 
-    // ตรวจสอบคำหยาบก่อนบันทึก
+    // ตรวจสอบคำหยาบแบบเข้มงวด
     if (containsBadWord(author) || containsBadWord(content)) {
-        alert("⚠️ ขออภัยครับ ตรวจพบคำที่ไม่สุภาพในโพสต์ กรุณาแก้ไขข้อความให้เรียบร้อยก่อนโพสต์อีกครั้งครับ");
-        return;
+        alert("⚠️ ขออภัยครับ ตรวจพบคำที่ไม่สุภาพในโพสต์ ระบบไม่อนุญาตให้เผยแพร่ครับ");
+        return; // สั่งหยุดทำงานทันที โพสต์จะไม่ถูกส่งขึ้นระบบ
     }
 
     try {
