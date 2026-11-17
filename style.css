@@ -81,6 +81,19 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 
 .calendar-container { max-width: 950px; margin: 1.5rem auto; padding: 0 1rem; width: 100%; }
 
+/* สไตล์สำหรับหน้า Community Feed */
+.community-container { max-width: 700px; margin: 1.5rem auto; padding: 0 1rem; width: 100%; }
+.post-box-card { background: white; padding: 1.25rem; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); border: 1px solid #E2E8F0; margin-bottom: 1.5rem; }
+.post-input-row input, .post-input-row textarea { width: 100%; padding: 0.75rem; border: 1px solid #CBD5E1; border-radius: 10px; font-size: 0.95rem; outline: none; font-family: 'Prompt', sans-serif; }
+.post-input-row input:focus, .post-input-row textarea:focus { border-color: var(--royal-blue); }
+.post-box-footer { display: flex; justify-content: flex-end; margin-top: 10px; }
+
+.posts-feed { display: flex; flex-direction: column; gap: 1rem; }
+.post-card { background: white; border-radius: 16px; padding: 1.25rem; box-shadow: 0 4px 12px rgba(0,0,0,0.04); border: 1px solid #E2E8F0; display: flex; flex-direction: column; gap: 8px; }
+.post-header-info { display: flex; justify-content: space-between; align-items: center; }
+.post-author { font-weight: 700; color: var(--royal-blue); font-size: 1rem; }
+.post-body-text { font-size: 0.95rem; color: var(--text-dark); word-break: break-word; white-space: pre-wrap; }
+
 .calendar-toolbar-card { background: white; padding: 1.2rem; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); border: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
 .month-navigator { display: flex; align-items: center; gap: 12px; }
 .month-navigator h3 { font-size: 1.15rem; color: var(--royal-blue); min-width: 150px; text-align: center; }
