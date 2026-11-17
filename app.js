@@ -65,6 +65,23 @@ const searchInput = document.getElementById('searchInput');
 const gradeFilter = document.getElementById('gradeFilter');
 const subjectFilter = document.getElementById('subjectFilter');
 
+// ระบบตัวนับตัวอักษรสำหรับช่องโพสต์
+const postContentInput = document.getElementById('postContentInput');
+const charCount = document.getElementById('charCount');
+
+if (postContentInput) {
+    postContentInput.addEventListener('input', () => {
+        const currentLength = postContentInput.value.length;
+        if (charCount) charCount.innerText = currentLength;
+        
+        if (currentLength >= 300) {
+            charCount.style.color = '#EF4444';
+        } else {
+            charCount.style.color = '#94A3B8';
+        }
+    });
+}
+
 const thaiMonths = [
     "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
     "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
@@ -286,7 +303,6 @@ function renderEvents(events) {
     });
 }
 
-// ฟังก์ชันเปิด Modal ดูรายละเอียดอีเวนต์
 window.openEventDetail = function(ev) {
     document.getElementById('modalEventTitle').innerText = ev.title;
     document.getElementById('modalEventDate').innerText = ev.eventDate;
@@ -347,7 +363,7 @@ window.deleteEvent = async function(id) {
     }
 };
 
-/* จัดการระบบกระดานพรรค (X Style Community Feed) */
+/* จัดการระบบกระดานพรรค */
 async function fetchPosts() {
     try {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
@@ -451,8 +467,13 @@ function extractAndRenderTrends(posts) {
 postForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const author = document.getElementById('postAuthorName').value.trim();
-    const content = document.getElementById('postContentInput').value.trim();
+    const content = postContentInput.value.trim();
     if (!author || !content) return;
+
+    if (content.length > 300) {
+        alert("⚠️ ข้อความยาวเกินกำหนด (จำกัดไม่เกิน 300 ตัวอักษร)");
+        return;
+    }
 
     if (containsBadWord(author) || containsBadWord(content)) {
         alert("⚠️ ขออภัยครับ ตรวจพบคำที่ไม่สุภาพในโพสต์ ระบบไม่อนุญาตให้เผยแพร่ครับ");
@@ -468,7 +489,8 @@ postForm.addEventListener('submit', async (e) => {
             createdAt: serverTimestamp()
         });
 
-        document.getElementById('postContentInput').value = '';
+        postContentInput.value = '';
+        if (charCount) charCount.innerText = '0';
         fetchPosts();
     } catch (error) {
         console.error("Firestore Error:", error);
