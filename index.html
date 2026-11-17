@@ -5,13 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BENEFIT - BJ'S Event Calendar</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1D56B8">
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 
     <div id="roleSelectionView" class="landing-container">
         <div class="landing-card">
-            <!-- แสดงโลโก้รูปภาพ logo.jpg -->
             <div class="brand-logo-container">
                 <img src="logo.jpg" alt="BENEFIT Logo" class="brand-logo-img" onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='block';">
                 <div id="fallbackLogo" class="brand-logo-text" style="display: none;">BENEFIT</div>
@@ -355,6 +356,17 @@
             </form>
         </div>
     </div>
+
+    <!-- Script สำหรับลงทะเบียน PWA Service Worker -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js')
+            .then((reg) => console.log('Service Worker Registered!', reg))
+            .catch((err) => console.log('Service Worker Failed', err));
+        });
+      }
+    </script>
 
     <script type="module" src="app.js"></script>
 </body>
