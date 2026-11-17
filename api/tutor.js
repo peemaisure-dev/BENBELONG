@@ -14,7 +14,8 @@ export default async function handler(req, res) {
     }
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        // เปลี่ยนมาใช้โมเดลรุ่นที่รองรับในปัจจุบัน
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -28,7 +29,6 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: data.error.message || 'Gemini API Error' });
         }
 
-        // ดึงข้อความจากโครงสร้างมาตรฐานของ Gemini มาส่งให้หน้าเว็บ
         const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "ไม่พบเนื้อหาจาก AI";
         return res.status(200).json({ text: aiText });
     } catch (error) {
