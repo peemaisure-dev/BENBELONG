@@ -18,40 +18,86 @@ const db = getFirestore(app);
 
 let currentUserRole = null;
 let allNotes = [];
+let allEvents = [];
 
 const roleSelectionView = document.getElementById('roleSelectionView');
-const hubDashboardView = document.getElementById('hubDashboardView');
-const studyHubView = document.getElementById('studyHubView');
-const aiTutorView = document.getElementById('aiTutorView');
+const mainDashboardView = document.getElementById('mainDashboardView');
+const sidebar = document.getElementById('sidebar');
+
+const calendarViewContainer = document.getElementById('calendarViewContainer');
+const studyHubViewContainer = document.getElementById('studyHubViewContainer');
+const topNavTitle = document.getElementById('topNavTitle');
 
 const passwordModal = document.getElementById('passwordModal');
+const eventModal = document.getElementById('eventModal');
 const uploadModal = document.getElementById('uploadModal');
+
 const passwordForm = document.getElementById('passwordForm');
 const adminPasswordInput = document.getElementById('adminPasswordInput');
+const eventForm = document.getElementById('eventForm');
 const uploadForm = document.getElementById('uploadForm');
-const submitBtn = document.getElementById('submitBtn');
 
+const userRoleBadge = document.getElementById('userRoleBadge');
+const adminMenuSection = document.getElementById('adminMenuSection');
+const addEventQuickBtn = document.getElementById('addEventQuickBtn');
+
+const eventsGrid = document.getElementById('eventsGrid');
+const eventsLoading = document.getElementById('eventsLoading');
 const notesGrid = document.getElementById('notesGrid');
-const loadingText = document.getElementById('loading');
+const notesLoading = document.getElementById('notesLoading');
 const noteCount = document.getElementById('noteCount');
 const searchInput = document.getElementById('searchInput');
 const gradeFilter = document.getElementById('gradeFilter');
 const subjectFilter = document.getElementById('subjectFilter');
-const adminActionBtn = document.getElementById('adminActionBtn');
-const userRoleBadge = document.getElementById('userRoleBadge');
 
+// ควบคุมการเลือกบทบาท
 window.selectRole = function(role) {
     currentUserRole = role;
     roleSelectionView.style.display = 'none';
-    hubDashboardView.style.display = 'block';
+    mainDashboardView.style.display = 'flex';
     
     if (role === 'admin') {
         userRoleBadge.innerText = "⚙️ สมาชิกพรรค / ทีมงาน";
         userRoleBadge.style.background = "#E0F2FE";
-        adminActionBtn.style.display = 'block';
+        adminMenuSection.style.display = 'block';
+        addEventQuickBtn.style.display = 'inline-block';
     } else {
         userRoleBadge.innerText = "🎓 นักเรียน / คุณครู";
-        adminActionBtn.style.display = 'none';
+        adminMenuSection.style.display = 'none';
+        addEventQuickBtn.style.display = 'none';
+    }
+    fetchEvents();
+}
+
+// เปิด/ปิด Sidebar
+window.toggleSidebar = function() {
+    sidebar.classList.toggle('sidebar-closed');
+}
+
+// สลับหน้าจอหลัก (Calendar <-> StudyHub)
+window.switchMainTab = function(tabName) {
+    // ปิดทุกหน้าจอ
+    calendarViewContainer.style.display = 'none';
+    studyHubViewContainer.style.display = 'none';
+
+    // เอา active ออกจากเมนูทั้งหมด
+    document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+
+    if (tabName === 'calendar') {
+        calendarViewContainer.style.display = 'block';
+        topNavTitle.innerText = "📅 ปฏิทินกิจกรรมพรรค BENBELONG";
+        event.currentTarget.classList.add('active');
+        fetchEvents();
+    } else if (tabName === 'studyhub') {
+        studyHubViewContainer.style.display = 'block';
+        topNavTitle.innerText = "📚 คลังสรุป PDF (StudyHub)";
+        event.currentTarget.classList.add('active');
+        fetchNotes();
+    }
+    
+    // บนมือถือพับ sidebar อัตโนมัติเมื่อเลือกเมนู
+    if (window.innerWidth <= 768) {
+        sidebar.classList.add('sidebar-closed');
     }
 }
 
@@ -73,93 +119,122 @@ passwordForm.addEventListener('submit', (e) => {
 
 window.logoutToLanding = function() {
     currentUserRole = null;
-    hubDashboardView.style.display = 'none';
-    studyHubView.style.display = 'none';
-    aiTutorView.style.display = 'none';
+    mainDashboardView.style.display = 'none';
     roleSelectionView.style.display = 'flex';
-}
-
-window.goToStudyHub = function() {
-    hubDashboardView.style.display = 'none';
-    studyHubView.style.display = 'block';
-    fetchNotes();
-}
-
-window.goToAITutor = function() {
-    hubDashboardView.style.display = 'none';
-    aiTutorView.style.display = 'block';
-}
-
-window.backToHub = function() {
-    studyHubView.style.display = 'none';
-    aiTutorView.style.display = 'none';
-    hubDashboardView.style.display = 'block';
 }
 
 window.closeModal = function(modalId) {
     document.getElementById(modalId).style.display = 'none';
 }
 
-window.handleAdminAction = function() {
-    if (currentUserRole === 'admin') {
-        uploadModal.style.display = 'flex';
-    } else {
-        passwordModal.style.display = 'flex';
-    }
+window.openEventModal = function() {
+    eventModal.style.display = 'flex';
+}
+
+window.openUploadModal = function() {
+    uploadModal.style.display = 'flex';
 }
 
 window.onclick = (e) => {
     if (e.target === passwordModal) passwordModal.style.display = 'none';
+    if (e.target === eventModal) eventModal.style.display = 'none';
     if (e.target === uploadModal) uploadModal.style.display = 'none';
 };
 
-// 🤖 ระบบ AI ติวเตอร์อัจฉริยะ (เรียกผ่าน Vercel Backend Proxy ดึง AI ของจริง 100%)
-window.askAI = async function(type) {
-    const subject = document.getElementById('aiSubjectInput').value.trim();
-    const topic = document.getElementById('aiTopicInput').value.trim();
-    const aiLoading = document.getElementById('aiLoading');
-    const aiResultBox = document.getElementById('aiResultBox');
-    const aiOutputContent = document.getElementById('aiOutputContent');
+// 📅 ดึงข้อมูลอีเวนต์ปฏิทินจาก Firestore
+async function fetchEvents() {
+    try {
+        const q = query(collection(db, "events"), orderBy("eventDate", "asc"));
+        const querySnapshot = await getDocs(q);
+        allEvents = [];
+        querySnapshot.forEach((doc) => {
+            allEvents.push({ id: doc.id, ...doc.data() });
+        });
+        eventsLoading.style.display = 'none';
+        renderEvents(allEvents);
+    } catch (error) {
+        console.error("Error loading events:", error);
+        eventsLoading.innerText = "ยังไม่มีอีเวนต์ในระบบ หรือกำลังเริ่มต้นฐานข้อมูล";
+        renderEvents([]);
+    }
+}
 
-    if (!subject || !topic) {
-        alert("กรุณากรอกข้อมูลทั้ง 'วิชาและระดับชั้น' และ 'บทเรียนหรือหัวข้อ' ให้ครบถ้วนก่อนใช้งานครับ!");
+function renderEvents(events) {
+    eventsGrid.innerHTML = '';
+    if (events.length === 0) {
+        eventsGrid.innerHTML = `
+            <div style="grid-column: 1/-1; text-align:center; padding: 3rem; background: white; border-radius: 16px; color: #64748b;">
+                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">📅 ยังไม่มีกิจกรรมหรืออีเวนต์ในปฏิทินตอนนี้</p>
+                <p style="font-size: 0.9rem;">ทีมงานพรรคสามารถกดเพิ่มอีเวนต์สำคัญได้เลย!</p>
+            </div>`;
         return;
     }
 
-    aiLoading.style.display = 'block';
-    aiResultBox.style.display = 'none';
+    events.forEach(ev => {
+        const card = document.createElement('div');
+        card.className = 'event-card';
+        const deleteBtnHtml = (currentUserRole === 'admin') ? `<button class="btn-delete-event" onclick="window.deleteEvent('${ev.id}')">🗑️ ลบอีเวนต์</button>` : '';
 
-    let promptText = "";
-    if (type === 'summary') {
-        promptText = `คุณคือ AI ติวเตอร์อัจฉริยะประจำพรรค BENBELONG โรงเรียนเบญจมราชูทิศ ราชบุรี จงสรุปเนื้อหาสำคัญของวิชา "${subject}" ในบทเรียนเรื่อง "${topic}" ออกมาให้สั้นกระชับ เป็นข้อๆ (Bullet points) เข้าใจง่าย ตรงประเด็น เหมาะสำหรับนักเรียนอ่านเตรียมสอบ`;
-    } else {
-        promptText = `คุณคือ AI ติวเตอร์อัจฉริยะประจำพรรค BENBELONG โรงเรียนเบญจมราชูทิศ ราชบุรี จงจำลองโจทย์ข้อสอบเตรียมสอบของวิชา "${subject}" ในบทเรียนเรื่อง "${topic}" จำนวน 3 ข้อ พร้อมเฉลยและคำอธิบายอย่างละเอียด เพื่อให้นักเรียนฝึกทำ`;
-    }
+        card.innerHTML = `
+            <div class="event-date-badge">
+                <span class="ev-day">🗓️ ${ev.eventDate}</span>
+                <span class="ev-time">⏰ ${ev.eventTime}</span>
+            </div>
+            <div class="event-details">
+                <h3>${escapeHTML(ev.title)}</h3>
+                <p class="ev-loc">📍 <strong>สถานที่:</strong> ${escapeHTML(ev.location)}</p>
+                <p class="ev-desc">${escapeHTML(ev.desc)}</p>
+            </div>
+            ${deleteBtnHtml}
+        `;
+        eventsGrid.appendChild(card);
+    });
+}
+
+// บันทึกอีเวนต์ใหม่
+eventForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const submitBtn = document.getElementById('eventSubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerText = "กำลังบันทึกอีเวนต์...";
 
     try {
-        const response = await fetch('/api/tutor', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ promptText })
+        await addDoc(collection(db, "events"), {
+            title: document.getElementById('eventTitle').value.trim(),
+            eventDate: document.getElementById('eventDate').value,
+            eventTime: document.getElementById('eventTime').value.trim(),
+            location: document.getElementById('eventLocation').value.trim(),
+            desc: document.getElementById('eventDesc').value.trim(),
+            createdAt: serverTimestamp()
         });
 
-        const data = await response.json();
-
-        if (response.ok && data.text) {
-            aiOutputContent.innerText = data.text;
-            aiResultBox.style.display = 'block';
-        } else {
-            alert("AI Error: " + (data.error || "ไม่สามารถดึงข้อมูลจาก AI ได้"));
-        }
-
+        alert("🎉 เพิ่มอีเวนต์ลงปฏิทินสำเร็จ!");
+        eventForm.reset();
+        eventModal.style.display = 'none';
+        fetchEvents();
     } catch (error) {
-        console.error("AI Error:", error);
-        alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI ติวเตอร์ กรุณาตรวจสอบอินเทอร์เน็ต");
+        console.error("Firestore Error:", error);
+        alert("เกิดข้อผิดพลาดในการบันทึกอีเวนต์");
     } finally {
-        aiLoading.style.display = 'none';
+        submitBtn.disabled = false;
+        submitBtn.innerText = "บันทึกอีเวนต์ลงปฏิทิน";
+    }
+});
+
+window.deleteEvent = async function(id) {
+    if (confirm("⚠️ คุณต้องการลบอีเวนต์นี้ออกจากปฏิทินใช่หรือไม่?")) {
+        try {
+            await deleteDoc(doc(db, "events", id));
+            alert("🗑️ ลบอีเวนต์สำเร็จ!");
+            fetchEvents();
+        } catch (error) {
+            console.error("Error deleting event:", error);
+            alert("เกิดข้อผิดพลาดในการลบอีเวนต์");
+        }
     }
 };
 
+// 📚 ระบบ StudyHub
 async function fetchNotes() {
     try {
         const q = query(collection(db, "notes"), orderBy("createdAt", "desc"));
@@ -168,11 +243,11 @@ async function fetchNotes() {
         querySnapshot.forEach((doc) => {
             allNotes.push({ id: doc.id, ...doc.data() });
         });
-        loadingText.style.display = 'none';
+        notesLoading.style.display = 'none';
         renderNotes(allNotes);
     } catch (error) {
         console.error("Error loading notes:", error);
-        loadingText.innerText = "ยังไม่มีข้อมูลสรุป PDF ในระบบ หรือตรวจสอบการตั้งค่า Firestore";
+        notesLoading.innerText = "ยังไม่มีข้อมูลสรุป PDF ในระบบ";
     }
 }
 
@@ -184,7 +259,6 @@ function renderNotes(notes) {
         notesGrid.innerHTML = `
             <div style="grid-column: 1/-1; text-align:center; padding: 3rem; background: white; border-radius: 16px; color: #64748b;">
                 <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">ยังไม่มีรายการสรุป PDF ในระบบ</p>
-                <p style="font-size: 0.9rem;">ทีมงานพรรคกำลังทยอยเพิ่มชีทสรุปเร็วๆ นี้!</p>
             </div>`;
         return;
     }
@@ -208,7 +282,7 @@ function renderNotes(notes) {
                 </div>
                 <div class="card-actions">
                     <a href="${note.fileUrl}" target="_blank" class="btn-download">📥 ดาวน์โหลดไฟล์ PDF สรุป</a>
-                    <button class="btn-delete" style="${deleteBtnStyle}" onclick="window.deleteNote('${note.id}')">🗑️ ลบสรุปนี้ออกจากระบบ</button>
+                    <button class="btn-delete" style="${deleteBtnStyle}" onclick="window.deleteNote('${note.id}')">🗑️ ลบสรุปนี้</button>
                 </div>
             </div>
         `;
@@ -223,13 +297,13 @@ function escapeHTML(str) {
 }
 
 window.deleteNote = async function(id) {
-    if (confirm("⚠️ คุณต้องการลบชีทสรุป PDF นี้ออกจากระบบใช่หรือไม่?")) {
+    if (confirm("⚠️ คุณต้องการลบชีทสรุป PDF นี้ใช่หรือไม่?")) {
         try {
             await deleteDoc(doc(db, "notes", id));
             alert("🗑️ ลบข้อมูลสำเร็จ!");
             fetchNotes();
         } catch (error) {
-            console.error("Error deleting note: ", error);
+            console.error("Error deleting note:", error);
             alert("เกิดข้อผิดพลาดในการลบข้อมูล");
         }
     }
@@ -261,6 +335,7 @@ uploadForm.addEventListener('submit', async (e) => {
     const fileUrlInput = document.getElementById('noteFileUrl').value.trim();
     if (!fileUrlInput) return;
 
+    const submitBtn = document.getElementById('submitBtn');
     submitBtn.disabled = true;
     submitBtn.innerText = "กำลังบันทึกข้อมูล...";
 
@@ -278,10 +353,9 @@ uploadForm.addEventListener('submit', async (e) => {
         uploadForm.reset();
         uploadModal.style.display = 'none';
         fetchNotes();
-
     } catch (error) {
         console.error("Firestore Error:", error);
-        alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาตรวจสอบการตั้งค่า Firestore");
+        alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
     } finally {
         submitBtn.disabled = false;
         submitBtn.innerText = "บันทึกสรุป PDF ขึ้นเว็บทันที";
