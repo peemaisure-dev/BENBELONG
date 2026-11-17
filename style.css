@@ -79,20 +79,43 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .calendar-hero { background: linear-gradient(135deg, var(--royal-blue), #818CF8); color: white; padding: 2.2rem 1.5rem; text-align: center; }
 .hero-brand-title { font-size: 2.2rem; font-weight: 800; letter-spacing: 1px; color: #ffffff; text-shadow: 0 2px 10px rgba(0,0,0,0.15); }
 
-.calendar-container { max-width: 950px; margin: 1.5rem auto; padding: 0 1rem; width: 100%; }
+/* สไตล์ X (Twitter) Feed Layout */
+.x-layout-container { display: flex; max-width: 1100px; margin: 0 auto; width: 100%; min-height: calc(100vh - 65px); }
+.x-main-feed { flex: 1; border-right: 1px solid #E2E8F0; border-left: 1px solid #E2E8F0; background: white; min-height: 100vh; }
+.x-feed-header { padding: 1rem 1.25rem; border-bottom: 1px solid #E2E8F0; position: sticky; top: 0; background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); z-index: 10; }
+.x-feed-header h2 { font-size: 1.25rem; font-weight: 700; color: var(--text-dark); }
 
-/* สไตล์สำหรับหน้า Community Feed */
-.community-container { max-width: 700px; margin: 1.5rem auto; padding: 0 1rem; width: 100%; }
-.post-box-card { background: white; padding: 1.25rem; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); border: 1px solid #E2E8F0; margin-bottom: 1.5rem; }
-.post-input-row input, .post-input-row textarea { width: 100%; padding: 0.75rem; border: 1px solid #CBD5E1; border-radius: 10px; font-size: 0.95rem; outline: none; font-family: 'Prompt', sans-serif; }
-.post-input-row input:focus, .post-input-row textarea:focus { border-color: var(--royal-blue); }
-.post-box-footer { display: flex; justify-content: flex-end; margin-top: 10px; }
+.x-compose-box { padding: 1rem 1.25rem; border-bottom: 1px solid #E2E8F0; background: #FFFFFF; }
+.x-input-name { width: 100%; border: none; border-bottom: 1px solid #F1F5F9; padding: 0.5rem 0; font-size: 0.95rem; font-weight: 600; outline: none; margin-bottom: 8px; color: var(--text-dark); }
+.x-textarea { width: 100%; border: none; resize: none; outline: none; font-size: 1rem; font-family: 'Prompt', sans-serif; color: var(--text-dark); min-height: 70px; }
+.x-compose-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; border-top: 1px solid #F1F5F9; padding-top: 10px; }
+.x-helper-text { font-size: 0.78rem; color: #94A3B8; }
+.x-post-btn { background: #0F172A; color: white; border: none; padding: 0.5rem 1.25rem; border-radius: 50px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: 0.2s; }
+.x-post-btn:hover { background: var(--royal-blue); }
 
-.posts-feed { display: flex; flex-direction: column; gap: 1rem; }
-.post-card { background: white; border-radius: 16px; padding: 1.25rem; box-shadow: 0 4px 12px rgba(0,0,0,0.04); border: 1px solid #E2E8F0; display: flex; flex-direction: column; gap: 8px; }
-.post-header-info { display: flex; justify-content: space-between; align-items: center; }
-.post-author { font-weight: 700; color: var(--royal-blue); font-size: 1rem; }
-.post-body-text { font-size: 0.95rem; color: var(--text-dark); word-break: break-word; white-space: pre-wrap; }
+.x-post-item { display: flex; gap: 12px; padding: 1rem 1.25rem; border-bottom: 1px solid #E2E8F0; transition: background 0.15s; }
+.x-post-item:hover { background: #FAFAFA; }
+.x-post-avatar { font-size: 1.5rem; background: #E0F2FE; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; flex-shrink: 0; }
+.x-post-content-wrap { flex: 1; }
+.x-post-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.x-post-author { font-weight: 700; color: var(--text-dark); font-size: 0.95rem; }
+.x-delete-btn { background: none; border: none; color: #EF4444; font-size: 0.78rem; cursor: pointer; font-weight: 600; }
+.x-post-text { font-size: 0.95rem; color: #1E293B; word-break: break-word; white-space: pre-wrap; line-height: 1.5; }
+.x-hashtag { color: var(--royal-blue); font-weight: 600; cursor: pointer; }
+
+/* Sidebar ขวา (Search & Trends) */
+.x-sidebar-right { width: 320px; padding: 1rem; display: flex; flex-direction: column; gap: 1rem; position: sticky; top: 65px; height: fit-content; }
+@media (max-width: 850px) { .x-sidebar-right { display: none; } }
+.x-search-box { display: flex; align-items: center; background: #F1F5F9; border-radius: 50px; padding: 0.6rem 1rem; gap: 8px; border: 1px solid transparent; }
+.x-search-box:focus-within { background: white; border-color: var(--royal-blue); box-shadow: 0 0 0 2px rgba(29, 86, 184, 0.1); }
+.x-search-box input { border: none; background: none; outline: none; width: 100%; font-size: 0.9rem; font-family: 'Prompt', sans-serif; }
+.x-trends-card { background: #F8FAFC; border-radius: 16px; padding: 1rem; border: 1px solid #E2E8F0; }
+.x-trends-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.8rem; color: var(--text-dark); }
+.x-trends-list { display: flex; flex-direction: column; gap: 8px; }
+.x-trend-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: 8px; transition: 0.2s; cursor: pointer; }
+.x-trend-item:hover { background: #E2E8F0; }
+.x-trend-tag { font-weight: 600; color: var(--royal-blue); font-size: 0.9rem; }
+.x-trend-count { font-size: 0.75rem; color: #64748B; }
 
 .calendar-toolbar-card { background: white; padding: 1.2rem; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); border: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
 .month-navigator { display: flex; align-items: center; gap: 12px; }
