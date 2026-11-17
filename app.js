@@ -67,7 +67,7 @@ window.selectRole = function(role) {
     mainDashboardView.style.display = 'flex';
     
     if (role === 'admin') {
-        userRoleBadge.innerText = "⚙️ สมาชิกพรรค / ทีมงาน";
+        userRoleBadge.innerText = "⚙️ ทีมงานพรรค";
         userRoleIndicator.innerText = "⚙️ ทีมงานพรรค";
         adminMenuSection.style.display = 'block';
         addEventQuickBtn.style.display = 'inline-block';
