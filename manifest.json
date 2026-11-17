@@ -1,0 +1,15 @@
+{
+  "name": "BENEFIT - BJ'S Event Calendar",
+  "short_name": "BENEFIT",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F8FAFC",
+  "theme_color": "#1D56B8",
+  "icons": [
+    {
+      "src": "logo.jpg",
+      "sizes": "192x192 512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
