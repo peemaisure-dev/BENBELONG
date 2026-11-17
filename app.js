@@ -145,15 +145,11 @@ window.askAI = async function(type) {
 
         const data = await response.json();
 
-        if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
-            const aiText = data.candidates[0].content.parts[0].text;
-            aiOutputContent.innerText = aiText;
+        if (response.ok && data.text) {
+            aiOutputContent.innerText = data.text;
             aiResultBox.style.display = 'block';
-        } else if (data.error) {
-            const errorMsg = typeof data.error === 'object' ? JSON.stringify(data.error) : data.error;
-            alert("AI Error: " + errorMsg);
         } else {
-            alert("AI Error: ไม่สามารถดึงข้อมูลจาก AI ได้ กรุณาลองใหม่อีกครั้ง");
+            alert("AI Error: " + (data.error || "ไม่สามารถดึงข้อมูลจาก AI ได้"));
         }
 
     } catch (error) {
@@ -162,6 +158,7 @@ window.askAI = async function(type) {
     } finally {
         aiLoading.style.display = 'none';
     }
+};
 };
 
 async function fetchNotes() {
