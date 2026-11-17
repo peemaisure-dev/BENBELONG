@@ -108,19 +108,25 @@ window.switchMainTab = function(tabName) {
 
 window.changeMonth = function(direction) {
     currentCalendarDate.setMonth(currentCalendarDate.getMonth() + direction);
+    monthSelect.value = currentCalendarDate.getMonth();
+    yearSelect.value = currentCalendarDate.getFullYear() + 543;
     updateCalendarDisplay();
     filterAndRenderEvents();
 }
 
 window.onMonthSelectChange = function(monthVal) {
-    currentCalendarDate.setMonth(parseInt(monthVal));
+    if (monthVal !== 'all') {
+        currentCalendarDate.setMonth(parseInt(monthVal));
+    }
     updateCalendarDisplay();
     filterAndRenderEvents();
 }
 
 window.onYearSelectChange = function(yearVal) {
-    const ceYear = parseInt(yearVal) - 543;
-    currentCalendarDate.setFullYear(ceYear);
+    if (yearVal !== 'all') {
+        const ceYear = parseInt(yearVal) - 543;
+        currentCalendarDate.setFullYear(ceYear);
+    }
     updateCalendarDisplay();
     filterAndRenderEvents();
 }
@@ -128,10 +134,19 @@ window.onYearSelectChange = function(yearVal) {
 function updateCalendarDisplay() {
     const year = currentCalendarDate.getFullYear();
     const month = currentCalendarDate.getMonth();
-    currentMonthYearLabel.innerText = `${thaiMonths[month]} ${year + 543}`;
     
-    monthSelect.value = month;
-    yearSelect.value = year + 543;
+    const mVal = monthSelect.value;
+    const yVal = yearSelect.value;
+
+    if (mVal === 'all' && yVal === 'all') {
+        currentMonthYearLabel.innerText = "อีเวนต์ทั้งหมด";
+    } else if (mVal === 'all') {
+        currentMonthYearLabel.innerText = `ทุกเดือน ${yVal}`;
+    } else if (yVal === 'all') {
+        currentMonthYearLabel.innerText = `${thaiMonths[month]} (ทุกปี)`;
+    } else {
+        currentMonthYearLabel.innerText = `${thaiMonths[month]} ${year + 543}`;
+    }
 }
 
 window.openAdminPasswordModal = function() {
@@ -192,13 +207,19 @@ async function fetchEvents() {
 }
 
 function filterAndRenderEvents() {
-    const targetYear = currentCalendarDate.getFullYear();
-    const targetMonth = currentCalendarDate.getMonth();
+    const mVal = monthSelect.value;
+    const yVal = yearSelect.value;
 
     const filtered = allEvents.filter(ev => {
         if (!ev.eventDate) return false;
         const evDate = new Date(ev.eventDate);
-        return evDate.getFullYear() === targetYear && evDate.getMonth() === targetMonth;
+        const evYear = evDate.getFullYear();
+        const evMonth = evDate.getMonth();
+
+        const matchMonth = (mVal === 'all') || (evMonth === parseInt(mVal));
+        const matchYear = (yVal === 'all') || (evYear === (parseInt(yVal) - 543));
+
+        return matchMonth && matchYear;
     });
 
     renderEvents(filtered);
@@ -209,8 +230,8 @@ function renderEvents(events) {
     if (events.length === 0) {
         eventsGrid.innerHTML = `
             <div style="grid-column: 1/-1; text-align:center; padding: 3rem; background: white; border-radius: 16px; color: #64748b;">
-                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">📅 ไม่มีกิจกรรมในเดือน${thaiMonths[currentCalendarDate.getMonth()]}นี้</p>
-                <p style="font-size: 0.9rem;">สามารถเลือกเดือนอื่นด้านบน หรือเพิ่มอีเวนต์ใหม่ได้เลย!</p>
+                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">📅 ไม่มีกิจกรรมในเงื่อนไขเวลานี้</p>
+                <p style="font-size: 0.9rem;">สามารถเลือก "ทุกเดือน / ทุกปี" หรือเพิ่มอีเวนต์ใหม่ได้เลย!</p>
             </div>`;
         return;
     }
