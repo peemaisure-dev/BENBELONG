@@ -113,7 +113,7 @@ window.onclick = (e) => {
     if (e.target === uploadModal) uploadModal.style.display = 'none';
 };
 
-// 🤖 ระบบ AI ติวเตอร์อัจฉริยะ (ดึง AI ของจริงผ่าน Vercel Backend Proxy)
+// 🤖 ระบบ AI ติวเตอร์อัจฉริยะ (เรียกผ่าน Vercel Backend Proxy ดึง AI ของจริง 100%)
 window.askAI = async function(type) {
     const subject = document.getElementById('aiSubjectInput').value.trim();
     const topic = document.getElementById('aiTopicInput').value.trim();
@@ -221,7 +221,7 @@ function renderNotes(notes) {
 
 function escapeHTML(str) {
     return str.replace(/[&<>'"]/g, tag => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '#' + '39;', '"': '&quot;'
     }[tag]));
 }
 
