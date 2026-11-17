@@ -150,9 +150,10 @@ window.askAI = async function(type) {
             aiOutputContent.innerText = aiText;
             aiResultBox.style.display = 'block';
         } else if (data.error) {
-            alert("AI Error: " + data.error);
+            const errorMsg = typeof data.error === 'object' ? JSON.stringify(data.error) : data.error;
+            alert("AI Error: " + errorMsg);
         } else {
-            alert("ไม่สามารถดึงข้อมูลจาก AI ได้ กรุณาลองใหม่อีกครั้ง");
+            alert("AI Error: ไม่สามารถดึงข้อมูลจาก AI ได้ กรุณาลองใหม่อีกครั้ง");
         }
 
     } catch (error) {
