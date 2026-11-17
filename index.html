@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BENBELONG - BJ'S Event Calendar</title>
+    <title>BENEFIT - BJ'S Event Calendar</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -11,8 +11,12 @@
 
     <div id="roleSelectionView" class="landing-container">
         <div class="landing-card">
-            <div class="brand-logo-text">BENBELONG</div>
-            <h1>ยินดีต้อนรับสู่แพลตฟอร์มกลางพรรค</h1>
+            <!-- แสดงโลโก้รูปภาพ logo.jpg -->
+            <div class="brand-logo-container">
+                <img src="logo.jpg" alt="BENEFIT Logo" class="brand-logo-img" onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='block';">
+                <div id="fallbackLogo" class="brand-logo-text" style="display: none;">BENEFIT</div>
+            </div>
+            <h1>ยินดีต้อนรับสู่แพลตฟอร์มกลาง BENEFIT</h1>
             <p>โรงเรียนเบญจมราชูทิศ ราชบุรี • เลือกสถานะเพื่อเข้าใช้งานระบบ</p>
             
             <div class="role-buttons">
@@ -37,7 +41,10 @@
         
         <aside id="sidebar" class="sidebar sidebar-closed">
             <div class="sidebar-header">
-                <div class="brand-logo-small">BENBELONG</div>
+                <div class="sidebar-logo-container">
+                    <img src="logo.jpg" alt="BENEFIT Logo" class="sidebar-logo-img" onerror="this.style.display='none'; document.getElementById('sidebarFallback').style.display='block';">
+                    <span id="sidebarFallback" class="brand-logo-small" style="display: none;">BENEFIT</span>
+                </div>
                 <button class="btn-close-sidebar" onclick="toggleSidebar()">✕</button>
             </div>
             
@@ -72,7 +79,10 @@
             <header class="top-navbar">
                 <div class="nav-left-group">
                     <button class="btn-toggle-sidebar" onclick="toggleSidebar()">☰</button>
-                    <div class="top-nav-brand">BENBELONG</div>
+                    <div class="top-nav-brand-container">
+                        <img src="logo.jpg" alt="BENEFIT" class="topnav-logo-img" onerror="this.style.display='none'; document.getElementById('topnavFallback').style.display='block';">
+                        <span id="topnavFallback" class="top-nav-brand" style="display: none;">BENEFIT</span>
+                    </div>
                 </div>
                 <div class="top-nav-right">
                     <span id="userRoleIndicator" class="text-role">ผู้ใช้งานทั่วไป</span>
@@ -174,7 +184,7 @@
             <div id="studyHubViewContainer" class="content-view-panel" style="display: none;">
                 <div class="studyhub-hero">
                     <h1 class="hero-brand-title">StudyHub</h1>
-                    <p>คลังสรุป PDF เบญจมราชูทิศ จัดทำโดยพรรค BENBELONG</p>
+                    <p>คลังสรุป PDF เบญจมราชูทิศ จัดทำโดย BENEFIT</p>
                     
                     <div class="filter-bar">
                         <input type="text" id="searchInput" placeholder="ค้นหาชื่อเรื่อง, วิชา หรือคนทำสรุป...">
