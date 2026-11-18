@@ -12,7 +12,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Prompt', sans-serif; }
 body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1.6; min-height: 100vh; overflow-x: hidden; }
 
-/* แก้ไขขนาดรูปโลโก้หน้า Landing ให้พอดี ไม่ให้ใหญ่เกินไปจนดันเลย์เอาต์พัง */
+/* โลโก้หน้า Landing */
 .brand-logo-container {
     margin-bottom: 0.8rem;
     display: flex;
@@ -21,7 +21,7 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
     width: 100%;
 }
 .brand-logo-img {
-    max-height: 140px; /* จำกัดความสูงสูงสุดไม่ให้ใหญ่เกินไป */
+    max-height: 140px;
     max-width: 100%;
     height: auto;
     object-fit: contain;
@@ -227,6 +227,7 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .x-action-btn { background: none; border: none; cursor: pointer; font-size: 0.9rem; color: #64748B; display: flex; align-items: center; gap: 5px; font-weight: 600; transition: 0.2s; }
 .x-action-btn:hover { color: var(--royal-blue); }
 
+/* แก้ไขสัดส่วนช่องคอมเมนต์และช่องชื่อเล่นให้สมดุลและกว้างขวาง */
 .x-comment-section { margin-top: 0.8rem; background: #F8FAFC; border-radius: 12px; padding: 0.8rem; border: 1px solid #E2E8F0; }
 .x-comments-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 0.8rem; max-height: 200px; overflow-y: auto; }
 .x-comment-item { background: white; padding: 8px 10px; border-radius: 8px; border: 1px solid #E2E8F0; position: relative; }
@@ -236,10 +237,38 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .comm-delete-btn { background: none; border: none; color: #94A3B8; font-size: 0.75rem; cursor: pointer; }
 .comm-delete-btn:hover { color: #EF4444; }
 
-.x-comment-form { display: flex; gap: 6px; }
-.x-comment-author-input { width: 100px; padding: 5px 8px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 0.82rem; outline: none; }
-.x-comment-input { flex: 1; padding: 5px 8px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 0.82rem; outline: none; }
-.x-comment-btn { background: var(--royal-blue); color: white; border: none; padding: 5px 12px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+.x-comment-form { display: flex; gap: 6px; align-items: center; }
+.x-comment-author-input { 
+    width: 95px; /* กำหนดขนาดช่องชื่อเล่นให้กะทัดรัดพอดีคำ */
+    flex-shrink: 0; 
+    padding: 6px 8px; 
+    border: 1px solid #CBD5E1; 
+    border-radius: 8px; 
+    font-size: 0.82rem; 
+    outline: none; 
+    background: white; 
+}
+.x-comment-input { 
+    flex: 1; /* ขยายช่องพิมพ์คอมเมนต์ให้เต็มพื้นที่ที่เหลือ */
+    min-width: 0; 
+    padding: 6px 10px; 
+    border: 1px solid #CBD5E1; 
+    border-radius: 8px; 
+    font-size: 0.85rem; 
+    outline: none; 
+    background: white; 
+}
+.x-comment-btn { 
+    background: var(--royal-blue); 
+    color: white; 
+    border: none; 
+    padding: 6px 14px; 
+    border-radius: 8px; 
+    font-size: 0.85rem; 
+    font-weight: 600; 
+    cursor: pointer; 
+    flex-shrink: 0;
+}
 .x-comment-btn:hover { background: var(--royal-dark); }
 
 .x-hashtag { color: var(--royal-blue); font-weight: 600; cursor: pointer; }
