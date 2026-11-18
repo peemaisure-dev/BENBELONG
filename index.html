@@ -71,6 +71,8 @@
             </nav>
 
             <div class="sidebar-footer">
+                <!-- ปุ่ม Feedback อยู่เหนือปุ่มออกจากระบบ -->
+                <button id="sidebarFeedbackBtn" class="btn-feedback-menu" onclick="openFeedbackModal()">💡 ส่ง Feedback / แจ้งบัค</button>
                 <button class="btn-logout" onclick="logoutToLanding()">🚪 ออกจากระบบ</button>
             </div>
         </aside>
@@ -254,6 +256,40 @@
                 </div>
             </div>
             <div id="modalDeleteActionContainer" style="margin-top: 1.5rem; text-align: right;"></div>
+        </div>
+    </div>
+
+    <!-- Modal สำหรับ Feedback (ผู้ใช้ทั่วไปส่ง / แอดมินอ่าน) -->
+    <div id="feedbackModal" class="modal">
+        <div class="modal-content" style="max-width: 550px;">
+            <span class="close-btn" onclick="closeModal('feedbackModal')">&times;</span>
+            
+            <!-- ส่วนสำหรับนักเรียน/คนทั่วไป -->
+            <div id="studentFeedbackView">
+                <h3 style="color: var(--royal-blue); margin-bottom: 0.8rem; font-size: 1.2rem;">💡 ส่ง Feedback หรือแจ้งบัค</h3>
+                <p style="font-size: 0.9rem; color: #334155; line-height: 1.6; background: #F8FAFC; padding: 1rem; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 1.2rem;">
+                    ขอบคุณเพื่อนๆทุกคนที่เข้ามาใช้งาน BENEFIT ของเราน้าาา อยากได้อะไรเพิ่มเติมหรือเจอบัคใดๆส่ง feedback ให้เราได้เลย เราพร้อมอ่านและรับฟังทุกคนนะะ ❤️
+                </p>
+                <form id="feedbackForm">
+                    <div class="form-group">
+                        <label>ชื่อของคุณ / ชื่อเล่น (ไม่บังคับ)</label>
+                        <input type="text" id="feedbackAuthor" placeholder="เช่น ปีใหม่ (หรือปล่อยว่างเป็นนิรนาม)">
+                    </div>
+                    <div class="form-group">
+                        <label>ข้อความ Feedback / แจ้งบัค *</label>
+                        <textarea id="feedbackText" rows="4" required placeholder="พิมพ์ข้อเสนอแนะหรือแจ้งปัญหาที่พบได้ที่นี่เลย..." style="width: 100%; padding: 0.8rem; border: 1px solid #CBD5E1; border-radius: 10px; font-family: 'Prompt', sans-serif; font-size: 0.9rem; outline: none; resize: vertical;"></textarea>
+                    </div>
+                    <button type="submit" id="submitFeedbackBtn" class="btn-submit">ส่ง Feedback ให้ทีมงาน</button>
+                </form>
+            </div>
+
+            <!-- ส่วนสำหรับแอดมิน (อ่าน Feedback ทั้งหมด) -->
+            <div id="adminFeedbackView" style="display: none;">
+                <h3 style="color: var(--royal-blue); margin-bottom: 0.5rem; font-size: 1.2rem;">📖 กล่องข้อความ Feedback ทั้งหมด</h3>
+                <p class="modal-sub">รายการความคิดเห็นและแจ้งบัคที่ส่งมาจากเพื่อนๆ ในเว็บไซต์</p>
+                <div id="feedbackLoading" class="loading-text">กำลังโหลด Feedback...</div>
+                <div id="feedbackListContainer" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-top: 1rem;"></div>
+            </div>
         </div>
     </div>
 
