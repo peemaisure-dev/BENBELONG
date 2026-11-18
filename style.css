@@ -12,7 +12,6 @@
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Prompt', sans-serif; }
 body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1.6; min-height: 100vh; overflow-x: hidden; }
 
-/* โลโก้หน้า Landing */
 .brand-logo-container {
     margin-bottom: 0.8rem;
     display: flex;
@@ -96,7 +95,9 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .btn-sidebar-action { width: 100%; background: #F1F5F9; color: var(--royal-blue); border: 1px solid #BAE6FD; padding: 0.6rem; border-radius: 10px; font-weight: 600; font-size: 0.85rem; cursor: pointer; text-align: left; padding-left: 1rem; }
 .btn-sidebar-action:hover { background: #E0F2FE; }
 
-.sidebar-footer { padding: 1rem 1.5rem; border-top: 1px solid #F1F5F9; }
+.sidebar-footer { padding: 1rem 1.5rem; border-top: 1px solid #F1F5F9; display: flex; flex-direction: column; gap: 8px; }
+.btn-feedback-menu { width: 100%; background: #E0F2FE; color: var(--royal-blue); border: 1px solid #BAE6FD; padding: 0.6rem; border-radius: 10px; font-weight: 600; font-size: 0.85rem; cursor: pointer; text-align: center; }
+.btn-feedback-menu:hover { background: #BAE6FD; }
 .btn-logout { width: 100%; background: #FEE2E2; color: #DC2626; border: none; padding: 0.6rem; border-radius: 10px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
 .btn-logout:hover { background: #FDC2C2; }
 
@@ -227,7 +228,6 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .x-action-btn { background: none; border: none; cursor: pointer; font-size: 0.9rem; color: #64748B; display: flex; align-items: center; gap: 5px; font-weight: 600; transition: 0.2s; }
 .x-action-btn:hover { color: var(--royal-blue); }
 
-/* ปรับแก้ช่องคอมเมนต์ใหม่: ล็อกขนาดช่องชื่อเล่นให้เล็ก และขยายช่องพิมพ์ให้กว้างสุดๆ */
 .x-comment-section { margin-top: 0.8rem; background: #F8FAFC; border-radius: 12px; padding: 0.8rem; border: 1px solid #E2E8F0; }
 .x-comments-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 0.8rem; max-height: 200px; overflow-y: auto; }
 .x-comment-item { background: white; padding: 8px 10px; border-radius: 8px; border: 1px solid #E2E8F0; position: relative; }
@@ -239,7 +239,7 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 
 .x-comment-form { display: flex; gap: 6px; align-items: center; width: 100%; }
 .x-comment-author-input { 
-    width: 85px !important; /* บังคับขนาดความกว้างช่องชื่อเล่นให้เล็กกระชับ */
+    width: 85px !important; 
     min-width: 85px !important;
     max-width: 85px !important;
     flex: 0 0 85px !important; 
@@ -251,7 +251,7 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
     background: white; 
 }
 .x-comment-input { 
-    flex: 1 1 auto !important; /* ดึงพื้นที่ที่เหลือทั้งหมดให้ช่องคอมเมนต์ */
+    flex: 1 1 auto !important; 
     min-width: 0 !important; 
     padding: 6px 10px; 
     border: 1px solid #CBD5E1; 
@@ -308,6 +308,14 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .btn-download { display: block; text-align: center; background: var(--royal-blue); color: white; text-decoration: none; padding: 0.55rem; border-radius: 50px; font-weight: 500; font-size: 0.88rem; transition: 0.2s; }
 .btn-download:hover { background: var(--royal-dark); }
 .btn-delete { background: #FEE2E2; color: #DC2626; border: none; padding: 0.4rem; border-radius: 50px; font-size: 0.80rem; cursor: pointer; }
+
+/* ดีไซน์การ์ดแสดง Feedback สำหรับแอดมิน */
+.feedback-item-card {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    padding: 10px 12px;
+    border-radius: 10px;
+}
 
 .modal { display: none; position: fixed; z-index: 300; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 1rem; }
 .modal-content { background: white; padding: 2rem; border-radius: 16px; width: 100%; max-width: 500px; position: relative; box-shadow: 0 20px 25px rgba(0,0,0,0.1); }
