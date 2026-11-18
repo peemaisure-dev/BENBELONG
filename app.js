@@ -35,17 +35,20 @@ const passwordModal = document.getElementById('passwordModal');
 const eventModal = document.getElementById('eventModal');
 const uploadModal = document.getElementById('uploadModal');
 const eventDetailModal = document.getElementById('eventDetailModal');
+const feedbackModal = document.getElementById('feedbackModal');
 
 const passwordForm = document.getElementById('passwordForm');
 const adminPasswordInput = document.getElementById('adminPasswordInput');
 const eventForm = document.getElementById('eventForm');
 const uploadForm = document.getElementById('uploadForm');
 const postForm = document.getElementById('postForm');
+const feedbackForm = document.getElementById('feedbackForm');
 
 const userRoleBadge = document.getElementById('userRoleBadge');
 const userRoleIndicator = document.getElementById('userRoleIndicator');
 const adminMenuSection = document.getElementById('adminMenuSection');
 const addEventQuickBtn = document.getElementById('addEventQuickBtn');
+const sidebarFeedbackBtn = document.getElementById('sidebarFeedbackBtn');
 
 const eventsGrid = document.getElementById('eventsGrid');
 const eventsLoading = document.getElementById('eventsLoading');
@@ -65,20 +68,18 @@ const searchInput = document.getElementById('searchInput');
 const gradeFilter = document.getElementById('gradeFilter');
 const subjectFilter = document.getElementById('subjectFilter');
 
-// ระบบตัวนับตัวอักษรและจำกัดโพสต์รายวัน
 const postContentInput = document.getElementById('postContentInput');
 const charCount = document.getElementById('charCount');
 const postsLeftBadge = document.getElementById('postsLeftBadge');
 const submitPostBtn = document.getElementById('submitPostBtn');
 
-let lastPostTime = 0; // ตัวแปรกันสแปม (Anti-Spam Cooldown)
+let lastPostTime = 0;
 
 function getThaiDateString() {
     const now = new Date();
-    // แปลงเวลาให้เป็นโซนไทย UTC+7 เพื่อคำนวณวันรีเซ็ต
     const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
     const thaiTime = new Date(utcTime + (7 * 3600000));
-    return thaiTime.toISOString().split('T')[0]; // YYYY-MM-DD
+    return thaiTime.toISOString().split('T')[0];
 }
 
 function checkDailyPostLimit() {
@@ -107,7 +108,6 @@ if (postContentInput) {
     postContentInput.addEventListener('input', () => {
         const currentLength = postContentInput.value.length;
         if (charCount) charCount.innerText = currentLength;
-        
         if (currentLength >= 300) {
             charCount.style.color = '#EF4444';
         } else {
@@ -141,11 +141,13 @@ window.selectRole = function(role) {
         userRoleIndicator.innerText = "⚙️ ทีมงานพรรค";
         adminMenuSection.style.display = 'block';
         addEventQuickBtn.style.display = 'inline-block';
+        if (sidebarFeedbackBtn) sidebarFeedbackBtn.innerText = "📖 อ่าน Feedback ทั้งหมด";
     } else {
         userRoleBadge.innerText = "🎓 นักเรียน / คุณครู";
         userRoleIndicator.innerText = "🎓 นักเรียน / คุณครู";
         adminMenuSection.style.display = 'none';
         addEventQuickBtn.style.display = 'none';
+        if (sidebarFeedbackBtn) sidebarFeedbackBtn.innerText = "💡 ส่ง Feedback / แจ้งบัค";
     }
     updateCalendarDisplay();
     fetchEvents();
@@ -210,7 +212,6 @@ window.onYearSelectChange = function(yearVal) {
 function updateCalendarDisplay() {
     const year = currentCalendarDate.getFullYear();
     const month = currentCalendarDate.getMonth();
-    
     const mVal = monthSelect.value;
     const yVal = yearSelect.value;
 
@@ -259,11 +260,112 @@ window.openUploadModal = function() {
     uploadModal.style.display = 'flex';
 }
 
+// เปิด Feedback Modal ตามสิทธิ์ (คนทั่วไปเห็นหน้าส่ง / แอดมินเห็นหน้ารายการ)
+window.openFeedbackModal = function() {
+    const studentView = document.getElementById('studentFeedbackView');
+    const adminView = document.getElementById('adminFeedbackView');
+
+    if (currentUserRole === 'admin') {
+        studentView.style.display = 'none';
+        adminView.style.display = 'block';
+        fetchFeedbacksForAdmin();
+    } else {
+        studentView.style.display = 'block';
+        adminView.style.display = 'none';
+    }
+    feedbackModal.style.display = 'flex';
+}
+
+feedbackForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const authorInput = document.getElementById('feedbackAuthor');
+    const textInput = document.getElementById('feedbackText');
+    const submitBtn = document.getElementById('submitFeedbackBtn');
+
+    const author = authorInput.value.trim() || "นิรนาม";
+    const text = textInput.value.trim();
+    if (!text) return;
+
+    if (containsBadWord(author) || containsBadWord(text)) {
+        alert("⚠️ ขออภัยครับ ตรวจพบคำที่ไม่สุภาพ ระบบไม่อนุญาตให้ส่งครับ");
+        return;
+    }
+
+    try {
+        submitBtn.disabled = true;
+        submitBtn.innerText = "กำลังส่ง Feedback...";
+
+        await addDoc(collection(db, "feedbacks"), {
+            author: author,
+            text: text,
+            createdAt: serverTimestamp()
+        });
+
+        alert("❤️ ขอบคุณสำหรับ Feedback ดีๆ นะครับ ทีมงานได้รับเรียบร้อยแล้ว!");
+        feedbackForm.reset();
+        feedbackModal.style.display = 'none';
+    } catch (error) {
+        console.error("Error sending feedback:", error);
+        alert("เกิดข้อผิดพลาดในการส่ง Feedback กรุณาลองใหม่อีกครั้ง");
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = "ส่ง Feedback ให้ทีมงาน";
+    }
+});
+
+async function fetchFeedbacksForAdmin() {
+    const container = document.getElementById('feedbackListContainer');
+    const loading = document.getElementById('feedbackLoading');
+    loading.style.display = 'block';
+    container.innerHTML = '';
+
+    try {
+        const q = query(collection(db, "feedbacks"), orderBy("createdAt", "desc"));
+        const querySnapshot = await getDocs(q);
+        loading.style.display = 'none';
+
+        if (querySnapshot.empty) {
+            container.innerHTML = `<p style="text-align: center; color: #64748b; padding: 2rem;">📭 ยังไม่มี Feedback ส่งเข้ามาในระบบ</p>`;
+            return;
+        }
+
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const card = document.createElement('div');
+            card.className = 'feedback-item-card';
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <span style="font-weight: 700; color: var(--royal-blue); font-size: 0.9rem;">👤 ${escapeHTML(data.author)}</span>
+                    <button onclick="window.deleteFeedback('${docSnap.id}')" style="background:none; border:none; color:#EF4444; font-size:0.8rem; cursor:pointer; font-weight:600;">🗑️ ลบ</button>
+                </div>
+                <p style="font-size: 0.9rem; color: #334155; word-break: break-word; white-space: pre-wrap;">${escapeHTML(data.text)}</p>
+            `;
+            container.appendChild(card);
+        });
+    } catch (error) {
+        console.error("Error fetching feedback:", error);
+        loading.innerText = "เกิดข้อผิดพลาดในการโหลดข้อมูล";
+    }
+}
+
+window.deleteFeedback = async function(id) {
+    if (confirm("⚠️ คุณต้องการลบ Feedback นี้ใช่หรือไม่?")) {
+        try {
+            await deleteDoc(doc(db, "feedbacks", id));
+            fetchFeedbacksForAdmin();
+        } catch (error) {
+            console.error("Error deleting feedback:", error);
+            alert("เกิดข้อผิดพลาดในการลบ");
+        }
+    }
+};
+
 window.onclick = (e) => {
     if (e.target === passwordModal) passwordModal.style.display = 'none';
     if (e.target === eventModal) eventModal.style.display = 'none';
     if (e.target === uploadModal) uploadModal.style.display = 'none';
     if (e.target === eventDetailModal) eventDetailModal.style.display = 'none';
+    if (e.target === feedbackModal) feedbackModal.style.display = 'none';
 };
 
 /* จัดการระบบปฏิทิน */
@@ -397,7 +499,7 @@ window.deleteEvent = async function(id) {
     }
 };
 
-/* จัดการระบบกระดานพรรคพร้อมกดใจ, คอมเม้นท์ และกันสแปม */
+/* จัดการระบบ BenX */
 async function fetchPosts() {
     try {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
@@ -456,7 +558,6 @@ function renderPosts(posts) {
         const hasLiked = post.likedBy && post.likedBy.includes(clientId);
         const heartIcon = hasLiked ? '❤️' : '🤍';
 
-        // เรนเดอร์คอมเม้นต์ใต้โพสต์
         let commentsHtml = '';
         if (post.comments && post.comments.length > 0) {
             post.comments.forEach((comm, cIndex) => {
@@ -508,7 +609,6 @@ function renderPosts(posts) {
     });
 }
 
-// กดไลก์
 window.toggleLike = async function(postId) {
     try {
         const postRef = doc(db, "posts", postId);
@@ -537,7 +637,6 @@ window.toggleLike = async function(postId) {
     }
 };
 
-// เปิด/ปิดกล่องคอมเม้นต์
 window.toggleCommentBox = function(postId) {
     const box = document.getElementById(`commentBox_${postId}`);
     if (box) {
@@ -545,7 +644,6 @@ window.toggleCommentBox = function(postId) {
     }
 };
 
-// ส่งคอมเม้นต์
 window.submitComment = async function(e, postId) {
     e.preventDefault();
     const form = e.target;
@@ -581,7 +679,6 @@ window.submitComment = async function(e, postId) {
     }
 };
 
-// ลบคอมเม้นต์
 window.deleteComment = async function(postId, commentIndex) {
     if (confirm("⚠️ คุณต้องการลบคอมเม้นต์นี้ใช่หรือไม่?")) {
         try {
@@ -626,7 +723,6 @@ function extractAndRenderTrends(posts) {
     });
 
     const sortedTags = Object.keys(tagCounts).sort((a, b) => tagCounts[b] - tagCounts[a]);
-
     trendingTagsList.innerHTML = '';
     if (sortedTags.length === 0) {
         trendingTagsList.innerHTML = `<p style="font-size: 0.85rem; color: #64748B;">ยังไม่มีเทรนด์แฮชแท็ก</p>`;
@@ -644,11 +740,8 @@ function extractAndRenderTrends(posts) {
     });
 }
 
-// โพสต์ข้อความใหม่ พร้อมระบบกันสแปมและลิมิต 5 โพสต์/วัน
 postForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
-    // ระบบกันสแปม (Anti-Spam Cooldown 3 วินาทีระหว่างกดโพสต์)
     const nowTime = Date.now();
     if (nowTime - lastPostTime < 3000) {
         alert("⏳ กรุณารอสักครู่ (ระบบป้องกันการสแปม)");
@@ -659,7 +752,6 @@ postForm.addEventListener('submit', async (e) => {
     const content = postContentInput.value.trim();
     if (!author || !content) return;
 
-    // เช็กลิมิต 5 โพสต์ต่อวัน
     const currentCount = checkDailyPostLimit();
     if (currentCount >= 5) {
         alert("⚠️ คุณโพสต์ครบโควตา 5 ครั้งสำหรับวันนี้แล้ว กรุณารอรีเซ็ตในวันพรุ่งนี้ครับ!");
@@ -676,7 +768,7 @@ postForm.addEventListener('submit', async (e) => {
         return; 
     }
 
-    lastPostTime = nowTime; // บันทึกเวลาล่าสุดที่กดโพสต์
+    lastPostTime = nowTime;
     localStorage.setItem('benbelong_author', author);
 
     try {
@@ -692,7 +784,7 @@ postForm.addEventListener('submit', async (e) => {
             createdAt: serverTimestamp()
         });
 
-        incrementDailyPostCount(); // เพิ่มจำนวนการโพสต์วันนี้
+        incrementDailyPostCount();
         postContentInput.value = '';
         if (charCount) charCount.innerText = '0';
         fetchPosts();
