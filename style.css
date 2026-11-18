@@ -227,7 +227,7 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .x-action-btn { background: none; border: none; cursor: pointer; font-size: 0.9rem; color: #64748B; display: flex; align-items: center; gap: 5px; font-weight: 600; transition: 0.2s; }
 .x-action-btn:hover { color: var(--royal-blue); }
 
-/* แก้ไขสัดส่วนช่องคอมเมนต์และช่องชื่อเล่นให้สมดุลและกว้างขวาง */
+/* ปรับแก้ช่องคอมเมนต์ใหม่: ล็อกขนาดช่องชื่อเล่นให้เล็ก และขยายช่องพิมพ์ให้กว้างสุดๆ */
 .x-comment-section { margin-top: 0.8rem; background: #F8FAFC; border-radius: 12px; padding: 0.8rem; border: 1px solid #E2E8F0; }
 .x-comments-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 0.8rem; max-height: 200px; overflow-y: auto; }
 .x-comment-item { background: white; padding: 8px 10px; border-radius: 8px; border: 1px solid #E2E8F0; position: relative; }
@@ -237,20 +237,22 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .comm-delete-btn { background: none; border: none; color: #94A3B8; font-size: 0.75rem; cursor: pointer; }
 .comm-delete-btn:hover { color: #EF4444; }
 
-.x-comment-form { display: flex; gap: 6px; align-items: center; }
+.x-comment-form { display: flex; gap: 6px; align-items: center; width: 100%; }
 .x-comment-author-input { 
-    width: 95px; /* กำหนดขนาดช่องชื่อเล่นให้กะทัดรัดพอดีคำ */
-    flex-shrink: 0; 
-    padding: 6px 8px; 
+    width: 85px !important; /* บังคับขนาดความกว้างช่องชื่อเล่นให้เล็กกระชับ */
+    min-width: 85px !important;
+    max-width: 85px !important;
+    flex: 0 0 85px !important; 
+    padding: 6px 6px; 
     border: 1px solid #CBD5E1; 
     border-radius: 8px; 
-    font-size: 0.82rem; 
+    font-size: 0.8rem; 
     outline: none; 
     background: white; 
 }
 .x-comment-input { 
-    flex: 1; /* ขยายช่องพิมพ์คอมเมนต์ให้เต็มพื้นที่ที่เหลือ */
-    min-width: 0; 
+    flex: 1 1 auto !important; /* ดึงพื้นที่ที่เหลือทั้งหมดให้ช่องคอมเมนต์ */
+    min-width: 0 !important; 
     padding: 6px 10px; 
     border: 1px solid #CBD5E1; 
     border-radius: 8px; 
@@ -262,12 +264,12 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
     background: var(--royal-blue); 
     color: white; 
     border: none; 
-    padding: 6px 14px; 
+    padding: 6px 12px; 
     border-radius: 8px; 
-    font-size: 0.85rem; 
+    font-size: 0.82rem; 
     font-weight: 600; 
     cursor: pointer; 
-    flex-shrink: 0;
+    flex: 0 0 auto;
 }
 .x-comment-btn:hover { background: var(--royal-dark); }
 
