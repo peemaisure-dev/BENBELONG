@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, getDoc, setDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const SCHOOL_DOMAIN = "@ben.ac.th";
 const ADMIN_PASSWORD = "PongpichiTLnwZa555";
@@ -621,6 +621,7 @@ window.onclick = (e) => {
     if (e.target === uploadModal) uploadModal.style.display = 'none';
     if (e.target === eventDetailModal) eventDetailModal.style.display = 'none';
     if (e.target === feedbackModal) feedbackModal.style.display = 'none';
+    if (e.target === document.getElementById('newPasswordModal')) document.getElementById('newPasswordModal').style.display = 'none';
 };
 
 async function fetchEvents() {
@@ -1027,7 +1028,7 @@ postForm.addEventListener('submit', async (e) => {
 
     if (containsBadWord(content)) {
         alert("⚠️ ขออภัยครับ ตรวจพบคำที่ไม่สุภาพในโพสต์ ระบบไม่อนุญาตให้เผยแพร่ครับ");
-        return; 
+        return;
     }
 
     lastPostTime = nowTime;
@@ -1204,3 +1205,46 @@ uploadForm.addEventListener('submit', async (e) => {
         submitBtn.innerText = "บันทึกสรุป PDF ขึ้นเว็บทันที";
     }
 });
+
+// ตรวจสอบลิงก์รีเซ็ตรหัสผ่านเมื่อเปิดหน้าเว็บ
+async function handleIncomingResetLink() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode');
+    const oobCode = urlParams.get('oobCode');
+
+    if (mode === 'resetPassword' && oobCode) {
+        try {
+            const email = await verifyPasswordResetCode(auth, oobCode);
+            document.getElementById('resetAccountEmailLabel').innerText = `บัญชี: ${email}`;
+            document.getElementById('newPasswordModal').style.display = 'flex';
+
+            const confirmForm = document.getElementById('confirmNewPasswordForm');
+            confirmForm.onsubmit = async (e) => {
+                e.preventDefault();
+                const newPass = document.getElementById('newResetPasswordInput').value;
+                const btn = document.getElementById('confirmNewPassBtn');
+
+                try {
+                    btn.disabled = true;
+                    btn.innerText = "กำลังบันทึก...";
+                    await confirmPasswordReset(auth, oobCode, newPass);
+                    alert("✅ เปลี่ยนรหัสผ่านสำเร็จ! สามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้ทันทีครับ");
+                    document.getElementById('newPasswordModal').style.display = 'none';
+                    confirmForm.reset();
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    openStudentAuthModal();
+                } catch (err) {
+                    alert("❌ ไม่สามารถเปลี่ยนรหัสผ่านได้: " + err.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerText = "บันทึกรหัสผ่านใหม่";
+                }
+            };
+        } catch (error) {
+            alert("❌ ลิงก์รีเซ็ตรหัสผ่านหมดอายุหรือถูกใช้งานไปแล้ว กรุณากดขอใหม่อีกครั้งครับ");
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }
+}
+
+handleIncomingResetLink();
