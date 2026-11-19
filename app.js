@@ -60,7 +60,6 @@ const userRoleIndicator = document.getElementById('userRoleIndicator');
 const adminAddEventSidebarBtn = document.getElementById('adminAddEventSidebarBtn');
 const addEventQuickBtn = document.getElementById('addEventQuickBtn');
 const sidebarFeedbackBtn = document.getElementById('sidebarFeedbackBtn');
-const adminLogoutBtn = document.getElementById('adminLogoutBtn');
 
 const eventsGrid = document.getElementById('eventsGrid');
 const eventsLoading = document.getElementById('eventsLoading');
@@ -148,11 +147,13 @@ function containsBadWord(text) {
     return badWords.some(word => cleanText.includes(word.toLowerCase()));
 }
 
-// โหลดโปรไฟล์ที่เคยยืนยันอีเมลและล็อกอินค้างไว้ในเครื่องอัตโนมัติ (อยู่ถาวร)
+// โหลดบัญชีที่ล็อกอินไว้ในเครื่องอัตโนมัติ (เปิดเว็บครั้งต่อไปเข้าใช้งานได้ทันทีโดยไม่ต้องล็อกอินซ้ำ)
 onAuthStateChanged(auth, async (user) => {
+    const subtext = document.getElementById('studentEntrySubtext');
     if (user && isValidSchoolEmail(user.email)) {
         if (!user.emailVerified) {
             currentUserProfile = null;
+            if (subtext) subtext.innerText = "เข้าสู่ระบบ หรือ สร้างบัญชีด้วยอีเมลโรงเรียน";
             return;
         }
         try {
@@ -163,18 +164,23 @@ onAuthStateChanged(auth, async (user) => {
                 email: user.email.toLowerCase(),
                 nickname: nickname
             };
-            const subtext = document.getElementById('studentEntrySubtext');
             if (subtext) {
-                subtext.innerText = `บัญชีถาวร: ${nickname} (${user.email})`;
+                subtext.innerText = `เข้าใช้งานต่อในชื่อ: ${nickname} (${user.email})`;
+            }
+            // หากยังอยู่ที่หน้าแรกและยังไม่ได้กดออกจากระบบ ให้เข้าหน้า Dashboard อัตโนมัติ
+            if (roleSelectionView && roleSelectionView.style.display !== 'none' && !sessionStorage.getItem('benbelong_logged_out')) {
+                selectRole('student');
             }
         } catch (e) {}
     } else {
         currentUserProfile = null;
+        if (subtext) subtext.innerText = "เข้าสู่ระบบ หรือ สร้างบัญชีด้วยอีเมลโรงเรียน";
     }
 });
 
 // กดปุ่ม คุณครู / นักเรียนโรงเรียนเบญฯ บนหน้าแรก
 window.handleStudentEntry = function() {
+    sessionStorage.removeItem('benbelong_logged_out');
     if (currentUserProfile && isValidSchoolEmail(currentUserProfile.email)) {
         selectRole('student');
         return;
@@ -253,7 +259,7 @@ if (registerForm) {
             }
         } finally {
             regBtn.disabled = false;
-            regBtn.innerText = "สมัครสมาชิกและเข้าใช้งานถาวร";
+            regBtn.innerText = "สมัครสมาชิกและส่งอีเมลยืนยัน";
         }
     });
 }
@@ -298,6 +304,7 @@ if (loginForm) {
                 });
             }
 
+            sessionStorage.removeItem('benbelong_logged_out');
             currentUserProfile = { uid: user.uid, email: email, nickname: nickname };
             studentAuthModal.style.display = 'none';
             loginForm.reset();
@@ -395,7 +402,6 @@ function updateUserUI() {
         userRoleBadge.innerText = "⚙️ ทีมงานพรรค BENBELONG";
         userAccountSubInfo.innerText = "สิทธิ์ผู้ดูแลระบบ";
         editNicknameBtn.style.display = 'none';
-        if (adminLogoutBtn) adminLogoutBtn.style.display = 'block';
         userRoleIndicator.innerText = "⚙️ ทีมงานพรรค";
         if (document.getElementById('composeDisplayNickname')) {
             document.getElementById('composeDisplayNickname').innerText = "ทีมงานพรรค BENBELONG";
@@ -408,7 +414,6 @@ function updateUserUI() {
         userRoleBadge.innerText = `🎓 ${currentUserProfile.nickname}`;
         userAccountSubInfo.innerText = `บัญชี: ${currentUserProfile.email}`;
         editNicknameBtn.style.display = 'inline-block';
-        if (adminLogoutBtn) adminLogoutBtn.style.display = 'none';
         userRoleIndicator.innerText = `🎓 ${currentUserProfile.nickname}`;
         if (document.getElementById('composeDisplayNickname')) {
             document.getElementById('composeDisplayNickname').innerText = currentUserProfile.nickname;
@@ -527,10 +532,16 @@ if (passwordForm) {
     });
 }
 
-window.logoutAdminToLanding = function() {
+// กดปุ่มออกจากระบบ: กลับหน้าแรกและออกจากบัญชี Firebase เพื่อสลับบัญชีได้ (หากไม่กดปุ่มนี้ เข้าเว็บครั้งหน้าจะเข้าให้อัตโนมัติ)
+window.logoutToLanding = async function() {
+    try {
+        await signOut(auth);
+    } catch (e) {}
     currentUserRole = null;
-    mainDashboardView.style.display = 'none';
-    roleSelectionView.style.display = 'flex';
+    currentUserProfile = null;
+    if (sidebar) sidebar.classList.add('sidebar-closed');
+    if (mainDashboardView) mainDashboardView.style.display = 'none';
+    if (roleSelectionView) roleSelectionView.style.display = 'flex';
 };
 
 window.closeModal = function(modalId) {
