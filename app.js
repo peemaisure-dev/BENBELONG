@@ -308,16 +308,16 @@ editNicknameForm.addEventListener('submit', async (e) => {
 
 function updateUserUI() {
     if (currentUserRole === 'admin') {
-        userRoleBadge.innerText = "⚙️ ทีมงานพรรค BENEFIT";
+        userRoleBadge.innerText = "⚙️ ทีมงานพรรค BENBELONG";
         userAccountSubInfo.innerText = "สิทธิ์ผู้ดูแลระบบ";
         editNicknameBtn.style.display = 'none';
         userRoleIndicator.innerText = "⚙️ ทีมงานพรรค";
         if (document.getElementById('composeDisplayNickname')) {
-            document.getElementById('composeDisplayNickname').innerText = "ทีมงานพรรค BENEFIT";
+            document.getElementById('composeDisplayNickname').innerText = "ทีมงานพรรค BENBELONG";
             document.getElementById('changeNickShortcut').style.display = 'none';
         }
         if (document.getElementById('uploadDisplayNickname')) {
-            document.getElementById('uploadDisplayNickname').innerText = "ทีมงานพรรค BENEFIT";
+            document.getElementById('uploadDisplayNickname').innerText = "ทีมงานพรรค BENBELONG";
         }
     } else if (currentUserProfile) {
         userRoleBadge.innerText = `🎓 ${currentUserProfile.nickname}`;
@@ -431,7 +431,7 @@ passwordForm.addEventListener('submit', (e) => {
     if (adminPasswordInput.value === ADMIN_PASSWORD) {
         passwordModal.style.display = 'none';
         adminPasswordInput.value = '';
-        currentUserProfile = { uid: 'admin', email: 'admin@ben.ac.th', nickname: 'ทีมงานพรรค BENEFIT' };
+        currentUserProfile = { uid: 'admin', email: 'admin@ben.ac.th', nickname: 'ทีมงานพรรค BENBELONG' };
         selectRole('admin');
         alert("🎉 เข้าสู่ระบบสมาชิกพรรคสำเร็จ!");
     } else {
