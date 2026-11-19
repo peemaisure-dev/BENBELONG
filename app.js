@@ -1,14 +1,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, getDoc, setDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const SCHOOL_DOMAIN = "@ben.ac.th";
 const ADMIN_PASSWORD = "PongpichiTLnwZa555";
-
-const actionCodeSettings = {
-    url: window.location.origin,
-    handleCodeInApp: false
-};
+const DEVICE_REGISTERED_KEY = "benefit_device_registered_account";
 
 const firebaseConfig = {
     apiKey: "AIzaSyAZBNNxWgnkCH2RbmM-wJ4qDtuqW_pZWaQ",
@@ -91,12 +87,31 @@ const submitPostBtn = document.getElementById('submitPostBtn');
 
 let lastPostTime = 0;
 
-if (document.getElementById('domainHintText')) {
-    document.getElementById('domainHintText').innerText = SCHOOL_DOMAIN;
+// ตรวจอีเมลนักเรียน: sXXXXX@ben.ac.th หรือ XXXXX@ben.ac.th (X คือเลข 5 ตัว)
+function isStudentFormatEmail(email) {
+    if (!email) return false;
+    const clean = email.toLowerCase().trim();
+    return /^(s?\d{5})@ben\.ac\.th$/.test(clean);
+}
+
+// ตรวจอีเมลรูปแบบอื่นที่ลงท้าย @ben.ac.th (เช่น อีเมลคุณครู)
+function isOtherBenEmail(email) {
+    if (!email) return false;
+    const clean = email.toLowerCase().trim();
+    return /^[^@\s]+@ben\.ac\.th$/.test(clean) && !isStudentFormatEmail(clean);
 }
 
 function isValidSchoolEmail(email) {
-    return email && email.toLowerCase().trim().endsWith(SCHOOL_DOMAIN.toLowerCase());
+    return isStudentFormatEmail(email) || isOtherBenEmail(email);
+}
+
+// บังคับชื่อภาษาไทยล้วน (สระ พยัญชนะ วรรณยุกต์ และช่องว่างได้ ห้ามมีตัวอักษรภาษาอังกฤษ)
+function isPureThaiName(name) {
+    if (!name) return false;
+    const trimmed = name.trim();
+    if (!trimmed) return false;
+    if (/[a-zA-Z]/.test(trimmed)) return false;
+    return /^[ก-๙\s]+$/.test(trimmed);
 }
 
 function getThaiDateString() {
@@ -157,15 +172,6 @@ onAuthStateChanged(auth, async (user) => {
     const subtext = document.getElementById('studentEntrySubtext');
     if (user && isValidSchoolEmail(user.email)) {
         try {
-            await user.reload();
-        } catch (e) {}
-
-        if (!user.emailVerified) {
-            currentUserProfile = null;
-            if (subtext) subtext.innerText = "เข้าสู่ระบบ หรือ สร้างบัญชีด้วยอีเมลโรงเรียน";
-            return;
-        }
-        try {
             const userDoc = await getDoc(doc(db, "users", user.uid));
             if (!userDoc.exists()) {
                 await signOut(auth);
@@ -224,6 +230,26 @@ window.switchAuthTab = function(tab) {
         tabLogin.classList.remove('active');
         registerForm.style.display = 'block';
         loginForm.style.display = 'none';
+        window.handleRegEmailInput();
+    }
+};
+
+// ปรับคำแนะนำเมื่อตรวจพบอีเมลรูปแบบอื่นที่ไม่ใช่ sXXXXX@ben.ac.th หรือ XXXXX@ben.ac.th
+window.handleRegEmailInput = function() {
+    const emailInput = document.getElementById('regEmail');
+    const hintEl = document.getElementById('thaiNameHint');
+    const labelEl = document.getElementById('regNicknameLabel');
+    if (!emailInput || !hintEl || !labelEl) return;
+
+    const cleanEmail = emailInput.value.trim().toLowerCase();
+    const isOtherFormat = cleanEmail.endsWith('@ben.ac.th') && !isStudentFormatEmail(cleanEmail);
+
+    if (isOtherFormat) {
+        hintEl.style.display = 'block';
+        labelEl.innerText = "ชื่อภาษาไทย (ห้ามมีภาษาอังกฤษ และโปรดใส่ชื่อตัวเอง) *";
+    } else {
+        hintEl.style.display = 'none';
+        labelEl.innerText = "ตั้งชื่อแสดงผล (Username) *";
     }
 };
 
@@ -235,18 +261,36 @@ if (registerForm) {
         const password = document.getElementById('regPassword').value;
         const regBtn = document.getElementById('regSubmitBtn');
 
-        if (!isValidSchoolEmail(email)) {
-            alert(`❌ กรุณากรอกอีเมลของโรงเรียน (${SCHOOL_DOMAIN}) เท่านั้นครับ`);
+        // 1. ตรวจว่าลงท้าย @ben.ac.th หรือไม่
+        if (!email.endsWith('@ben.ac.th') || !/^[^@\s]+@ben\.ac\.th$/.test(email)) {
+            alert("❌ สร้างบัญชีไม่สำเร็จ: อีเมลต้องลงท้ายด้วย @ben.ac.th เท่านั้นครับ");
             return;
         }
+
+        // 2. ตรวจว่าอุปกรณ์นี้เคยสร้างบัญชีในเครื่องแล้วหรือไม่ (1 คน / 1 device)
+        const registeredDeviceEmail = localStorage.getItem(DEVICE_REGISTERED_KEY);
+        if (registeredDeviceEmail && registeredDeviceEmail !== email) {
+            alert(`❌ สร้างบัญชีไม่สำเร็จ: อุปกรณ์นี้เคยสร้างบัญชีไปแล้ว (${registeredDeviceEmail}) จำกัด 1 คน ต่อ 1 เครื่องครับ หากเป็นบัญชีของคุณเองให้กดแท็บ "เข้าสู่ระบบ"`);
+            return;
+        }
+
+        // 3. หากอีเมลไม่ใช่รูปแบบ sXXXXX หรือ XXXXX (5 หลัก) ต้องบังคับชื่อภาษาไทยล้วน ห้ามมีภาษาอังกฤษ และใส่ชื่อตัวเอง
+        const isStudentEmail = isStudentFormatEmail(email);
+        if (!isStudentEmail) {
+            if (!isPureThaiName(nickname)) {
+                alert("❌ สร้างบัญชีไม่สำเร็จ: สำหรับอีเมลที่ไม่อยู่ในรูปแบบ sXXXXX@ben.ac.th หรือ XXXXX@ben.ac.th ต้องกรอกชื่อภาษาไทยเท่านั้น ห้ามมีภาษาอังกฤษ และโปรดใส่ชื่อตัวเองครับ");
+                return;
+            }
+        }
+
         if (containsBadWord(nickname)) {
-            alert("⚠️ ชื่อแสดงผลมีคำที่ไม่สุภาพ กรุณาตั้งชื่อใหม่ครับ");
+            alert("⚠️ สร้างบัญชีไม่สำเร็จ: ชื่อมีคำที่ไม่สุภาพ กรุณาใส่ชื่อตัวเองที่สุภาพครับ");
             return;
         }
 
         try {
             regBtn.disabled = true;
-            regBtn.innerText = "กำลังส่งอีเมลยืนยัน...";
+            regBtn.innerText = "กำลังสร้างบัญชี...";
 
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
@@ -255,25 +299,26 @@ if (registerForm) {
                 uid: user.uid,
                 schoolEmail: email,
                 nickname: nickname,
+                accountType: isStudentEmail ? "student" : "other_ben",
                 createdAt: serverTimestamp()
             });
 
-            await sendEmailVerification(user, actionCodeSettings);
-            await signOut(auth);
-            currentUserProfile = null;
-
+            localStorage.setItem(DEVICE_REGISTERED_KEY, email);
+            sessionStorage.removeItem('benbelong_logged_out');
+            currentUserProfile = { uid: user.uid, email: email, nickname: nickname };
             studentAuthModal.style.display = 'none';
             registerForm.reset();
-            alert(`📩 ส่งลิงก์ยืนยันตัวตนไปที่ ${email} แล้วครับ\nกรุณาเปิดอีเมลโรงเรียน กดยืนยันเพียงครั้งเดียว แล้วระบบจะพาเด้งกลับมาที่หน้าเว็บครับ`);
+            window.handleRegEmailInput();
+            selectRole('student');
         } catch (error) {
             if (error.code === 'auth/email-already-in-use') {
-                alert("❌ อีเมลโรงเรียนนี้ถูกใช้สร้างบัญชีไปแล้ว (1 อีเมลสร้างได้ 1 บัญชีเท่านั้น) กรุณากดแท็บ 'เข้าสู่ระบบ' ครับ");
+                alert("❌ สร้างบัญชีไม่สำเร็จ: อีเมลนี้ถูกใช้สร้างบัญชีไปแล้ว กรุณากดแท็บ 'เข้าสู่ระบบ' ครับ");
             } else {
-                alert("❌ เกิดข้อผิดพลาดในการสร้างบัญชี: " + error.message);
+                alert("❌ สร้างบัญชีไม่สำเร็จ: " + error.message);
             }
         } finally {
             regBtn.disabled = false;
-            regBtn.innerText = "สมัครสมาชิกและส่งอีเมลยืนยัน";
+            regBtn.innerText = "สร้างบัญชี";
         }
     });
 }
@@ -286,7 +331,7 @@ if (loginForm) {
         const loginBtn = document.getElementById('loginSubmitBtn');
 
         if (!isValidSchoolEmail(email)) {
-            alert(`❌ กรุณาใช้อีเมลของโรงเรียน (${SCHOOL_DOMAIN}) ในการเข้าสู่ระบบครับ`);
+            alert("❌ อีเมลต้องลงท้ายด้วย @ben.ac.th เท่านั้นครับ");
             return;
         }
 
@@ -296,15 +341,6 @@ if (loginForm) {
 
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
-            await user.reload();
-
-            if (!user.emailVerified) {
-                await sendEmailVerification(user, actionCodeSettings).catch(() => {});
-                await signOut(auth);
-                currentUserProfile = null;
-                alert("⚠️ บัญชีนี้ยังไม่ได้ยืนยันอีเมลโรงเรียนครับ\nระบบส่งลิงก์ยืนยันให้ใหม่แล้ว กรุณากดยืนยันในอีเมลเพียงครั้งเดียว แล้วกลับมาเข้าสู่ระบบครับ");
-                return;
-            }
 
             const userDoc = await getDoc(doc(db, "users", user.uid));
             let nickname = email.split('@')[0];
@@ -315,10 +351,12 @@ if (loginForm) {
                     uid: user.uid,
                     schoolEmail: email,
                     nickname: nickname,
+                    accountType: isStudentFormatEmail(email) ? "student" : "other_ben",
                     createdAt: serverTimestamp()
                 });
             }
 
+            localStorage.setItem(DEVICE_REGISTERED_KEY, email);
             sessionStorage.removeItem('benbelong_logged_out');
             currentUserProfile = { uid: user.uid, email: email, nickname: nickname };
             studentAuthModal.style.display = 'none';
@@ -384,6 +422,10 @@ if (editNicknameForm) {
         const saveBtn = document.getElementById('saveNicknameBtn');
 
         if (!newNick) return;
+        if (currentUserProfile && !isStudentFormatEmail(currentUserProfile.email) && !isPureThaiName(newNick)) {
+            alert("❌ สำหรับอีเมลรูปแบบนี้ ต้องใช้ชื่อภาษาไทยเท่านั้น ห้ามมีภาษาอังกฤษ และโปรดใส่ชื่อตัวเองครับ");
+            return;
+        }
         if (containsBadWord(newNick)) {
             alert("⚠️ ชื่อมีคำที่ไม่สุภาพ กรุณาตั้งชื่อใหม่ครับ");
             return;
