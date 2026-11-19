@@ -5,6 +5,11 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, se
 const SCHOOL_DOMAIN = "@ben.ac.th";
 const ADMIN_PASSWORD = "PongpichiTLnwZa555";
 
+const actionCodeSettings = {
+    url: window.location.origin,
+    handleCodeInApp: false
+};
+
 const firebaseConfig = {
     apiKey: "AIzaSyAZBNNxWgnkCH2RbmM-wJ4qDtuqW_pZWaQ",
     authDomain: "benbelong-fcd54.firebaseapp.com",
@@ -151,6 +156,10 @@ function containsBadWord(text) {
 onAuthStateChanged(auth, async (user) => {
     const subtext = document.getElementById('studentEntrySubtext');
     if (user && isValidSchoolEmail(user.email)) {
+        try {
+            await user.reload();
+        } catch (e) {}
+
         if (!user.emailVerified) {
             currentUserProfile = null;
             if (subtext) subtext.innerText = "เข้าสู่ระบบ หรือ สร้างบัญชีด้วยอีเมลโรงเรียน";
@@ -159,7 +168,6 @@ onAuthStateChanged(auth, async (user) => {
         try {
             const userDoc = await getDoc(doc(db, "users", user.uid));
             if (!userDoc.exists()) {
-                // กรณีบัญชีถูกล้างข้อมูลออกแล้ว ให้ล็อกเอาต์ออกเพื่อให้สร้างบัญชีใหม่
                 await signOut(auth);
                 currentUserProfile = null;
                 if (subtext) subtext.innerText = "เข้าสู่ระบบ หรือ สร้างบัญชีด้วยอีเมลโรงเรียน";
@@ -250,13 +258,13 @@ if (registerForm) {
                 createdAt: serverTimestamp()
             });
 
-            await sendEmailVerification(user);
+            await sendEmailVerification(user, actionCodeSettings);
             await signOut(auth);
             currentUserProfile = null;
 
             studentAuthModal.style.display = 'none';
             registerForm.reset();
-            alert(`📩 ส่งลิงก์ยืนยันตัวตนไปที่ ${email} แล้วครับ\nกรุณาเปิดอีเมลโรงเรียน (เช็กในกล่องข้อความหรือ Spam) แล้วกดลิงก์ยืนยันก่อน จึงค่อยกลับมาเข้าสู่ระบบครับ`);
+            alert(`📩 ส่งลิงก์ยืนยันตัวตนไปที่ ${email} แล้วครับ\nกรุณาเปิดอีเมลโรงเรียน กดยืนยันเพียงครั้งเดียว แล้วระบบจะพาเด้งกลับมาที่หน้าเว็บครับ`);
         } catch (error) {
             if (error.code === 'auth/email-already-in-use') {
                 alert("❌ อีเมลโรงเรียนนี้ถูกใช้สร้างบัญชีไปแล้ว (1 อีเมลสร้างได้ 1 บัญชีเท่านั้น) กรุณากดแท็บ 'เข้าสู่ระบบ' ครับ");
@@ -288,12 +296,13 @@ if (loginForm) {
 
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
+            await user.reload();
 
             if (!user.emailVerified) {
-                await sendEmailVerification(user).catch(() => {});
+                await sendEmailVerification(user, actionCodeSettings).catch(() => {});
                 await signOut(auth);
                 currentUserProfile = null;
-                alert("⚠️ บัญชีนี้ยังไม่ได้ยืนยันอีเมลโรงเรียนครับ\nระบบส่งลิงก์ยืนยันให้ใหม่แล้ว กรุณากดยืนยันในอีเมลก่อนเข้าใช้งานครับ");
+                alert("⚠️ บัญชีนี้ยังไม่ได้ยืนยันอีเมลโรงเรียนครับ\nระบบส่งลิงก์ยืนยันให้ใหม่แล้ว กรุณากดยืนยันในอีเมลเพียงครั้งเดียว แล้วกลับมาเข้าสู่ระบบครับ");
                 return;
             }
 
