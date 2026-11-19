@@ -74,8 +74,12 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .role-buttons { display: flex; flex-direction: column; gap: 0.8rem; }
 .role-btn { display: flex; align-items: center; gap: 15px; background: white; border: 2px solid #E2E8F0; padding: 0.8rem 1.2rem; border-radius: 16px; cursor: pointer; text-align: left; transition: 0.25s; }
 .role-btn:hover { border-color: var(--royal-blue); transform: translateY(-3px); box-shadow: 0 8px 20px rgba(29, 86, 184, 0.1); }
-.role-icon { font-size: 1.8rem; background: #F1F5F9; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; border-radius: 12px; }
+.role-icon { font-size: 1.8rem; background: #F1F5F9; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; border-radius: 12px; flex-shrink: 0; }
 .role-btn h3 { font-size: 1rem; color: var(--text-dark); margin-bottom: 2px; }
+
+.auth-tabs { display: flex; gap: 8px; margin-bottom: 1.5rem; background: #F1F5F9; padding: 4px; border-radius: 12px; }
+.auth-tab { flex: 1; padding: 0.6rem; border: none; background: transparent; border-radius: 8px; font-weight: 600; font-size: 0.9rem; color: #64748B; cursor: pointer; transition: 0.2s; }
+.auth-tab.active { background: white; color: var(--royal-blue); box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
 
 .app-layout { display: flex; height: 100vh; overflow: hidden; }
 
@@ -86,7 +90,7 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .btn-close-sidebar { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); }
 
 .sidebar-user-info { padding: 1rem 1.5rem; background: #F8FAFC; border-bottom: 1px solid #F1F5F9; text-align: center; }
-.badge-demo { background: linear-gradient(135deg, #38BDF8, #E879F9); color: white; font-size: 0.75rem; font-weight: 600; padding: 4px 12px; border-radius: 20px; }
+.badge-demo { background: linear-gradient(135deg, #38BDF8, #E879F9); color: white; font-size: 0.8rem; font-weight: 600; padding: 4px 12px; border-radius: 20px; display: inline-block; }
 
 .sidebar-menu { padding: 1.5rem 1rem; flex: 1; display: flex; flex-direction: column; gap: 8px; }
 .menu-item { display: flex; align-items: center; gap: 12px; padding: 0.75rem 1rem; border-radius: 12px; color: var(--text-dark); text-decoration: none; font-weight: 500; font-size: 0.95rem; transition: 0.2s; }
@@ -198,7 +202,6 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .x-feed-header h2 { font-size: 1.25rem; font-weight: 700; color: var(--text-dark); }
 
 .x-compose-box { padding: 1rem 1.25rem; border-bottom: 1px solid #E2E8F0; background: #FFFFFF; }
-.x-input-name { width: 100%; border: none; border-bottom: 1px solid #F1F5F9; padding: 0.5rem 0; font-size: 0.95rem; font-weight: 600; outline: none; margin-bottom: 8px; color: var(--text-dark); }
 .x-textarea { width: 100%; border: none; resize: none; outline: none; font-size: 1rem; font-family: 'Prompt', sans-serif; color: var(--text-dark); min-height: 70px; }
 .x-compose-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; border-top: 1px solid #F1F5F9; padding-top: 10px; flex-wrap: wrap; gap: 8px; }
 .x-helper-text { font-size: 0.78rem; color: #94A3B8; }
@@ -237,18 +240,19 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .comm-delete-btn { background: none; border: none; color: #94A3B8; font-size: 0.75rem; cursor: pointer; }
 .comm-delete-btn:hover { color: #EF4444; }
 
-.x-comment-form { display: flex; gap: 6px; align-items: center; width: 100%; }
-.x-comment-author-input { 
-    width: 85px !important; 
-    min-width: 85px !important;
-    max-width: 85px !important;
-    flex: 0 0 85px !important; 
-    padding: 6px 6px; 
-    border: 1px solid #CBD5E1; 
-    border-radius: 8px; 
-    font-size: 0.8rem; 
-    outline: none; 
-    background: white; 
+.x-comment-form { display: flex; gap: 8px; align-items: center; width: 100%; }
+.x-comment-user-badge {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--royal-blue);
+    background: #E0F2FE;
+    padding: 5px 10px;
+    border-radius: 8px;
+    white-space: nowrap;
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
 }
 .x-comment-input { 
     flex: 1 1 auto !important; 
@@ -264,7 +268,7 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
     background: var(--royal-blue); 
     color: white; 
     border: none; 
-    padding: 6px 12px; 
+    padding: 6px 14px; 
     border-radius: 8px; 
     font-size: 0.82rem; 
     font-weight: 600; 
@@ -309,7 +313,6 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .btn-download:hover { background: var(--royal-dark); }
 .btn-delete { background: #FEE2E2; color: #DC2626; border: none; padding: 0.4rem; border-radius: 50px; font-size: 0.80rem; cursor: pointer; }
 
-/* ดีไซน์การ์ดแสดง Feedback สำหรับแอดมิน */
 .feedback-item-card {
     background: #F8FAFC;
     border: 1px solid #E2E8F0;
@@ -328,7 +331,7 @@ body { background-color: var(--bg-page); color: var(--text-dark); line-height: 1
 .form-row { display: flex; gap: 1rem; }
 .form-row .form-group { flex: 1; }
 label { display: block; font-size: 0.88rem; font-weight: 500; margin-bottom: 0.3rem; }
-input[type="text"], input[type="password"], input[type="date"], select { width: 100%; padding: 0.6rem; border: 1px solid #CBD5E1; border-radius: 10px; font-size: 0.9rem; outline: none; }
+input[type="text"], input[type="email"], input[type="password"], input[type="date"], select { width: 100%; padding: 0.6rem; border: 1px solid #CBD5E1; border-radius: 10px; font-size: 0.9rem; outline: none; }
 input:focus, select:focus { border-color: var(--royal-blue); }
 
 .btn-submit { width: 100%; background: var(--royal-blue); color: white; border: none; padding: 0.75rem; border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
