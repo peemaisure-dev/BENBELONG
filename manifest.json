@@ -1,9 +1,9 @@
 {
-  "name": "BENEFIT - โรงเรียนเบญจมราชูทิศ ราชบุรี",
+  "name": "BENEFIT | โรงเรียนเบญจมราชูทิศ ราชบุรี",
   "short_name": "BENEFIT",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#FFFFFF",
   "theme_color": "#1D56B8",
   "icons": [
     {
