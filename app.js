@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, getDoc, setDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const SCHOOL_DOMAIN = "@ben.ac.th";
 const ADMIN_PASSWORD = "PongpichiTLnwZa555";
@@ -151,18 +151,24 @@ function containsBadWord(text) {
 // โหลดโปรไฟล์ที่เคยล็อกอินค้างไว้ในเครื่องอัตโนมัติ (อยู่ถาวร)
 onAuthStateChanged(auth, async (user) => {
     if (user && isValidSchoolEmail(user.email)) {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        const nickname = userDoc.exists() && userDoc.data().nickname ? userDoc.data().nickname : user.email.split('@')[0];
-        currentUserProfile = {
-            uid: user.uid,
-            email: user.email.toLowerCase(),
-            nickname: nickname
-        };
+        try {
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            const nickname = userDoc.exists() && userDoc.data().nickname ? userDoc.data().nickname : user.email.split('@')[0];
+            currentUserProfile = {
+                uid: user.uid,
+                email: user.email.toLowerCase(),
+                nickname: nickname
+            };
+            const subtext = document.getElementById('studentEntrySubtext');
+            if (subtext) {
+                subtext.innerText = `บัญชีถาวร: ${nickname} (${user.email})`;
+            }
+        } catch (e) {}
     }
 });
 
 // กดปุ่ม คุณครู / นักเรียนโรงเรียนเบญฯ บนหน้าแรก
-window.openStudentAuthModal = function() {
+window.handleStudentEntry = function() {
     if (currentUserProfile && isValidSchoolEmail(currentUserProfile.email)) {
         selectRole('student');
         return;
@@ -232,13 +238,13 @@ if (registerForm) {
             selectRole('student');
         } catch (error) {
             if (error.code === 'auth/email-already-in-use') {
-                alert("❌ อีเมลโรงเรียนนี้ถูกใช้สร้างบัญชีไปแล้ว กรุณากดแท็บ 'เข้าสู่ระบบ' ครับ");
+                alert("❌ อีเมลโรงเรียนนี้ถูกใช้สร้างบัญชีไปแล้ว (1 อีเมลสร้างได้ 1 บัญชีเท่านั้น) กรุณากดแท็บ 'เข้าสู่ระบบ' ครับ");
             } else {
                 alert("❌ เกิดข้อผิดพลาดในการสร้างบัญชี: " + error.message);
             }
         } finally {
             regBtn.disabled = false;
-            regBtn.innerText = "สมัครสมาชิกและเข้าใช้งาน";
+            regBtn.innerText = "สมัครสมาชิกและเข้าใช้งานถาวร";
         }
     });
 }
@@ -288,6 +294,7 @@ if (loginForm) {
     });
 }
 
+// เปิด Pop-up โปรไฟล์ผู้ใช้งานเมื่อกดที่ชื่อหรือรูปโปรไฟล์
 window.openUserProfile = async function(uid, fallbackName, fallbackEmail) {
     if (!userProfileModal) return;
     const avatarEl = document.getElementById('profileAvatarCircle');
