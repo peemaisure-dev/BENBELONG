@@ -20,12 +20,12 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 let currentUserRole = null;
-let currentUserProfile = null; // { uid, email, nickname }
+let currentUserProfile = null;
 let allNotes = [];
 let allEvents = [];
 let allPosts = [];
 
-let currentCalendarDate = new Date(2026, 10, 1); 
+let currentCalendarDate = new Date(2026, 10, 1);
 
 const roleSelectionView = document.getElementById('roleSelectionView');
 const mainDashboardView = document.getElementById('mainDashboardView');
@@ -105,12 +105,12 @@ function checkDailyPostLimit() {
     const todayStr = getThaiDateString();
     const storageKey = currentUserProfile ? `benbelong_limit_${currentUserProfile.uid}` : 'benbelong_post_limit';
     let record = JSON.parse(localStorage.getItem(storageKey)) || { date: todayStr, count: 0 };
-    
+
     if (record.date !== todayStr) {
         record = { date: todayStr, count: 0 };
         localStorage.setItem(storageKey, JSON.stringify(record));
     }
-    
+
     const left = 5 - record.count;
     if (postsLeftBadge) postsLeftBadge.innerText = Math.max(0, left);
     return record.count;
@@ -128,8 +128,10 @@ function incrementDailyPostCount() {
 if (postContentInput) {
     postContentInput.addEventListener('input', () => {
         const currentLength = postContentInput.value.length;
-        if (charCount) charCount.innerText = currentLength;
-        charCount.style.color = currentLength >= 300 ? '#EF4444' : '#94A3B8';
+        if (charCount) {
+            charCount.innerText = currentLength;
+            charCount.style.color = currentLength >= 300 ? '#EF4444' : '#94A3B8';
+        }
     });
 }
 
@@ -145,10 +147,13 @@ function containsBadWord(text) {
     return badWords.some(word => cleanText.includes(word.toLowerCase()));
 }
 
-/* ระบบ Authentication อีเมลโรงเรียน */
 window.openStudentAuthModal = function() {
     switchAuthTab('login');
     studentAuthModal.style.display = 'flex';
+};
+
+window.openAdminPasswordModal = function() {
+    passwordModal.style.display = 'flex';
 };
 
 window.switchAuthTab = function(tab) {
@@ -167,7 +172,6 @@ window.switchAuthTab = function(tab) {
     }
 };
 
-// สมัครสมาชิก (บังคับอีเมลโรงเรียน + ตั้ง Username + รหัสผ่าน)
 registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('regEmail').value.trim().toLowerCase();
@@ -217,7 +221,6 @@ registerForm.addEventListener('submit', async (e) => {
     }
 });
 
-// เข้าสู่ระบบ
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('loginEmail').value.trim().toLowerCase();
@@ -262,7 +265,6 @@ loginForm.addEventListener('submit', async (e) => {
     }
 });
 
-// แก้ไข Username
 window.openEditNicknameModal = function() {
     if (currentUserProfile) {
         document.getElementById('newNicknameInput').value = currentUserProfile.nickname;
@@ -336,7 +338,7 @@ window.selectRole = function(role) {
     currentUserRole = role;
     roleSelectionView.style.display = 'none';
     mainDashboardView.style.display = 'flex';
-    
+
     if (role === 'admin') {
         if (adminAddEventSidebarBtn) adminAddEventSidebarBtn.style.display = 'block';
         addEventQuickBtn.style.display = 'inline-block';
@@ -355,28 +357,28 @@ window.toggleSidebar = function() {
     sidebar.classList.toggle('sidebar-closed');
 };
 
-window.switchMainTab = function(tabName) {
+window.switchMainTab = function(tabName, clickedEl) {
     calendarViewContainer.style.display = 'none';
     communityViewContainer.style.display = 'none';
     studyHubViewContainer.style.display = 'none';
 
     document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+    if (clickedEl) {
+        clickedEl.classList.add('active');
+    }
 
     if (tabName === 'calendar') {
         calendarViewContainer.style.display = 'block';
-        event.currentTarget.classList.add('active');
         fetchEvents();
     } else if (tabName === 'community') {
         communityViewContainer.style.display = 'block';
-        event.currentTarget.classList.add('active');
         checkDailyPostLimit();
         fetchPosts();
     } else if (tabName === 'studyhub') {
         studyHubViewContainer.style.display = 'block';
-        event.currentTarget.classList.add('active');
         fetchNotes();
     }
-    
+
     if (window.innerWidth <= 768) {
         sidebar.classList.add('sidebar-closed');
     }
@@ -423,10 +425,6 @@ function updateCalendarDisplay() {
         currentMonthYearLabel.innerText = `${thaiMonths[month]} ${year + 543}`;
     }
 }
-
-window.openAdminPasswordModal = function() {
-    passwordModal.style.display = 'flex';
-};
 
 passwordForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -579,7 +577,6 @@ window.onclick = (e) => {
     if (e.target === feedbackModal) feedbackModal.style.display = 'none';
 };
 
-/* จัดการระบบปฏิทิน */
 async function fetchEvents() {
     try {
         const q = query(collection(db, "events"), orderBy("eventDate", "asc"));
@@ -709,7 +706,6 @@ window.deleteEvent = async function(id) {
     }
 };
 
-/* จัดการระบบ BenX (ใช้ Username อัตโนมัติทั้งโพสต์และคอมเมนต์) */
 async function fetchPosts() {
     try {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
@@ -717,12 +713,12 @@ async function fetchPosts() {
         allPosts = [];
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-            allPosts.push({ 
-                id: doc.id, 
+            allPosts.push({
+                id: doc.id,
                 ...data,
                 likes: data.likes || 0,
                 likedBy: data.likedBy || [],
-                comments: data.comments || [] 
+                comments: data.comments || []
             });
         });
         postsLoading.style.display = 'none';
@@ -752,7 +748,7 @@ function renderPosts(posts) {
     posts.forEach(post => {
         const card = document.createElement('div');
         card.className = 'x-post-item';
-        
+
         let deleteBtnHtml = '';
         if (currentUserRole === 'admin' || (currentUid && post.authorUid === currentUid)) {
             deleteBtnHtml = `<button class="x-delete-btn" onclick="window.deletePost('${post.id}')">🗑️ ลบ</button>`;
@@ -788,7 +784,6 @@ function renderPosts(posts) {
             });
         }
 
-        // ตัดช่องพิมพ์ชื่อเล่นในฟอร์มคอมเมนต์ออก ใช้ Username ของบัญชีทันที
         card.innerHTML = `
             <div class="x-post-avatar">👤</div>
             <div class="x-post-content-wrap">
@@ -883,12 +878,12 @@ window.submitComment = async function(e, postId) {
 
         const data = postSnap.data();
         let comments = data.comments || [];
-        comments.push({ 
-            author, 
+        comments.push({
+            author,
             authorUid: currentUserProfile.uid,
             schoolEmail: currentUserProfile.email,
-            text, 
-            createdAt: new Date().toISOString() 
+            text,
+            createdAt: new Date().toISOString()
         });
 
         await updateDoc(postRef, { comments });
@@ -986,7 +981,7 @@ postForm.addEventListener('submit', async (e) => {
 
     if (containsBadWord(content)) {
         alert("⚠️ ขออภัยครับ ตรวจพบคำที่ไม่สุภาพในโพสต์ ระบบไม่อนุญาตให้เผยแพร่ครับ");
-        return; 
+        return;
     }
 
     lastPostTime = nowTime;
@@ -1030,7 +1025,6 @@ window.deletePost = async function(id) {
     }
 };
 
-/* จัดการคลังสรุป PDF (ใช้ Username อัตโนมัติ) */
 async function fetchNotes() {
     try {
         const q = query(collection(db, "notes"), orderBy("createdAt", "desc"));
@@ -1064,7 +1058,6 @@ function renderNotes(notes) {
     notes.forEach(note => {
         const card = document.createElement('div');
         card.className = 'note-card';
-        // แอดมินหรือเจ้าของชีทสามารถลบชีทตัวเองได้
         const canDelete = (currentUserRole === 'admin') || (currentUid && note.authorUid === currentUid);
         const deleteBtnStyle = canDelete ? 'display: block;' : 'display: none;';
 
