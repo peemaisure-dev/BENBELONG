@@ -242,7 +242,7 @@
         </div>
     </div>
 
-    <!-- Modal ยืนยันตัวตนนักเรียน/คุณครู ด้วยอีเมลโรงเรียน -->
+<!-- Modal ยืนยันตัวตนนักเรียน/คุณครู ด้วยอีเมลโรงเรียน -->
     <div id="studentAuthModal" class="modal">
         <div class="modal-content" style="max-width: 440px;">
             <span class="close-btn" onclick="closeModal('studentAuthModal')">&times;</span>
@@ -305,6 +305,21 @@
         </div>
     </div>
 
+    <!-- Modal ตั้งรหัสผ่านใหม่เมื่อคลิกลิงก์จากอีเมล -->
+    <div id="newPasswordModal" class="modal">
+        <div class="modal-content modal-sm">
+            <span class="close-btn" onclick="closeModal('newPasswordModal')">&times;</span>
+            <h3 style="color: var(--royal-blue); margin-bottom: 0.4rem;">🔐 ตั้งรหัสผ่านใหม่</h3>
+            <p class="modal-sub" id="resetAccountEmailLabel">กำลังตั้งรหัสผ่านใหม่สำหรับบัญชีของคุณ</p>
+            <form id="confirmNewPasswordForm">
+                <div class="form-group">
+                    <label>รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร) *</label>
+                    <input type="password" id="newResetPasswordInput" required minlength="6" placeholder="กรอกรหัสผ่านใหม่...">
+                </div>
+                <button type="submit" id="confirmNewPassBtn" class="btn-submit">บันทึกรหัสผ่านใหม่</button>
+            </form>
+        </div>
+    </div>
     <!-- Modal แก้ไข Username -->
     <div id="editNicknameModal" class="modal">
         <div class="modal-content modal-sm">
