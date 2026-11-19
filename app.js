@@ -5,6 +5,7 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, si
 const SCHOOL_DOMAIN = "@ben.ac.th";
 const ADMIN_PASSWORD = "PongpichiTLnwZa555";
 const DEVICE_REGISTERED_KEY = "benefit_device_registered_account";
+const NICKNAME_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // คูลดาวน์ 1 เดือน (30 วัน)
 
 const firebaseConfig = {
     apiKey: "AIzaSyAZBNNxWgnkCH2RbmM-wJ4qDtuqW_pZWaQ",
@@ -22,6 +23,7 @@ const auth = getAuth(app);
 
 let currentUserRole = null;
 let currentUserProfile = null;
+let authReadyUser = null;
 let allNotes = [];
 let allEvents = [];
 let allPosts = [];
@@ -114,6 +116,30 @@ function isPureThaiName(name) {
     return /^[ก-๙\s]+$/.test(trimmed);
 }
 
+function getNicknameCooldownKey(uid) {
+    return `benefit_nick_last_changed_${uid}`;
+}
+
+function getNicknameCooldownInfo(uid) {
+    if (!uid) return { canChange: true, remainingDays: 0 };
+    const raw = localStorage.getItem(getNicknameCooldownKey(uid));
+    if (!raw) return { canChange: true, remainingDays: 0 };
+
+    const lastChangedAt = Number(raw);
+    if (!Number.isFinite(lastChangedAt) || lastChangedAt <= 0) {
+        return { canChange: true, remainingDays: 0 };
+    }
+
+    const elapsed = Date.now() - lastChangedAt;
+    if (elapsed >= NICKNAME_COOLDOWN_MS) {
+        return { canChange: true, remainingDays: 0 };
+    }
+
+    const remainingMs = NICKNAME_COOLDOWN_MS - elapsed;
+    const remainingDays = Math.max(1, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
+    return { canChange: false, remainingDays };
+}
+
 function getThaiDateString() {
     const now = new Date();
     const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -167,29 +193,46 @@ function containsBadWord(text) {
     return badWords.some(word => cleanText.includes(word.toLowerCase()));
 }
 
-// โหลดบัญชีที่ล็อกอินไว้ในเครื่องอัตโนมัติ (เปิดเว็บครั้งต่อไปเข้าใช้งานได้ทันทีโดยไม่ต้องล็อกอินซ้ำ)
+async function hydrateStudentProfileFromUser(user) {
+    if (!user || !isValidSchoolEmail(user.email)) {
+        currentUserProfile = null;
+        return null;
+    }
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    if (!userDoc.exists()) {
+        await signOut(auth);
+        currentUserProfile = null;
+        return null;
+    }
+    const data = userDoc.data();
+    const nickname = data.nickname || user.email.split('@')[0];
+    if (data.lastNicknameChangeAt && !localStorage.getItem(getNicknameCooldownKey(user.uid))) {
+        const ts = typeof data.lastNicknameChangeAt.toMillis === 'function'
+            ? data.lastNicknameChangeAt.toMillis()
+            : Number(data.lastNicknameChangeAt);
+        if (Number.isFinite(ts) && ts > 0) {
+            localStorage.setItem(getNicknameCooldownKey(user.uid), String(ts));
+        }
+    }
+    currentUserProfile = {
+        uid: user.uid,
+        email: user.email.toLowerCase(),
+        nickname: nickname
+    };
+    return currentUserProfile;
+}
+
+// ติดตามสถานะ Firebase Auth เฉพาะเพื่อเตรียมข้อมูลบัญชี แต่ยังไม่บังคับย้ายหน้าจนกว่าจะกดเลือกบทบาท
 onAuthStateChanged(auth, async (user) => {
+    authReadyUser = user || null;
     const subtext = document.getElementById('studentEntrySubtext');
     if (user && isValidSchoolEmail(user.email)) {
         try {
-            const userDoc = await getDoc(doc(db, "users", user.uid));
-            if (!userDoc.exists()) {
-                await signOut(auth);
-                currentUserProfile = null;
-                if (subtext) subtext.innerText = "เข้าสู่ระบบ หรือ สร้างบัญชีด้วยอีเมลโรงเรียน";
-                return;
-            }
-            const nickname = userDoc.data().nickname || user.email.split('@')[0];
-            currentUserProfile = {
-                uid: user.uid,
-                email: user.email.toLowerCase(),
-                nickname: nickname
-            };
-            if (subtext) {
-                subtext.innerText = `เข้าใช้งานต่อในชื่อ: ${nickname} (${user.email})`;
-            }
-            if (roleSelectionView && roleSelectionView.style.display !== 'none' && !sessionStorage.getItem('benbelong_logged_out')) {
-                selectRole('student');
+            const profile = await hydrateStudentProfileFromUser(user);
+            if (profile && subtext) {
+                subtext.innerText = `พบบัญชีเดิม: ${profile.nickname} (${profile.email}) — กดเพื่อเข้าใช้งานต่อ`;
+            } else if (subtext) {
+                subtext.innerText = "เข้าสู่ระบบ หรือ สร้างบัญชีด้วยอีเมลโรงเรียน";
             }
         } catch (e) {}
     } else {
@@ -198,13 +241,21 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// กดปุ่ม คุณครู / นักเรียนโรงเรียนเบญฯ บนหน้าแรก
-window.handleStudentEntry = function() {
-    sessionStorage.removeItem('benbelong_logged_out');
-    if (currentUserProfile && isValidSchoolEmail(currentUserProfile.email)) {
-        selectRole('student');
-        return;
+// กดปุ่ม คุณครู / นักเรียนโรงเรียนเบญฯ บนหน้าเลือกบทบาท
+window.handleStudentEntry = async function() {
+    const activeUser = auth.currentUser || authReadyUser;
+    if (activeUser && isValidSchoolEmail(activeUser.email)) {
+        try {
+            const profile = currentUserProfile && currentUserProfile.uid === activeUser.uid
+                ? currentUserProfile
+                : await hydrateStudentProfileFromUser(activeUser);
+            if (profile) {
+                selectRole('student');
+                return;
+            }
+        } catch (e) {}
     }
+
     if (studentAuthModal) {
         switchAuthTab('login');
         studentAuthModal.style.display = 'flex';
@@ -261,20 +312,17 @@ if (registerForm) {
         const password = document.getElementById('regPassword').value;
         const regBtn = document.getElementById('regSubmitBtn');
 
-        // 1. ตรวจว่าลงท้าย @ben.ac.th หรือไม่
         if (!email.endsWith('@ben.ac.th') || !/^[^@\s]+@ben\.ac\.th$/.test(email)) {
             alert("❌ สร้างบัญชีไม่สำเร็จ: อีเมลต้องลงท้ายด้วย @ben.ac.th เท่านั้นครับ");
             return;
         }
 
-        // 2. ตรวจว่าอุปกรณ์นี้เคยสร้างบัญชีในเครื่องแล้วหรือไม่ (1 คน / 1 device)
         const registeredDeviceEmail = localStorage.getItem(DEVICE_REGISTERED_KEY);
         if (registeredDeviceEmail && registeredDeviceEmail !== email) {
             alert(`❌ สร้างบัญชีไม่สำเร็จ: อุปกรณ์นี้เคยสร้างบัญชีไปแล้ว (${registeredDeviceEmail}) จำกัด 1 คน ต่อ 1 เครื่องครับ หากเป็นบัญชีของคุณเองให้กดแท็บ "เข้าสู่ระบบ"`);
             return;
         }
 
-        // 3. หากอีเมลไม่ใช่รูปแบบ sXXXXX หรือ XXXXX (5 หลัก) ต้องบังคับชื่อภาษาไทยล้วน ห้ามมีภาษาอังกฤษ และใส่ชื่อตัวเอง
         const isStudentEmail = isStudentFormatEmail(email);
         if (!isStudentEmail) {
             if (!isPureThaiName(nickname)) {
@@ -304,7 +352,6 @@ if (registerForm) {
             });
 
             localStorage.setItem(DEVICE_REGISTERED_KEY, email);
-            sessionStorage.removeItem('benbelong_logged_out');
             currentUserProfile = { uid: user.uid, email: email, nickname: nickname };
             studentAuthModal.style.display = 'none';
             registerForm.reset();
@@ -357,7 +404,6 @@ if (loginForm) {
             }
 
             localStorage.setItem(DEVICE_REGISTERED_KEY, email);
-            sessionStorage.removeItem('benbelong_logged_out');
             currentUserProfile = { uid: user.uid, email: email, nickname: nickname };
             studentAuthModal.style.display = 'none';
             loginForm.reset();
@@ -409,10 +455,14 @@ window.openOwnProfile = function() {
 };
 
 window.openEditNicknameModal = function() {
-    if (currentUserProfile && editNicknameModal) {
-        document.getElementById('newNicknameInput').value = currentUserProfile.nickname;
-        editNicknameModal.style.display = 'flex';
+    if (!currentUserProfile || !editNicknameModal) return;
+    const cd = getNicknameCooldownInfo(currentUserProfile.uid);
+    if (!cd.canChange) {
+        alert(`⏳ แจ้งเตือน: คุณเปลี่ยนชื่อไปแล้วเมื่อไม่นานมานี้ ระบบจำกัดให้เปลี่ยนชื่อได้เดือนละ 1 ครั้ง (เหลือเวลาคูลดาวน์อีกประมาณ ${cd.remainingDays} วันครับ)`);
+        return;
     }
+    document.getElementById('newNicknameInput').value = currentUserProfile.nickname;
+    editNicknameModal.style.display = 'flex';
 };
 
 if (editNicknameForm) {
@@ -421,35 +471,54 @@ if (editNicknameForm) {
         const newNick = document.getElementById('newNicknameInput').value.trim();
         const saveBtn = document.getElementById('saveNicknameBtn');
 
-        if (!newNick) return;
-        if (currentUserProfile && !isStudentFormatEmail(currentUserProfile.email) && !isPureThaiName(newNick)) {
+        if (!newNick || !currentUserProfile) return;
+
+        const cd = getNicknameCooldownInfo(currentUserProfile.uid);
+        if (!cd.canChange) {
+            alert(`⏳ แจ้งเตือน: ยังอยู่ในช่วงคูลดาวน์ 1 เดือนของการเปลี่ยนชื่อ (เหลืออีกประมาณ ${cd.remainingDays} วันครับ)`);
+            return;
+        }
+
+        if (newNick === currentUserProfile.nickname) {
+            alert("⚠️ ชื่อใหม่เหมือนกับชื่อเดิมครับ กรุณากรอกชื่อที่ต้องการเปลี่ยนใหม่");
+            return;
+        }
+
+        if (!isStudentFormatEmail(currentUserProfile.email) && !isPureThaiName(newNick)) {
             alert("❌ สำหรับอีเมลรูปแบบนี้ ต้องใช้ชื่อภาษาไทยเท่านั้น ห้ามมีภาษาอังกฤษ และโปรดใส่ชื่อตัวเองครับ");
             return;
         }
+
         if (containsBadWord(newNick)) {
             alert("⚠️ ชื่อมีคำที่ไม่สุภาพ กรุณาตั้งชื่อใหม่ครับ");
             return;
         }
 
-        if (currentUserProfile) {
-            try {
-                saveBtn.disabled = true;
-                saveBtn.innerText = "กำลังบันทึก...";
+        const confirmChange = confirm(
+            `⚠️ แจ้งเตือนการเปลี่ยนชื่อ\n\nคุณต้องการเปลี่ยนชื่อจาก "${currentUserProfile.nickname}" เป็น "${newNick}" ใช่หรือไม่?\n\nหลังจากเปลี่ยนชื่อแล้ว คุณจะเปลี่ยนชื่อได้อีกครั้งในอีก 1 เดือน (30 วัน) ข้างหน้าครับ`
+        );
+        if (!confirmChange) return;
 
-                await updateDoc(doc(db, "users", currentUserProfile.uid), {
-                    nickname: newNick
-                });
+        try {
+            saveBtn.disabled = true;
+            saveBtn.innerText = "กำลังบันทึก...";
 
-                currentUserProfile.nickname = newNick;
-                updateUserUI();
-                editNicknameModal.style.display = 'none';
-                alert("✅ เปลี่ยน Username เรียบร้อยแล้ว!");
-            } catch (error) {
-                alert("เกิดข้อผิดพลาดในการเปลี่ยนชื่อ");
-            } finally {
-                saveBtn.disabled = false;
-                saveBtn.innerText = "บันทึกชื่อใหม่";
-            }
+            const nowMs = Date.now();
+            await updateDoc(doc(db, "users", currentUserProfile.uid), {
+                nickname: newNick,
+                lastNicknameChangeAt: nowMs
+            });
+
+            localStorage.setItem(getNicknameCooldownKey(currentUserProfile.uid), String(nowMs));
+            currentUserProfile.nickname = newNick;
+            updateUserUI();
+            editNicknameModal.style.display = 'none';
+            alert("✅ แจ้งเตือน: เปลี่ยนชื่อเรียบร้อยแล้วครับ ระบบจะเริ่มนับคูลดาวน์ 1 เดือน (30 วัน) สำหรับการเปลี่ยนชื่อครั้งถัดไป");
+        } catch (error) {
+            alert("เกิดข้อผิดพลาดในการเปลี่ยนชื่อ");
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerText = "บันทึกชื่อใหม่";
         }
     });
 }
@@ -589,19 +658,14 @@ if (passwordForm) {
     });
 }
 
-// กดปุ่มออกจากระบบ: แจ้งเตือนยืนยันก่อนออกจากระบบจริง
-window.logoutToLanding = async function() {
+// กดปุ่มออกจากระบบ: กลับสู่หน้าเลือกบทบาท (และหากเป็นบัญชีนักเรียน/คุณครูที่ล็อกอินไว้ ก็คงเซสชันไว้ให้กดเข้าบัญชีเดิมได้ทันที)
+window.logoutToLanding = function() {
     const confirmed = confirm(
-        "คุณต้องการออกจากระบบจริงๆ ใช่ไหม?\n\n⚠️ หากคุณจำรหัสผ่านไม่ได้ คุณต้องติดต่อเรามาทางไอจี (IG) เท่านั้นนะครับ"
+        "คุณต้องการกลับไปหน้าเลือกบทบาทใช่ไหม?\n\nหากล็อกอินบัญชีคุณครู/นักเรียนไว้แล้ว รอบหน้ากดปุ่ม 'คุณครู / นักเรียนโรงเรียนเบญฯ' จะเข้าบัญชีเดิมได้ทันทีครับ"
     );
     if (!confirmed) return;
 
-    try {
-        await signOut(auth);
-    } catch (e) {}
-
     currentUserRole = null;
-    currentUserProfile = null;
     if (sidebar) sidebar.classList.add('sidebar-closed');
     if (mainDashboardView) mainDashboardView.style.display = 'none';
     if (roleSelectionView) roleSelectionView.style.display = 'flex';
