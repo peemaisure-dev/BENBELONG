@@ -1,6 +1,8 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, getDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { initializeApp } from "[https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js](https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js)";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, getDoc, setDoc, query, orderBy, serverTimestamp } from "[https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js](https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js)";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "[https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js](https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js)";
 
+const SCHOOL_DOMAIN = "@ben.ac.th";
 const ADMIN_PASSWORD = "PongpichiTLnwZa555";
 
 const firebaseConfig = {
@@ -15,8 +17,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 let currentUserRole = null;
+let currentUserProfile = null; // { uid, email, nickname }
 let allNotes = [];
 let allEvents = [];
 let allPosts = [];
@@ -31,12 +35,17 @@ const calendarViewContainer = document.getElementById('calendarViewContainer');
 const communityViewContainer = document.getElementById('communityViewContainer');
 const studyHubViewContainer = document.getElementById('studyHubViewContainer');
 
+const studentAuthModal = document.getElementById('studentAuthModal');
+const editNicknameModal = document.getElementById('editNicknameModal');
 const passwordModal = document.getElementById('passwordModal');
 const eventModal = document.getElementById('eventModal');
 const uploadModal = document.getElementById('uploadModal');
 const eventDetailModal = document.getElementById('eventDetailModal');
 const feedbackModal = document.getElementById('feedbackModal');
 
+const loginForm = document.getElementById('loginForm');
+const registerForm = document.getElementById('registerForm');
+const editNicknameForm = document.getElementById('editNicknameForm');
 const passwordForm = document.getElementById('passwordForm');
 const adminPasswordInput = document.getElementById('adminPasswordInput');
 const eventForm = document.getElementById('eventForm');
@@ -45,8 +54,10 @@ const postForm = document.getElementById('postForm');
 const feedbackForm = document.getElementById('feedbackForm');
 
 const userRoleBadge = document.getElementById('userRoleBadge');
+const userAccountSubInfo = document.getElementById('userAccountSubInfo');
+const editNicknameBtn = document.getElementById('editNicknameBtn');
 const userRoleIndicator = document.getElementById('userRoleIndicator');
-const adminMenuSection = document.getElementById('adminMenuSection');
+const adminAddEventSidebarBtn = document.getElementById('adminAddEventSidebarBtn');
 const addEventQuickBtn = document.getElementById('addEventQuickBtn');
 const sidebarFeedbackBtn = document.getElementById('sidebarFeedbackBtn');
 
@@ -75,6 +86,14 @@ const submitPostBtn = document.getElementById('submitPostBtn');
 
 let lastPostTime = 0;
 
+if (document.getElementById('domainHintText')) {
+    document.getElementById('domainHintText').innerText = SCHOOL_DOMAIN;
+}
+
+function isValidSchoolEmail(email) {
+    return email.toLowerCase().trim().endsWith(SCHOOL_DOMAIN.toLowerCase());
+}
+
 function getThaiDateString() {
     const now = new Date();
     const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -84,11 +103,12 @@ function getThaiDateString() {
 
 function checkDailyPostLimit() {
     const todayStr = getThaiDateString();
-    let record = JSON.parse(localStorage.getItem('benbelong_post_limit')) || { date: todayStr, count: 0 };
+    const storageKey = currentUserProfile ? `benbelong_limit_${currentUserProfile.uid}` : 'benbelong_post_limit';
+    let record = JSON.parse(localStorage.getItem(storageKey)) || { date: todayStr, count: 0 };
     
     if (record.date !== todayStr) {
         record = { date: todayStr, count: 0 };
-        localStorage.setItem('benbelong_post_limit', JSON.stringify(record));
+        localStorage.setItem(storageKey, JSON.stringify(record));
     }
     
     const left = 5 - record.count;
@@ -98,9 +118,10 @@ function checkDailyPostLimit() {
 
 function incrementDailyPostCount() {
     const todayStr = getThaiDateString();
-    let record = JSON.parse(localStorage.getItem('benbelong_post_limit')) || { date: todayStr, count: 0 };
+    const storageKey = currentUserProfile ? `benbelong_limit_${currentUserProfile.uid}` : 'benbelong_post_limit';
+    let record = JSON.parse(localStorage.getItem(storageKey)) || { date: todayStr, count: 0 };
     record.count += 1;
-    localStorage.setItem('benbelong_post_limit', JSON.stringify(record));
+    localStorage.setItem(storageKey, JSON.stringify(record));
     checkDailyPostLimit();
 }
 
@@ -108,11 +129,7 @@ if (postContentInput) {
     postContentInput.addEventListener('input', () => {
         const currentLength = postContentInput.value.length;
         if (charCount) charCount.innerText = currentLength;
-        if (currentLength >= 300) {
-            charCount.style.color = '#EF4444';
-        } else {
-            charCount.style.color = '#94A3B8';
-        }
+        charCount.style.color = currentLength >= 300 ? '#EF4444' : '#94A3B8';
     });
 }
 
@@ -125,10 +142,194 @@ const badWords = ["ควย", "หี", "เหี้ย", "สัส", "คว
 
 function containsBadWord(text) {
     const cleanText = text.toLowerCase().replace(/[\s\-_.,!@#$%^&*()+=]/g, '');
-    return badWords.some(word => {
-        const cleanWord = word.toLowerCase();
-        return cleanText.includes(cleanWord);
-    });
+    return badWords.some(word => cleanText.includes(word.toLowerCase()));
+}
+
+/* ระบบ Authentication อีเมลโรงเรียน */
+window.openStudentAuthModal = function() {
+    switchAuthTab('login');
+    studentAuthModal.style.display = 'flex';
+};
+
+window.switchAuthTab = function(tab) {
+    const tabLogin = document.getElementById('tabLoginBtn');
+    const tabReg = document.getElementById('tabRegisterBtn');
+    if (tab === 'login') {
+        tabLogin.classList.add('active');
+        tabReg.classList.remove('active');
+        loginForm.style.display = 'block';
+        registerForm.style.display = 'none';
+    } else {
+        tabReg.classList.add('active');
+        tabLogin.classList.remove('active');
+        registerForm.style.display = 'block';
+        loginForm.style.display = 'none';
+    }
+};
+
+// สมัครสมาชิก (บังคับอีเมลโรงเรียน + ตั้ง Username + รหัสผ่าน)
+registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('regEmail').value.trim().toLowerCase();
+    const nickname = document.getElementById('regNickname').value.trim();
+    const password = document.getElementById('regPassword').value;
+    const regBtn = document.getElementById('regSubmitBtn');
+
+    if (!isValidSchoolEmail(email)) {
+        alert(`❌ ขออภัยครับ ระบบอนุญาตเฉพาะอีเมลของโรงเรียน (${SCHOOL_DOMAIN}) เท่านั้น!`);
+        return;
+    }
+
+    if (containsBadWord(nickname)) {
+        alert("⚠️ ชื่อแสดงผลมีคำที่ไม่สุภาพ กรุณาตั้งชื่อใหม่ครับ");
+        return;
+    }
+
+    try {
+        regBtn.disabled = true;
+        regBtn.innerText = "กำลังสร้างบัญชี...";
+
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        await setDoc(doc(db, "users", user.uid), {
+            uid: user.uid,
+            schoolEmail: email,
+            nickname: nickname,
+            createdAt: serverTimestamp()
+        });
+
+        currentUserProfile = { uid: user.uid, email: email, nickname: nickname };
+        studentAuthModal.style.display = 'none';
+        registerForm.reset();
+        selectRole('student');
+        alert(`🎉 สร้างบัญชีสำเร็จ! ยินดีต้อนรับคุณ ${nickname}`);
+    } catch (error) {
+        console.error("Register Error:", error);
+        if (error.code === 'auth/email-already-in-use') {
+            alert("❌ อีเมลโรงเรียนนี้ถูกใช้สร้างบัญชีไปแล้ว กรุณากดแท็บ 'เข้าสู่ระบบ' ครับ");
+        } else {
+            alert("❌ เกิดข้อผิดพลาดในการสร้างบัญชี: " + error.message);
+        }
+    } finally {
+        regBtn.disabled = false;
+        regBtn.innerText = "สมัครสมาชิกและเข้าใช้งาน";
+    }
+});
+
+// เข้าสู่ระบบ
+loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+    const password = document.getElementById('loginPassword').value;
+    const loginBtn = document.getElementById('loginSubmitBtn');
+
+    if (!isValidSchoolEmail(email)) {
+        alert(`❌ กรุณาใช้อีเมลของโรงเรียน (${SCHOOL_DOMAIN}) ในการเข้าสู่ระบบครับ`);
+        return;
+    }
+
+    try {
+        loginBtn.disabled = true;
+        loginBtn.innerText = "กำลังเข้าสู่ระบบ...";
+
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        let nickname = email.split('@')[0];
+        if (userDoc.exists()) {
+            nickname = userDoc.data().nickname || nickname;
+        } else {
+            await setDoc(doc(db, "users", user.uid), {
+                uid: user.uid,
+                schoolEmail: email,
+                nickname: nickname,
+                createdAt: serverTimestamp()
+            });
+        }
+
+        currentUserProfile = { uid: user.uid, email: email, nickname: nickname };
+        studentAuthModal.style.display = 'none';
+        loginForm.reset();
+        selectRole('student');
+    } catch (error) {
+        console.error("Login Error:", error);
+        alert("❌ อีเมลโรงเรียนหรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้งครับ");
+    } finally {
+        loginBtn.disabled = false;
+        loginBtn.innerText = "เข้าสู่ระบบ BENEFIT";
+    }
+});
+
+// แก้ไข Username
+window.openEditNicknameModal = function() {
+    if (currentUserProfile) {
+        document.getElementById('newNicknameInput').value = currentUserProfile.nickname;
+    }
+    editNicknameModal.style.display = 'flex';
+};
+
+editNicknameForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newNick = document.getElementById('newNicknameInput').value.trim();
+    const saveBtn = document.getElementById('saveNicknameBtn');
+
+    if (!newNick) return;
+    if (containsBadWord(newNick)) {
+        alert("⚠️ ชื่อมีคำที่ไม่สุภาพ กรุณาตั้งชื่อใหม่ครับ");
+        return;
+    }
+
+    if (currentUserProfile) {
+        try {
+            saveBtn.disabled = true;
+            saveBtn.innerText = "กำลังบันทึก...";
+
+            await updateDoc(doc(db, "users", currentUserProfile.uid), {
+                nickname: newNick
+            });
+
+            currentUserProfile.nickname = newNick;
+            updateUserUI();
+            editNicknameModal.style.display = 'none';
+            alert("✅ เปลี่ยน Username เรียบร้อยแล้ว!");
+        } catch (error) {
+            console.error("Error updating nickname:", error);
+            alert("เกิดข้อผิดพลาดในการเปลี่ยนชื่อ");
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerText = "บันทึกชื่อใหม่";
+        }
+    }
+});
+
+function updateUserUI() {
+    if (currentUserRole === 'admin') {
+        userRoleBadge.innerText = "⚙️ ทีมงานพรรค BENEFIT";
+        userAccountSubInfo.innerText = "สิทธิ์ผู้ดูแลระบบ";
+        editNicknameBtn.style.display = 'none';
+        userRoleIndicator.innerText = "⚙️ ทีมงานพรรค";
+        if (document.getElementById('composeDisplayNickname')) {
+            document.getElementById('composeDisplayNickname').innerText = "ทีมงานพรรค BENEFIT";
+            document.getElementById('changeNickShortcut').style.display = 'none';
+        }
+        if (document.getElementById('uploadDisplayNickname')) {
+            document.getElementById('uploadDisplayNickname').innerText = "ทีมงานพรรค BENEFIT";
+        }
+    } else if (currentUserProfile) {
+        userRoleBadge.innerText = `🎓 ${currentUserProfile.nickname}`;
+        userAccountSubInfo.innerText = `บัญชี: ${currentUserProfile.email}`;
+        editNicknameBtn.style.display = 'inline-block';
+        userRoleIndicator.innerText = `🎓 ${currentUserProfile.nickname}`;
+        if (document.getElementById('composeDisplayNickname')) {
+            document.getElementById('composeDisplayNickname').innerText = currentUserProfile.nickname;
+            document.getElementById('changeNickShortcut').style.display = 'inline-block';
+        }
+        if (document.getElementById('uploadDisplayNickname')) {
+            document.getElementById('uploadDisplayNickname').innerText = currentUserProfile.nickname;
+        }
+    }
 }
 
 window.selectRole = function(role) {
@@ -137,25 +338,22 @@ window.selectRole = function(role) {
     mainDashboardView.style.display = 'flex';
     
     if (role === 'admin') {
-        userRoleBadge.innerText = "⚙️ ทีมงานพรรค";
-        userRoleIndicator.innerText = "⚙️ ทีมงานพรรค";
-        adminMenuSection.style.display = 'block';
+        if (adminAddEventSidebarBtn) adminAddEventSidebarBtn.style.display = 'block';
         addEventQuickBtn.style.display = 'inline-block';
         if (sidebarFeedbackBtn) sidebarFeedbackBtn.innerText = "📖 อ่าน Feedback ทั้งหมด";
     } else {
-        userRoleBadge.innerText = "🎓 นักเรียน / คุณครู";
-        userRoleIndicator.innerText = "🎓 นักเรียน / คุณครู";
-        adminMenuSection.style.display = 'none';
+        if (adminAddEventSidebarBtn) adminAddEventSidebarBtn.style.display = 'none';
         addEventQuickBtn.style.display = 'none';
         if (sidebarFeedbackBtn) sidebarFeedbackBtn.innerText = "💡 ส่ง Feedback / แจ้งบัค";
     }
+    updateUserUI();
     updateCalendarDisplay();
     fetchEvents();
-}
+};
 
 window.toggleSidebar = function() {
     sidebar.classList.toggle('sidebar-closed');
-}
+};
 
 window.switchMainTab = function(tabName) {
     calendarViewContainer.style.display = 'none';
@@ -182,7 +380,7 @@ window.switchMainTab = function(tabName) {
     if (window.innerWidth <= 768) {
         sidebar.classList.add('sidebar-closed');
     }
-}
+};
 
 window.changeMonth = function(direction) {
     currentCalendarDate.setMonth(currentCalendarDate.getMonth() + direction);
@@ -190,7 +388,7 @@ window.changeMonth = function(direction) {
     yearSelect.value = currentCalendarDate.getFullYear() + 543;
     updateCalendarDisplay();
     filterAndRenderEvents();
-}
+};
 
 window.onMonthSelectChange = function(monthVal) {
     if (monthVal !== 'all') {
@@ -198,7 +396,7 @@ window.onMonthSelectChange = function(monthVal) {
     }
     updateCalendarDisplay();
     filterAndRenderEvents();
-}
+};
 
 window.onYearSelectChange = function(yearVal) {
     if (yearVal !== 'all') {
@@ -207,7 +405,7 @@ window.onYearSelectChange = function(yearVal) {
     }
     updateCalendarDisplay();
     filterAndRenderEvents();
-}
+};
 
 function updateCalendarDisplay() {
     const year = currentCalendarDate.getFullYear();
@@ -228,13 +426,14 @@ function updateCalendarDisplay() {
 
 window.openAdminPasswordModal = function() {
     passwordModal.style.display = 'flex';
-}
+};
 
 passwordForm.addEventListener('submit', (e) => {
     e.preventDefault();
     if (adminPasswordInput.value === ADMIN_PASSWORD) {
         passwordModal.style.display = 'none';
         adminPasswordInput.value = '';
+        currentUserProfile = { uid: 'admin', email: 'admin@ben.ac.th', nickname: 'ทีมงานพรรค BENEFIT' };
         selectRole('admin');
         alert("🎉 เข้าสู่ระบบสมาชิกพรรคสำเร็จ!");
     } else {
@@ -242,25 +441,29 @@ passwordForm.addEventListener('submit', (e) => {
     }
 });
 
-window.logoutToLanding = function() {
+window.logoutToLanding = async function() {
+    try {
+        await signOut(auth);
+    } catch (e) {}
     currentUserRole = null;
+    currentUserProfile = null;
     mainDashboardView.style.display = 'none';
     roleSelectionView.style.display = 'flex';
-}
+};
 
 window.closeModal = function(modalId) {
     document.getElementById(modalId).style.display = 'none';
-}
+};
 
 window.openEventModal = function() {
     eventModal.style.display = 'flex';
-}
+};
 
 window.openUploadModal = function() {
+    updateUserUI();
     uploadModal.style.display = 'flex';
-}
+};
 
-// เปิด Feedback Modal ตามสิทธิ์ (คนทั่วไปเห็นหน้าส่ง / แอดมินเห็นหน้ารายการ)
 window.openFeedbackModal = function() {
     const studentView = document.getElementById('studentFeedbackView');
     const adminView = document.getElementById('adminFeedbackView');
@@ -272,21 +475,24 @@ window.openFeedbackModal = function() {
     } else {
         studentView.style.display = 'block';
         adminView.style.display = 'none';
+        if (currentUserProfile) {
+            document.getElementById('feedbackAuthor').value = currentUserProfile.nickname;
+        }
     }
     feedbackModal.style.display = 'flex';
-}
+};
 
 feedbackForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const authorInput = document.getElementById('feedbackAuthor');
     const textInput = document.getElementById('feedbackText');
     const submitBtn = document.getElementById('submitFeedbackBtn');
 
-    const author = authorInput.value.trim() || "นิรนาม";
+    const author = currentUserProfile ? currentUserProfile.nickname : "นิรนาม";
+    const schoolEmail = currentUserProfile ? currentUserProfile.email : "ไม่ระบุ";
     const text = textInput.value.trim();
     if (!text) return;
 
-    if (containsBadWord(author) || containsBadWord(text)) {
+    if (containsBadWord(text)) {
         alert("⚠️ ขออภัยครับ ตรวจพบคำที่ไม่สุภาพ ระบบไม่อนุญาตให้ส่งครับ");
         return;
     }
@@ -297,6 +503,7 @@ feedbackForm.addEventListener('submit', async (e) => {
 
         await addDoc(collection(db, "feedbacks"), {
             author: author,
+            schoolEmail: schoolEmail,
             text: text,
             createdAt: serverTimestamp()
         });
@@ -335,7 +542,10 @@ async function fetchFeedbacksForAdmin() {
             card.className = 'feedback-item-card';
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                    <span style="font-weight: 700; color: var(--royal-blue); font-size: 0.9rem;">👤 ${escapeHTML(data.author)}</span>
+                    <div>
+                        <span style="font-weight: 700; color: var(--royal-blue); font-size: 0.9rem;">👤 ${escapeHTML(data.author)}</span>
+                        <span style="font-size: 0.75rem; color: #64748B; margin-left: 6px;">(${escapeHTML(data.schoolEmail || 'ไม่ระบุอีเมล')})</span>
+                    </div>
                     <button onclick="window.deleteFeedback('${docSnap.id}')" style="background:none; border:none; color:#EF4444; font-size:0.8rem; cursor:pointer; font-weight:600;">🗑️ ลบ</button>
                 </div>
                 <p style="font-size: 0.9rem; color: #334155; word-break: break-word; white-space: pre-wrap;">${escapeHTML(data.text)}</p>
@@ -355,12 +565,13 @@ window.deleteFeedback = async function(id) {
             fetchFeedbacksForAdmin();
         } catch (error) {
             console.error("Error deleting feedback:", error);
-            alert("เกิดข้อผิดพลาดในการลบ");
         }
     }
 };
 
 window.onclick = (e) => {
+    if (e.target === studentAuthModal) studentAuthModal.style.display = 'none';
+    if (e.target === editNicknameModal) editNicknameModal.style.display = 'none';
     if (e.target === passwordModal) passwordModal.style.display = 'none';
     if (e.target === eventModal) eventModal.style.display = 'none';
     if (e.target === uploadModal) uploadModal.style.display = 'none';
@@ -454,7 +665,7 @@ window.openEventDetail = function(ev) {
     }
 
     eventDetailModal.style.display = 'flex';
-}
+};
 
 eventForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -494,12 +705,11 @@ window.deleteEvent = async function(id) {
             fetchEvents();
         } catch (error) {
             console.error("Error deleting event:", error);
-            alert("เกิดข้อผิดพลาดในการลบอีเวนต์");
         }
     }
 };
 
-/* จัดการระบบ BenX */
+/* จัดการระบบ BenX (ใช้ Username อัตโนมัติทั้งโพสต์และคอมเมนต์) */
 async function fetchPosts() {
     try {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
@@ -530,39 +740,40 @@ function renderPosts(posts) {
     if (posts.length === 0) {
         postsFeed.innerHTML = `
             <div style="text-align:center; padding: 3rem; background: white; border-radius: 16px; color: #64748b; margin: 1rem;">
-                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">💬 ไม่มีโพสต์ที่ค้นหา</p>
-                <p style="font-size: 0.9rem;">ลองพิมพ์ค้นหาด้วยคำอื่น หรือสร้างโพสต์ใหม่ได้เลย!</p>
+                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">💬 ไม่มีโพสต์ในขณะนี้</p>
+                <p style="font-size: 0.9rem;">เริ่มต้นโพสต์พูดคุยกับเพื่อนๆ ในโรงเรียนได้เลย!</p>
             </div>`;
         return;
     }
 
-    const currentAuthorName = localStorage.getItem('benbelong_author') || "";
-    const clientId = localStorage.getItem('benbelong_client_id') || (() => {
-        const id = 'user_' + Math.random().toString(36).substring(2, 9);
-        localStorage.setItem('benbelong_client_id', id);
-        return id;
-    })();
+    const currentUid = currentUserProfile ? currentUserProfile.uid : '';
+    const currentNickname = currentUserProfile ? currentUserProfile.nickname : 'ผู้ใช้งาน';
 
     posts.forEach(post => {
         const card = document.createElement('div');
         card.className = 'x-post-item';
         
         let deleteBtnHtml = '';
-        if (currentUserRole === 'admin' || (currentAuthorName && post.author === currentAuthorName)) {
+        if (currentUserRole === 'admin' || (currentUid && post.authorUid === currentUid)) {
             deleteBtnHtml = `<button class="x-delete-btn" onclick="window.deletePost('${post.id}')">🗑️ ลบ</button>`;
+        }
+
+        let adminEmailTag = '';
+        if (currentUserRole === 'admin' && post.schoolEmail) {
+            adminEmailTag = `<span style="font-size: 0.72rem; color: #64748B; font-weight: 400; margin-left: 6px;">(${escapeHTML(post.schoolEmail)})</span>`;
         }
 
         let formattedContent = escapeHTML(post.content);
         formattedContent = formattedContent.replace(/#([A-Za-zก-ฮ0-9_]+)/g, '<span class="x-hashtag">#$1</span>');
 
-        const hasLiked = post.likedBy && post.likedBy.includes(clientId);
+        const hasLiked = post.likedBy && post.likedBy.includes(currentUid);
         const heartIcon = hasLiked ? '❤️' : '🤍';
 
         let commentsHtml = '';
         if (post.comments && post.comments.length > 0) {
             post.comments.forEach((comm, cIndex) => {
                 let commentDeleteBtn = '';
-                if (currentUserRole === 'admin' || (currentAuthorName && comm.author === currentAuthorName)) {
+                if (currentUserRole === 'admin' || (currentUid && comm.authorUid === currentUid)) {
                     commentDeleteBtn = `<button class="comm-delete-btn" onclick="window.deleteComment('${post.id}', ${cIndex})">✕</button>`;
                 }
                 commentsHtml += `
@@ -577,11 +788,15 @@ function renderPosts(posts) {
             });
         }
 
+        // ตัดช่องพิมพ์ชื่อเล่นในฟอร์มคอมเมนต์ออก ใช้ Username ของบัญชีทันที
         card.innerHTML = `
             <div class="x-post-avatar">👤</div>
             <div class="x-post-content-wrap">
                 <div class="x-post-header">
-                    <span class="x-post-author">${escapeHTML(post.author)}</span>
+                    <div>
+                        <span class="x-post-author">${escapeHTML(post.author)}</span>
+                        ${adminEmailTag}
+                    </div>
                     ${deleteBtnHtml}
                 </div>
                 <div class="x-post-text">${formattedContent}</div>
@@ -598,7 +813,7 @@ function renderPosts(posts) {
                 <div id="commentBox_${post.id}" class="x-comment-section" style="display: none;">
                     <div class="x-comments-list">${commentsHtml}</div>
                     <form class="x-comment-form" onsubmit="window.submitComment(event, '${post.id}')">
-                        <input type="text" class="x-comment-author-input" placeholder="ชื่อเล่น..." required maxlength="20" value="${escapeHTML(currentAuthorName)}">
+                        <span class="x-comment-user-badge">${escapeHTML(currentNickname)}</span>
                         <input type="text" class="x-comment-input" placeholder="เขียนคอมเม้นต์..." required maxlength="150">
                         <button type="submit" class="x-comment-btn">ส่ง</button>
                     </form>
@@ -610,6 +825,7 @@ function renderPosts(posts) {
 }
 
 window.toggleLike = async function(postId) {
+    if (!currentUserProfile) return;
     try {
         const postRef = doc(db, "posts", postId);
         const postSnap = await getDoc(postRef);
@@ -619,14 +835,14 @@ window.toggleLike = async function(postId) {
         let likedBy = data.likedBy || [];
         let likes = data.likes || 0;
 
-        const clientId = localStorage.getItem('benbelong_client_id');
-        const index = likedBy.indexOf(clientId);
+        const uid = currentUserProfile.uid;
+        const index = likedBy.indexOf(uid);
 
         if (index > -1) {
             likedBy.splice(index, 1);
             likes = Math.max(0, likes - 1);
         } else {
-            likedBy.push(clientId);
+            likedBy.push(uid);
             likes += 1;
         }
 
@@ -646,20 +862,19 @@ window.toggleCommentBox = function(postId) {
 
 window.submitComment = async function(e, postId) {
     e.preventDefault();
+    if (!currentUserProfile) return;
+
     const form = e.target;
-    const authorInput = form.querySelector('.x-comment-author-input');
     const textInput = form.querySelector('.x-comment-input');
 
-    const author = authorInput.value.trim();
+    const author = currentUserProfile.nickname;
     const text = textInput.value.trim();
-    if (!author || !text) return;
+    if (!text) return;
 
-    if (containsBadWord(author) || containsBadWord(text)) {
+    if (containsBadWord(text)) {
         alert("⚠️ ขออภัยครับ ตรวจพบคำที่ไม่สุภาพในคอมเม้นต์");
         return;
     }
-
-    localStorage.setItem('benbelong_author', author);
 
     try {
         const postRef = doc(db, "posts", postId);
@@ -668,14 +883,19 @@ window.submitComment = async function(e, postId) {
 
         const data = postSnap.data();
         let comments = data.comments || [];
-        comments.push({ author, text, createdAt: new Date().toISOString() });
+        comments.push({ 
+            author, 
+            authorUid: currentUserProfile.uid,
+            schoolEmail: currentUserProfile.email,
+            text, 
+            createdAt: new Date().toISOString() 
+        });
 
         await updateDoc(postRef, { comments });
         textInput.value = '';
         fetchPosts();
     } catch (error) {
         console.error("Error adding comment:", error);
-        alert("เกิดข้อผิดพลาดในการส่งคอมเม้นต์");
     }
 };
 
@@ -704,12 +924,12 @@ window.filterPostsBySearch = function() {
         return post.content.toLowerCase().includes(keyword) || post.author.toLowerCase().includes(keyword);
     });
     renderPosts(filtered);
-}
+};
 
 window.filterByHashtag = function(tag) {
     searchInputFeed.value = tag;
     filterPostsBySearch();
-}
+};
 
 function extractAndRenderTrends(posts) {
     const tagCounts = {};
@@ -742,15 +962,16 @@ function extractAndRenderTrends(posts) {
 
 postForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!currentUserProfile) return;
+
     const nowTime = Date.now();
     if (nowTime - lastPostTime < 3000) {
         alert("⏳ กรุณารอสักครู่ (ระบบป้องกันการสแปม)");
         return;
     }
 
-    const author = document.getElementById('postAuthorName').value.trim();
     const content = postContentInput.value.trim();
-    if (!author || !content) return;
+    if (!content) return;
 
     const currentCount = checkDailyPostLimit();
     if (currentCount >= 5) {
@@ -763,20 +984,21 @@ postForm.addEventListener('submit', async (e) => {
         return;
     }
 
-    if (containsBadWord(author) || containsBadWord(content)) {
+    if (containsBadWord(content)) {
         alert("⚠️ ขออภัยครับ ตรวจพบคำที่ไม่สุภาพในโพสต์ ระบบไม่อนุญาตให้เผยแพร่ครับ");
         return; 
     }
 
     lastPostTime = nowTime;
-    localStorage.setItem('benbelong_author', author);
 
     try {
         submitPostBtn.disabled = true;
         submitPostBtn.innerText = "Posting...";
 
         await addDoc(collection(db, "posts"), {
-            author: author,
+            author: currentUserProfile.nickname,
+            authorUid: currentUserProfile.uid,
+            schoolEmail: currentUserProfile.email,
             content: content,
             likes: 0,
             likedBy: [],
@@ -804,12 +1026,11 @@ window.deletePost = async function(id) {
             fetchPosts();
         } catch (error) {
             console.error("Error deleting post:", error);
-            alert("เกิดข้อผิดพลาดในการลบโพสต์");
         }
     }
 };
 
-/* จัดการคลังสรุป PDF */
+/* จัดการคลังสรุป PDF (ใช้ Username อัตโนมัติ) */
 async function fetchNotes() {
     try {
         const q = query(collection(db, "notes"), orderBy("createdAt", "desc"));
@@ -838,10 +1059,14 @@ function renderNotes(notes) {
         return;
     }
 
+    const currentUid = currentUserProfile ? currentUserProfile.uid : '';
+
     notes.forEach(note => {
         const card = document.createElement('div');
         card.className = 'note-card';
-        const deleteBtnStyle = (currentUserRole === 'admin') ? 'display: block;' : 'display: none;';
+        // แอดมินหรือเจ้าของชีทสามารถลบชีทตัวเองได้
+        const canDelete = (currentUserRole === 'admin') || (currentUid && note.authorUid === currentUid);
+        const deleteBtnStyle = canDelete ? 'display: block;' : 'display: none;';
 
         card.innerHTML = `
             <div>
@@ -866,6 +1091,7 @@ function renderNotes(notes) {
 }
 
 function escapeHTML(str) {
+    if (!str) return '';
     return str.replace(/[&<>'"]/g, tag => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
     }[tag]));
@@ -879,7 +1105,6 @@ window.deleteNote = async function(id) {
             fetchNotes();
         } catch (error) {
             console.error("Error deleting note:", error);
-            alert("เกิดข้อผิดพลาดในการลบข้อมูล");
         }
     }
 };
@@ -907,6 +1132,8 @@ if (searchInput) {
 
 uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!currentUserProfile) return;
+
     const fileUrlInput = document.getElementById('noteFileUrl').value.trim();
     if (!fileUrlInput) return;
 
@@ -919,7 +1146,9 @@ uploadForm.addEventListener('submit', async (e) => {
             title: document.getElementById('noteTitle').value.trim(),
             grade: document.getElementById('noteGrade').value,
             subject: document.getElementById('noteSubject').value,
-            author: document.getElementById('noteAuthor').value.trim(),
+            author: currentUserProfile.nickname,
+            authorUid: currentUserProfile.uid,
+            schoolEmail: currentUserProfile.email,
             fileUrl: fileUrlInput,
             createdAt: serverTimestamp()
         });
