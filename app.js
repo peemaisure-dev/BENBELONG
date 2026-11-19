@@ -158,7 +158,14 @@ onAuthStateChanged(auth, async (user) => {
         }
         try {
             const userDoc = await getDoc(doc(db, "users", user.uid));
-            const nickname = userDoc.exists() && userDoc.data().nickname ? userDoc.data().nickname : user.email.split('@')[0];
+            if (!userDoc.exists()) {
+                // กรณีบัญชีถูกล้างข้อมูลออกแล้ว ให้ล็อกเอาต์ออกเพื่อให้สร้างบัญชีใหม่
+                await signOut(auth);
+                currentUserProfile = null;
+                if (subtext) subtext.innerText = "เข้าสู่ระบบ หรือ สร้างบัญชีด้วยอีเมลโรงเรียน";
+                return;
+            }
+            const nickname = userDoc.data().nickname || user.email.split('@')[0];
             currentUserProfile = {
                 uid: user.uid,
                 email: user.email.toLowerCase(),
@@ -167,7 +174,6 @@ onAuthStateChanged(auth, async (user) => {
             if (subtext) {
                 subtext.innerText = `เข้าใช้งานต่อในชื่อ: ${nickname} (${user.email})`;
             }
-            // หากยังอยู่ที่หน้าแรกและยังไม่ได้กดออกจากระบบ ให้เข้าหน้า Dashboard อัตโนมัติ
             if (roleSelectionView && roleSelectionView.style.display !== 'none' && !sessionStorage.getItem('benbelong_logged_out')) {
                 selectRole('student');
             }
@@ -532,11 +538,17 @@ if (passwordForm) {
     });
 }
 
-// กดปุ่มออกจากระบบ: กลับหน้าแรกและออกจากบัญชี Firebase เพื่อสลับบัญชีได้ (หากไม่กดปุ่มนี้ เข้าเว็บครั้งหน้าจะเข้าให้อัตโนมัติ)
+// กดปุ่มออกจากระบบ: แจ้งเตือนยืนยันก่อนออกจากระบบจริง
 window.logoutToLanding = async function() {
+    const confirmed = confirm(
+        "คุณต้องการออกจากระบบจริงๆ ใช่ไหม?\n\n⚠️ หากคุณจำรหัสผ่านไม่ได้ คุณต้องติดต่อเรามาทางไอจี (IG) เท่านั้นนะครับ"
+    );
+    if (!confirmed) return;
+
     try {
         await signOut(auth);
     } catch (e) {}
+
     currentUserRole = null;
     currentUserProfile = null;
     if (sidebar) sidebar.classList.add('sidebar-closed');
