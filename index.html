@@ -275,7 +275,7 @@
                     <input type="email" id="regEmail" required placeholder="sXXXXX@ben.ac.th หรือ XXXXX@ben.ac.th" oninput="handleRegEmailInput()">
                 </div>
                 <div class="form-group">
-                    <label id="regNicknameLabel">ตั้งชื่อแสดงผล (Username) *</label>
+                    <label id="regNicknameLabel">ตั้งชื่อที่อยากแสดง *</label>
                     <input type="text" id="regNickname" required maxlength="25" placeholder="ตั้งชื่อที่อยากให้แสดงใน BenX และ StudyHub...">
                     <small id="thaiNameHint" style="display: none; color: #B45309; font-size: 0.78rem; margin-top: 4px;">⚠️ อีเมลนี้ไม่อยู่ในรูปแบบ sXXXXX หรือ XXXXX ของนักเรียน กรุณากรอกชื่อภาษาไทยเท่านั้น ห้ามมีภาษาอังกฤษ และโปรดใส่ชื่อตัวเอง</small>
                 </div>
@@ -486,13 +486,13 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js?v=6')
+          navigator.serviceWorker.register('sw.js?v=7')
             .then((reg) => console.log('Service Worker Registered!', reg))
             .catch((err) => console.log('Service Worker Failed', err));
         });
       }
     </script>
 
-    <script type="module" src="app.js?v=6"></script>
+    <script type="module" src="app.js?v=7"></script>
 </body>
 </html>
