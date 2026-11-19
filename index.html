@@ -3,28 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BENEFIT - BJ'S Event Calendar</title>
+    <title>BENEFIT | แพลตฟอร์มกลางโรงเรียนเบญจมราชูทิศ ราชบุรี</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1D56B8">
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="apple-touch-icon" href="logo.jpg">
 </head>
 <body>
 
+    <!-- หน้าแรก (Landing / Role Selection) -->
     <div id="roleSelectionView" class="landing-container">
         <div class="landing-card">
             <div class="brand-logo-container">
-                <img src="logo.jpg" alt="BENEFIT Logo" class="brand-logo-img" onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='block';">
+                <img src="logo.jpg" alt="BENEFIT Logo" class="brand-logo-img" onerror="this.style.display='none'; document.getElementById('fallbackLogo').style.display='inline-block';">
                 <div id="fallbackLogo" class="brand-logo-text" style="display: none;">BENEFIT</div>
             </div>
             <h1>ยินดีต้อนรับสู่แพลตฟอร์มกลาง BENEFIT</h1>
-            <p>โรงเรียนเบญจมราชูทิศ ราชบุรี • เลือกสถานะเพื่อเข้าใช้งานระบบ</p>
+            <p>โรงเรียนเบญจมราชูทิศ ราชบุรี • ยืนยันตัวตนด้วยอีเมลโรงเรียนเพื่อเข้าใช้งาน</p>
             
             <div class="role-buttons">
-                <button class="role-btn btn-student" onclick="selectRole('student')">
+                <button class="role-btn btn-student" onclick="openStudentAuthModal()">
                     <span class="role-icon">🎓</span>
                     <div>
-                        <h3>คุณครู / นักเรียนทั่วไป</h3>
+                        <h3>คุณครู / นักเรียนโรงเรียนเบญฯ</h3>
+                        <p style="margin: 0; font-size: 0.8rem; color: #64748B;">เข้าสู่ระบบ หรือ สร้างบัญชีด้วยอีเมลโรงเรียน</p>
                     </div>
                 </button>
                 
@@ -32,12 +37,14 @@
                     <span class="role-icon">🔐</span>
                     <div>
                         <h3>สมาชิกพรรค / ทีมงาน</h3>
+                        <p style="margin: 0; font-size: 0.8rem; color: #64748B;">จัดการปฏิทิน คลังสรุป และอ่าน Feedback</p>
                     </div>
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- หน้าหลักหลังเข้าสู่ระบบ (Dashboard) -->
     <div id="mainDashboardView" class="app-layout" style="display: none;">
         
         <aside id="sidebar" class="sidebar sidebar-closed">
@@ -51,6 +58,8 @@
             
             <div class="sidebar-user-info">
                 <span id="userRoleBadge" class="badge-demo">นักเรียน / คุณครู</span>
+                <div id="userAccountSubInfo" style="font-size: 0.75rem; color: #64748B; margin-top: 6px; word-break: break-all;"></div>
+                <button id="editNicknameBtn" onclick="openEditNicknameModal()" style="display: none; margin-top: 6px; background: #E2E8F0; border: none; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; cursor: pointer; font-weight: 600; color: #334155;">✏️ เปลี่ยน Username</button>
             </div>
 
             <nav class="sidebar-menu">
@@ -63,10 +72,12 @@
                 <a href="#" class="menu-item" onclick="switchMainTab('studyhub')">
                     <span>📚</span> คลังสรุป PDF (StudyHub)
                 </a>
-                <div id="adminMenuSection" style="display: none; margin-top: 1rem; border-top: 1px solid #E2E8F0; padding-top: 1rem;">
-                    <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 0.5rem; padding: 0 0.5rem;">เครื่องมือทีมงานพรรค</p>
-                    <button class="btn-sidebar-action" onclick="openEventModal()">➕ เพิ่มอีเวนต์ปฏิทิน</button>
-                    <button class="btn-sidebar-action" onclick="openUploadModal()" style="margin-top: 0.5rem;">📄 เพิ่มชีทสรุป PDF</button>
+                
+                <!-- ปุ่มแชร์ชีทสรุป PDF สำหรับทุกคนที่ล็อกอิน -->
+                <div style="margin-top: 1rem; border-top: 1px solid #E2E8F0; padding-top: 1rem;">
+                    <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 0.5rem; padding: 0 0.5rem;">เครื่องมือแบ่งปันข้อมูล</p>
+                    <button class="btn-sidebar-action" onclick="openUploadModal()">📄 แจกชีทสรุป PDF</button>
+                    <button id="adminAddEventSidebarBtn" class="btn-sidebar-action" onclick="openEventModal()" style="display: none; margin-top: 0.5rem;">➕ เพิ่มอีเวนต์ปฏิทิน</button>
                 </div>
             </nav>
 
@@ -110,7 +121,6 @@
                                 <option value="0">มกราคม</option>
                                 <option value="1">กุมภาพันธ์</option>
                                 <option value="2">มีนาคม</option>
-                                <option value="3">มีนาคม</option>
                                 <option value="3">เมษายน</option>
                                 <option value="4">พฤษภาคม</option>
                                 <option value="5">มิถุนายน</option>
@@ -151,7 +161,10 @@
 
                         <div class="x-compose-box">
                             <form id="postForm">
-                                <input type="text" id="postAuthorName" class="x-input-name" required maxlength="30" placeholder="ชื่อของคุณ หรือชื่อเล่น (สูงสุด 30 ตัวอักษร)...">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #F1F5F9; padding-bottom: 6px;">
+                                    <span style="font-size: 0.85rem; color: #64748B;">โพสต์ในชื่อ: <strong id="composeDisplayNickname" style="color: var(--royal-blue);">ผู้ใช้งาน</strong></span>
+                                    <button type="button" id="changeNickShortcut" onclick="openEditNicknameModal()" style="background: none; border: none; color: var(--royal-blue); font-size: 0.78rem; cursor: pointer; text-decoration: underline;">เปลี่ยนชื่อ</button>
+                                </div>
                                 <textarea id="postContentInput" class="x-textarea" rows="3" required maxlength="300" placeholder="What is happening?! (พิมพ์ได้สูงสุด 300 ตัวอักษร)"></textarea>
                                 <div class="x-compose-footer">
                                     <div class="x-helper-text">
@@ -218,14 +231,76 @@
                 </div>
 
                 <div class="container" style="max-width: 100%; padding: 1.5rem;">
-                    <div class="section-header">
+                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                         <h2>รายการสรุป PDF ทั้งหมด (<span id="noteCount">0</span> รายการ)</h2>
+                        <button class="btn-primary-sm" style="width: auto;" onclick="openUploadModal()">+ แจกชีทสรุป PDF</button>
                     </div>
                     <div id="notesLoading" class="loading-text">กำลังโหลดคลังสรุป...</div>
                     <div id="notesGrid" class="notes-grid"></div>
                 </div>
             </div>
 
+        </div>
+    </div>
+
+    <!-- Modal ยืนยันตัวตนนักเรียน/คุณครู ด้วยอีเมลโรงเรียน -->
+    <div id="studentAuthModal" class="modal">
+        <div class="modal-content" style="max-width: 440px;">
+            <span class="close-btn" onclick="closeModal('studentAuthModal')">&times;</span>
+            
+            <div class="auth-tabs">
+                <button type="button" id="tabLoginBtn" class="auth-tab active" onclick="switchAuthTab('login')">เข้าสู่ระบบ</button>
+                <button type="button" id="tabRegisterBtn" class="auth-tab" onclick="switchAuthTab('register')">สร้างบัญชีใหม่</button>
+            </div>
+
+            <!-- ฟอร์มเข้าสู่ระบบ -->
+            <form id="loginForm">
+                <h3 style="color: var(--royal-blue); margin-bottom: 0.4rem;">🎓 เข้าสู่ระบบด้วยอีเมลโรงเรียน</h3>
+                <p class="modal-sub">เฉพาะบุคลากรและนักเรียนโรงเรียนเบญจมราชูทิศ ราชบุรี</p>
+                <div class="form-group">
+                    <label>อีเมลโรงเรียน *</label>
+                    <input type="email" id="loginEmail" required placeholder="รหัสนักเรียน@ben.ac.th">
+                </div>
+                <div class="form-group">
+                    <label>รหัสผ่าน *</label>
+                    <input type="password" id="loginPassword" required placeholder="กรอกรหัสผ่านของบัญชี...">
+                </div>
+                <button type="submit" id="loginSubmitBtn" class="btn-submit">เข้าสู่ระบบ BENEFIT</button>
+            </form>
+
+            <!-- ฟอร์มสมัครสมาชิก -->
+            <form id="registerForm" style="display: none;">
+                <h3 style="color: var(--royal-blue); margin-bottom: 0.4rem;">✨ สร้างบัญชี BENEFIT</h3>
+                <p class="modal-sub">บังคับใช้อีเมลโรงเรียน (<span id="domainHintText">@ben.ac.th</span>) และตั้ง Username ได้อิสระ</p>
+                <div class="form-group">
+                    <label>อีเมลโรงเรียน (ใช้เป็นชื่อบัญชีจริง) *</label>
+                    <input type="email" id="regEmail" required placeholder="รหัสนักเรียน@ben.ac.th">
+                </div>
+                <div class="form-group">
+                    <label>ตั้งชื่อแสดงผล (Username) *</label>
+                    <input type="text" id="regNickname" required maxlength="25" placeholder="ตั้งชื่อที่อยากให้แสดงใน BenX และ StudyHub...">
+                </div>
+                <div class="form-group">
+                    <label>ตั้งรหัสผ่าน (อย่างน้อย 6 ตัวอักษร) *</label>
+                    <input type="password" id="regPassword" required minlength="6" placeholder="กำหนดรหัสผ่าน...">
+                </div>
+                <button type="submit" id="regSubmitBtn" class="btn-submit">สมัครสมาชิกและเข้าใช้งาน</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal แก้ไข Username -->
+    <div id="editNicknameModal" class="modal">
+        <div class="modal-content modal-sm">
+            <span class="close-btn" onclick="closeModal('editNicknameModal')">&times;</span>
+            <h3 style="color: var(--royal-blue); margin-bottom: 0.5rem;">✏️ เปลี่ยน Username ของคุณ</h3>
+            <p class="modal-sub">บัญชีของคุณยังคงผูกกับอีเมลโรงเรียนเดิม แต่ชื่อที่แสดงจะอัปเดตทันที</p>
+            <form id="editNicknameForm">
+                <div class="form-group">
+                    <input type="text" id="newNicknameInput" required maxlength="25" placeholder="กรอกชื่อใหม่...">
+                </div>
+                <button type="submit" id="saveNicknameBtn" class="btn-submit">บันทึกชื่อใหม่</button>
+            </form>
         </div>
     </div>
 
@@ -271,9 +346,8 @@
                 </p>
                 <form id="feedbackForm">
                     <div class="form-group">
-                        <label>ชื่อของคุณ / ชื่อเล่น (ไม่บังคับ)</label>
-                        <!-- เอาคำว่า "เช่น ปีใหม่" ออกแล้วเปลี่ยนเป็นคำใบ้ทั่วไป -->
-                        <input type="text" id="feedbackAuthor" placeholder="กรอกชื่อเล่น หรือปล่อยว่างเป็นนิรนาม">
+                        <label>ส่งในนาม (ดึงจากบัญชีของคุณอัตโนมัติ)</label>
+                        <input type="text" id="feedbackAuthor" readonly style="background: #F1F5F9; color: #475569;">
                     </div>
                     <div class="form-group">
                         <label>ข้อความ Feedback / แจ้งบัค *</label>
@@ -292,7 +366,7 @@
         </div>
     </div>
 
-    <!-- Modals อื่นๆ -->
+    <!-- Modal แอดมิน -->
     <div id="passwordModal" class="modal">
         <div class="modal-content modal-sm">
             <span class="close-btn" onclick="closeModal('passwordModal')">&times;</span>
@@ -340,11 +414,12 @@
         </div>
     </div>
 
+    <!-- Modal แจกชีทสรุป PDF (ตัดช่องพิมพ์ชื่อผู้จัดทำออก ใช้ Username อัตโนมัติ) -->
     <div id="uploadModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal('uploadModal')">&times;</span>
-            <h2>📤 เพิ่มชีทสรุป PDF ใหม่</h2>
-            <p class="modal-sub">แชร์ลิงก์ไฟล์ PDF (เช่น Google Drive) ให้เพื่อนๆ ดาวน์โหลด</p>
+            <h2>📤 แจกชีทสรุป PDF ใหม่</h2>
+            <p class="modal-sub">แชร์ในนาม: <strong id="uploadDisplayNickname" style="color: var(--royal-blue);">ผู้ใช้งาน</strong></p>
             <form id="uploadForm">
                 <div class="form-group">
                     <label>ชื่อเรื่องสรุป *</label>
@@ -380,10 +455,6 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>ชื่อผู้จัดทำ / เครดิต *</label>
-                    <input type="text" id="noteAuthor" required placeholder="เช่น ทีมวิชาการพรรค">
-                </div>
-                <div class="form-group">
                     <label>ลิงก์ไฟล์ PDF (Google Drive) *</label>
                     <input type="text" id="noteFileUrl" required placeholder="https://drive.google.com/file/d/...">
                 </div>
@@ -392,7 +463,6 @@
         </div>
     </div>
 
-    <!-- Script สำหรับลงทะเบียน PWA Service Worker -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
