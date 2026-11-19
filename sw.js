@@ -1,7 +1,17 @@
-self.addEventListener('install', (e) => {
-  self.skipWaiting();
+self.addEventListener('install', () => {
+    self.skipWaiting();
 });
 
-self.addEventListener('fetch', (e) => {
-  e.respondWith(fetch(e.request));
+self.addEventListener('activate', (event) => {
+    event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('fetch', (event) => {
+    const url = new URL(event.request.url);
+    if (!url.protocol.startsWith('http')) return;
+    if (event.request.method !== 'GET') return;
+
+    event.respondWith(
+        fetch(event.request).catch(() => caches.match(event.request))
+    );
 });
