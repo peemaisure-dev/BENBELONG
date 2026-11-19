@@ -61,7 +61,6 @@ const userRoleBadge = document.getElementById('userRoleBadge');
 const userAccountSubInfo = document.getElementById('userAccountSubInfo');
 const editNicknameBtn = document.getElementById('editNicknameBtn');
 const userRoleIndicator = document.getElementById('userRoleIndicator');
-const adminAddEventSidebarBtn = document.getElementById('adminAddEventSidebarBtn');
 const addEventQuickBtn = document.getElementById('addEventQuickBtn');
 const sidebarFeedbackBtn = document.getElementById('sidebarFeedbackBtn');
 
@@ -631,11 +630,9 @@ window.selectRole = function(role) {
     mainDashboardView.style.display = 'flex';
 
     if (role === 'admin') {
-        if (adminAddEventSidebarBtn) adminAddEventSidebarBtn.style.display = 'block';
         addEventQuickBtn.style.display = 'inline-block';
         if (sidebarFeedbackBtn) sidebarFeedbackBtn.innerText = "📖 อ่าน Feedback ทั้งหมด";
     } else {
-        if (adminAddEventSidebarBtn) adminAddEventSidebarBtn.style.display = 'none';
         addEventQuickBtn.style.display = 'none';
         if (sidebarFeedbackBtn) sidebarFeedbackBtn.innerText = "💡 ส่ง Feedback / แจ้งบัค";
     }
@@ -675,17 +672,34 @@ window.switchMainTab = function(tabName, clickedEl) {
     }
 };
 
+function parseEventYearMonth(eventDateStr) {
+    if (!eventDateStr || typeof eventDateStr !== 'string') return null;
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(eventDateStr.trim());
+    if (match) {
+        return {
+            year: parseInt(match[1], 10),
+            month: parseInt(match[2], 10) - 1
+        };
+    }
+    const d = new Date(eventDateStr);
+    if (Number.isNaN(d.getTime())) return null;
+    return {
+        year: d.getFullYear(),
+        month: d.getMonth()
+    };
+}
+
 window.changeMonth = function(direction) {
     currentCalendarDate.setMonth(currentCalendarDate.getMonth() + direction);
-    monthSelect.value = currentCalendarDate.getMonth();
-    yearSelect.value = currentCalendarDate.getFullYear() + 543;
+    monthSelect.value = String(currentCalendarDate.getMonth());
+    yearSelect.value = String(currentCalendarDate.getFullYear());
     updateCalendarDisplay();
     filterAndRenderEvents();
 };
 
 window.onMonthSelectChange = function(monthVal) {
     if (monthVal !== 'all') {
-        currentCalendarDate.setMonth(parseInt(monthVal));
+        currentCalendarDate.setMonth(parseInt(monthVal, 10));
     }
     updateCalendarDisplay();
     filterAndRenderEvents();
@@ -693,8 +707,7 @@ window.onMonthSelectChange = function(monthVal) {
 
 window.onYearSelectChange = function(yearVal) {
     if (yearVal !== 'all') {
-        const ceYear = parseInt(yearVal) - 543;
-        currentCalendarDate.setFullYear(ceYear);
+        currentCalendarDate.setFullYear(parseInt(yearVal, 10));
     }
     updateCalendarDisplay();
     filterAndRenderEvents();
@@ -713,7 +726,7 @@ function updateCalendarDisplay() {
     } else if (yVal === 'all') {
         currentMonthYearLabel.innerText = `${thaiMonths[month]} (ทุกปี)`;
     } else {
-        currentMonthYearLabel.innerText = `${thaiMonths[month]} ${year + 543}`;
+        currentMonthYearLabel.innerText = `${thaiMonths[month]} ${year}`;
     }
 }
 
@@ -893,13 +906,11 @@ function filterAndRenderEvents() {
     const yVal = yearSelect.value;
 
     const filtered = allEvents.filter(ev => {
-        if (!ev.eventDate) return false;
-        const evDate = new Date(ev.eventDate);
-        const evYear = evDate.getFullYear();
-        const evMonth = evDate.getMonth();
+        const ym = parseEventYearMonth(ev.eventDate);
+        if (!ym) return false;
 
-        const matchMonth = (mVal === 'all') || (evMonth === parseInt(mVal));
-        const matchYear = (yVal === 'all') || (evYear === (parseInt(yVal) - 543));
+        const matchMonth = (mVal === 'all') || (ym.month === parseInt(mVal, 10));
+        const matchYear = (yVal === 'all') || (ym.year === parseInt(yVal, 10));
 
         return matchMonth && matchYear;
     });
