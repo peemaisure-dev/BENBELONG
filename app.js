@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, getDoc, setDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const SCHOOL_DOMAIN = "@ben.ac.th";
 const ADMIN_PASSWORD = "PongpichiTLnwZa555";
@@ -18,9 +18,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+    hd: "ben.ac.th",
+    prompt: "select_account"
+});
 
 let currentUserRole = null;
 let currentUserProfile = null;
+let pendingGoogleUser = null;
 let allNotes = [];
 let allEvents = [];
 let allPosts = [];
@@ -35,7 +41,8 @@ const calendarViewContainer = document.getElementById('calendarViewContainer');
 const communityViewContainer = document.getElementById('communityViewContainer');
 const studyHubViewContainer = document.getElementById('studyHubViewContainer');
 
-const studentAuthModal = document.getElementById('studentAuthModal');
+const setupUsernameModal = document.getElementById('setupUsernameModal');
+const userProfileModal = document.getElementById('userProfileModal');
 const editNicknameModal = document.getElementById('editNicknameModal');
 const passwordModal = document.getElementById('passwordModal');
 const eventModal = document.getElementById('eventModal');
@@ -43,9 +50,7 @@ const uploadModal = document.getElementById('uploadModal');
 const eventDetailModal = document.getElementById('eventDetailModal');
 const feedbackModal = document.getElementById('feedbackModal');
 
-const loginForm = document.getElementById('loginForm');
-const registerForm = document.getElementById('registerForm');
-const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+const setupUsernameForm = document.getElementById('setupUsernameForm');
 const editNicknameForm = document.getElementById('editNicknameForm');
 const passwordForm = document.getElementById('passwordForm');
 const adminPasswordInput = document.getElementById('adminPasswordInput');
@@ -61,6 +66,7 @@ const userRoleIndicator = document.getElementById('userRoleIndicator');
 const adminAddEventSidebarBtn = document.getElementById('adminAddEventSidebarBtn');
 const addEventQuickBtn = document.getElementById('addEventQuickBtn');
 const sidebarFeedbackBtn = document.getElementById('sidebarFeedbackBtn');
+const adminLogoutBtn = document.getElementById('adminLogoutBtn');
 
 const eventsGrid = document.getElementById('eventsGrid');
 const eventsLoading = document.getElementById('eventsLoading');
@@ -87,12 +93,8 @@ const submitPostBtn = document.getElementById('submitPostBtn');
 
 let lastPostTime = 0;
 
-if (document.getElementById('domainHintText')) {
-    document.getElementById('domainHintText').innerText = SCHOOL_DOMAIN;
-}
-
 function isValidSchoolEmail(email) {
-    return email.toLowerCase().trim().endsWith(SCHOOL_DOMAIN.toLowerCase());
+    return email && email.toLowerCase().trim().endsWith(SCHOOL_DOMAIN.toLowerCase());
 }
 
 function getThaiDateString() {
@@ -148,168 +150,164 @@ function containsBadWord(text) {
     return badWords.some(word => cleanText.includes(word.toLowerCase()));
 }
 
-window.openStudentAuthModal = function() {
-    switchAuthTab('login');
-    studentAuthModal.style.display = 'flex';
-};
-
-window.openAdminPasswordModal = function() {
-    passwordModal.style.display = 'flex';
-};
-
-window.openForgotPasswordView = function() {
-    document.getElementById('tabLoginBtn').classList.remove('active');
-    document.getElementById('tabRegisterBtn').classList.remove('active');
-    loginForm.style.display = 'none';
-    registerForm.style.display = 'none';
-    forgotPasswordForm.style.display = 'block';
-
-    const typedLoginEmail = document.getElementById('loginEmail').value.trim();
-    if (typedLoginEmail) {
-        document.getElementById('resetEmail').value = typedLoginEmail;
+// ตรวจสอบสถานะบัญชีโรงเรียนที่ผูกไว้ถาวรในเครื่อง
+onAuthStateChanged(auth, async (user) => {
+    const subtext = document.getElementById('studentEntrySubtext');
+    if (user && isValidSchoolEmail(user.email)) {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) {
+            const data = userDoc.data();
+            currentUserProfile = {
+                uid: user.uid,
+                email: user.email.toLowerCase(),
+                nickname: data.nickname,
+                photoURL: user.photoURL || ''
+            };
+            if (subtext) {
+                subtext.innerText = `เข้าสู่ระบบอัตโนมัติในชื่อ: ${data.nickname} (${user.email})`;
+            }
+        }
     }
-};
+});
 
-window.switchAuthTab = function(tab) {
-    const tabLogin = document.getElementById('tabLoginBtn');
-    const tabReg = document.getElementById('tabRegisterBtn');
-    forgotPasswordForm.style.display = 'none';
-    if (tab === 'login') {
-        tabLogin.classList.add('active');
-        tabReg.classList.remove('active');
-        loginForm.style.display = 'block';
-        registerForm.style.display = 'none';
-    } else {
-        tabReg.classList.add('active');
-        tabLogin.classList.remove('active');
-        registerForm.style.display = 'block';
-        loginForm.style.display = 'none';
-    }
-};
-
-forgotPasswordForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('resetEmail').value.trim().toLowerCase();
-    const resetBtn = document.getElementById('resetSubmitBtn');
-
-    if (!isValidSchoolEmail(email)) {
-        alert(`❌ กรุณากรอกอีเมลของโรงเรียน (${SCHOOL_DOMAIN}) เท่านั้นครับ`);
+// กดปุ่ม คุณครู / นักเรียนโรงเรียนเบญฯ บนหน้าแรก
+window.handleStudentEntry = async function() {
+    // ถ้าผูกบัญชีไว้แล้ว ให้เข้าใช้งานได้ทันทีโดยไม่ต้องล็อกอินซ้ำ
+    if (currentUserProfile && isValidSchoolEmail(currentUserProfile.email)) {
+        selectRole('student');
         return;
     }
 
     try {
-        resetBtn.disabled = true;
-        resetBtn.innerText = "กำลังส่งลิงก์...";
+        const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
+        const email = (user.email || '').toLowerCase().trim();
 
-        await sendPasswordResetEmail(auth, email);
-        alert(`📩 ส่งลิงก์รีเซ็ตรหัสผ่านไปที่ ${email} แล้วครับ กรุณาเช็กกล่องข้อความหรือโฟลเดอร์ Spam / Junk`);
-        forgotPasswordForm.reset();
-        switchAuthTab('login');
-    } catch (error) {
-        console.error("Reset Password Error:", error);
-        if (error.code === 'auth/user-not-found') {
-            alert("❌ ไม่พบบัญชีที่ใช้อีเมลโรงเรียนนี้ในระบบ กรุณาสมัครสมาชิกก่อนครับ");
-        } else {
-            alert("❌ ไม่สามารถส่งลิงก์รีเซ็ตรหัสผ่านได้: " + error.message);
+        if (!isValidSchoolEmail(email)) {
+            await signOut(auth);
+            alert(`❌ บัญชี ${email} ไม่ใช่อีเมลของโรงเรียน (${SCHOOL_DOMAIN})\nกรุณาเลือกบัญชี Google ของโรงเรียนเบญจมราชูทิศ ราชบุรี เท่านั้นครับ!`);
+            return;
         }
-    } finally {
-        resetBtn.disabled = false;
-        resetBtn.innerText = "ส่งลิงก์รีเซ็ตรหัสผ่าน";
-    }
-});
 
-registerForm.addEventListener('submit', async (e) => {
+        const userRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userRef);
+
+        if (userDoc.exists()) {
+            const data = userDoc.data();
+            currentUserProfile = {
+                uid: user.uid,
+                email: email,
+                nickname: data.nickname,
+                photoURL: user.photoURL || ''
+            };
+            selectRole('student');
+        } else {
+            // บัญชีใหม่ที่ยืนยันตัวตนผ่าน Google โรงเรียนครั้งแรก -> ให้ตั้ง Username
+            pendingGoogleUser = user;
+            document.getElementById('setupEmailDisplay').innerText = `ยืนยันอีเมล ${email} สำเร็จ กรุณาตั้งชื่อแสดงผล (Username) ของคุณ`;
+            document.getElementById('initialNicknameInput').value = user.displayName || email.split('@')[0];
+            setupUsernameModal.style.display = 'flex';
+        }
+    } catch (error) {
+        console.error("Google Sign-In Error:", error);
+        if (error.code !== 'auth/popup-closed-by-user') {
+            alert("❌ ไม่สามารถยืนยันตัวตนด้วยบัญชีโรงเรียนได้: " + error.message);
+        }
+    }
+};
+
+setupUsernameForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('regEmail').value.trim().toLowerCase();
-    const nickname = document.getElementById('regNickname').value.trim();
-    const password = document.getElementById('regPassword').value;
-    const regBtn = document.getElementById('regSubmitBtn');
+    if (!pendingGoogleUser) return;
 
-    if (!isValidSchoolEmail(email)) {
-        alert(`❌ ขออภัยครับ ระบบอนุญาตเฉพาะอีเมลของโรงเรียน (${SCHOOL_DOMAIN}) เท่านั้น!`);
-        return;
-    }
+    const nickname = document.getElementById('initialNicknameInput').value.trim();
+    const saveBtn = document.getElementById('saveInitialNickBtn');
 
+    if (!nickname) return;
     if (containsBadWord(nickname)) {
         alert("⚠️ ชื่อแสดงผลมีคำที่ไม่สุภาพ กรุณาตั้งชื่อใหม่ครับ");
         return;
     }
 
     try {
-        regBtn.disabled = true;
-        regBtn.innerText = "กำลังสร้างบัญชี...";
+        saveBtn.disabled = true;
+        saveBtn.innerText = "กำลังบันทึกบัญชี...";
 
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-
-        await setDoc(doc(db, "users", user.uid), {
-            uid: user.uid,
+        const email = pendingGoogleUser.email.toLowerCase().trim();
+        await setDoc(doc(db, "users", pendingGoogleUser.uid), {
+            uid: pendingGoogleUser.uid,
             schoolEmail: email,
             nickname: nickname,
+            photoURL: pendingGoogleUser.photoURL || '',
             createdAt: serverTimestamp()
         });
 
-        currentUserProfile = { uid: user.uid, email: email, nickname: nickname };
-        studentAuthModal.style.display = 'none';
-        registerForm.reset();
+        currentUserProfile = {
+            uid: pendingGoogleUser.uid,
+            email: email,
+            nickname: nickname,
+            photoURL: pendingGoogleUser.photoURL || ''
+        };
+        pendingGoogleUser = null;
+        setupUsernameModal.style.display = 'none';
+        setupUsernameForm.reset();
         selectRole('student');
-        alert(`🎉 สร้างบัญชีสำเร็จ! ยินดีต้อนรับคุณ ${nickname}`);
     } catch (error) {
-        console.error("Register Error:", error);
-        if (error.code === 'auth/email-already-in-use') {
-            alert("❌ อีเมลโรงเรียนนี้ถูกใช้สร้างบัญชีไปแล้ว กรุณากดแท็บ 'เข้าสู่ระบบ' ครับ");
-        } else {
-            alert("❌ เกิดข้อผิดพลาดในการสร้างบัญชี: " + error.message);
-        }
+        console.error("Error saving initial profile:", error);
+        alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
     } finally {
-        regBtn.disabled = false;
-        regBtn.innerText = "สมัครสมาชิกและเข้าใช้งาน";
+        saveBtn.disabled = false;
+        saveBtn.innerText = "ยืนยันและเข้าใช้งานถาวร";
     }
 });
 
-loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-    const password = document.getElementById('loginPassword').value;
-    const loginBtn = document.getElementById('loginSubmitBtn');
+// เปิด Pop-up โปรไฟล์ผู้ใช้งานเมื่อกดที่ชื่อหรือรูปโปรไฟล์
+window.openUserProfile = async function(uid, fallbackName, fallbackEmail) {
+    const avatarEl = document.getElementById('profileAvatarCircle');
+    const nameEl = document.getElementById('profileModalUsername');
+    const emailEl = document.getElementById('profileModalEmail');
 
-    if (!isValidSchoolEmail(email)) {
-        alert(`❌ กรุณาใช้อีเมลของโรงเรียน (${SCHOOL_DOMAIN}) ในการเข้าสู่ระบบครับ`);
-        return;
+    let displayName = fallbackName || 'ผู้ใช้งาน';
+    let displayEmail = fallbackEmail || 'ไม่ระบุอีเมล';
+    let photoURL = '';
+
+    if (uid === 'admin') {
+        displayName = 'ทีมงานพรรค BENBELONG';
+        displayEmail = 'admin@ben.ac.th';
+    } else if (uid) {
+        try {
+            const snap = await getDoc(doc(db, "users", uid));
+            if (snap.exists()) {
+                const data = snap.data();
+                displayName = data.nickname || displayName;
+                displayEmail = data.schoolEmail || displayEmail;
+                photoURL = data.photoURL || '';
+            }
+        } catch (e) {}
     }
 
-    try {
-        loginBtn.disabled = true;
-        loginBtn.innerText = "กำลังเข้าสู่ระบบ...";
+    nameEl.innerText = displayName;
+    emailEl.innerText = displayEmail;
 
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        let nickname = email.split('@')[0];
-        if (userDoc.exists()) {
-            nickname = userDoc.data().nickname || nickname;
-        } else {
-            await setDoc(doc(db, "users", user.uid), {
-                uid: user.uid,
-                schoolEmail: email,
-                nickname: nickname,
-                createdAt: serverTimestamp()
-            });
-        }
-
-        currentUserProfile = { uid: user.uid, email: email, nickname: nickname };
-        studentAuthModal.style.display = 'none';
-        loginForm.reset();
-        selectRole('student');
-    } catch (error) {
-        console.error("Login Error:", error);
-        alert("❌ อีเมลโรงเรียนหรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้งครับ");
-    } finally {
-        loginBtn.disabled = false;
-        loginBtn.innerText = "เข้าสู่ระบบ BENEFIT";
+    if (photoURL) {
+        avatarEl.innerHTML = `<img src="${photoURL}" alt="Profile" style="width: 100%; height: 100%; object-fit: cover;">`;
+    } else {
+        const initialChar = displayName.charAt(0).toUpperCase() || '👤';
+        avatarEl.innerHTML = initialChar;
     }
-});
+
+    userProfileModal.style.display = 'flex';
+};
+
+window.openOwnProfile = function() {
+    if (currentUserProfile) {
+        openUserProfile(currentUserProfile.uid, currentUserProfile.nickname, currentUserProfile.email);
+    }
+};
+
+window.openAdminPasswordModal = function() {
+    passwordModal.style.display = 'flex';
+};
 
 window.openEditNicknameModal = function() {
     if (currentUserProfile) {
@@ -357,6 +355,7 @@ function updateUserUI() {
         userRoleBadge.innerText = "⚙️ ทีมงานพรรค BENBELONG";
         userAccountSubInfo.innerText = "สิทธิ์ผู้ดูแลระบบ";
         editNicknameBtn.style.display = 'none';
+        if (adminLogoutBtn) adminLogoutBtn.style.display = 'block';
         userRoleIndicator.innerText = "⚙️ ทีมงานพรรค";
         if (document.getElementById('composeDisplayNickname')) {
             document.getElementById('composeDisplayNickname').innerText = "ทีมงานพรรค BENBELONG";
@@ -369,6 +368,7 @@ function updateUserUI() {
         userRoleBadge.innerText = `🎓 ${currentUserProfile.nickname}`;
         userAccountSubInfo.innerText = `บัญชี: ${currentUserProfile.email}`;
         editNicknameBtn.style.display = 'inline-block';
+        if (adminLogoutBtn) adminLogoutBtn.style.display = 'none';
         userRoleIndicator.innerText = `🎓 ${currentUserProfile.nickname}`;
         if (document.getElementById('composeDisplayNickname')) {
             document.getElementById('composeDisplayNickname').innerText = currentUserProfile.nickname;
@@ -485,10 +485,8 @@ passwordForm.addEventListener('submit', (e) => {
     }
 });
 
-window.logoutToLanding = async function() {
-    try {
-        await signOut(auth);
-    } catch (e) {}
+// เฉพาะทีมงานพรรคที่กดออกจากโหมดแอดมินกลับหน้าแรกได้
+window.logoutAdminToLanding = function() {
     currentUserRole = null;
     currentUserProfile = null;
     mainDashboardView.style.display = 'none';
@@ -614,14 +612,13 @@ window.deleteFeedback = async function(id) {
 };
 
 window.onclick = (e) => {
-    if (e.target === studentAuthModal) studentAuthModal.style.display = 'none';
+    if (e.target === userProfileModal) userProfileModal.style.display = 'none';
     if (e.target === editNicknameModal) editNicknameModal.style.display = 'none';
     if (e.target === passwordModal) passwordModal.style.display = 'none';
     if (e.target === eventModal) eventModal.style.display = 'none';
     if (e.target === uploadModal) uploadModal.style.display = 'none';
     if (e.target === eventDetailModal) eventDetailModal.style.display = 'none';
     if (e.target === feedbackModal) feedbackModal.style.display = 'none';
-    if (e.target === document.getElementById('newPasswordModal')) document.getElementById('newPasswordModal').style.display = 'none';
 };
 
 async function fetchEvents() {
@@ -801,16 +798,15 @@ function renderPosts(posts) {
             deleteBtnHtml = `<button class="x-delete-btn" onclick="window.deletePost('${post.id}')">🗑️ ลบ</button>`;
         }
 
-        let adminEmailTag = '';
-        if (currentUserRole === 'admin' && post.schoolEmail) {
-            adminEmailTag = `<span style="font-size: 0.72rem; color: #64748B; font-weight: 400; margin-left: 6px;">(${escapeHTML(post.schoolEmail)})</span>`;
-        }
-
         let formattedContent = escapeHTML(post.content);
         formattedContent = formattedContent.replace(/#([A-Za-zก-ฮ0-9_]+)/g, '<span class="x-hashtag">#$1</span>');
 
         const hasLiked = post.likedBy && post.likedBy.includes(currentUid);
         const heartIcon = hasLiked ? '❤️' : '🤍';
+
+        const safeAuthor = escapeHTML(post.author);
+        const safeEmail = escapeHTML(post.schoolEmail || '');
+        const safeAuthorUid = escapeHTML(post.authorUid || '');
 
         let commentsHtml = '';
         if (post.comments && post.comments.length > 0) {
@@ -819,10 +815,14 @@ function renderPosts(posts) {
                 if (currentUserRole === 'admin' || (currentUid && comm.authorUid === currentUid)) {
                     commentDeleteBtn = `<button class="comm-delete-btn" onclick="window.deleteComment('${post.id}', ${cIndex})">✕</button>`;
                 }
+                const cAuthor = escapeHTML(comm.author);
+                const cEmail = escapeHTML(comm.schoolEmail || '');
+                const cUid = escapeHTML(comm.authorUid || '');
+
                 commentsHtml += `
                     <div class="x-comment-item">
                         <div class="comm-header">
-                            <span class="comm-author">${escapeHTML(comm.author)}</span>
+                            <span class="comm-author" style="cursor: pointer; text-decoration: underline;" onclick="window.openUserProfile('${cUid}', '${cAuthor}', '${cEmail}')">${cAuthor}</span>
                             ${commentDeleteBtn}
                         </div>
                         <div class="comm-text">${escapeHTML(comm.text)}</div>
@@ -832,12 +832,11 @@ function renderPosts(posts) {
         }
 
         card.innerHTML = `
-            <div class="x-post-avatar">👤</div>
+            <div class="x-post-avatar" style="cursor: pointer;" onclick="window.openUserProfile('${safeAuthorUid}', '${safeAuthor}', '${safeEmail}')">👤</div>
             <div class="x-post-content-wrap">
                 <div class="x-post-header">
                     <div>
-                        <span class="x-post-author">${escapeHTML(post.author)}</span>
-                        ${adminEmailTag}
+                        <span class="x-post-author" style="cursor: pointer;" onclick="window.openUserProfile('${safeAuthorUid}', '${safeAuthor}', '${safeEmail}')">${safeAuthor}</span>
                     </div>
                     ${deleteBtnHtml}
                 </div>
@@ -1108,6 +1107,10 @@ function renderNotes(notes) {
         const canDelete = (currentUserRole === 'admin') || (currentUid && note.authorUid === currentUid);
         const deleteBtnStyle = canDelete ? 'display: block;' : 'display: none;';
 
+        const safeAuthor = escapeHTML(note.author);
+        const safeEmail = escapeHTML(note.schoolEmail || '');
+        const safeAuthorUid = escapeHTML(note.authorUid || '');
+
         card.innerHTML = `
             <div>
                 <div class="card-tags">
@@ -1118,7 +1121,7 @@ function renderNotes(notes) {
             </div>
             <div>
                 <div class="note-meta">
-                    <span>✍️ จัดทำโดย: <strong>${escapeHTML(note.author)}</strong></span>
+                    <span>✍️ จัดทำโดย: <strong style="color: var(--royal-blue); cursor: pointer; text-decoration: underline;" onclick="window.openUserProfile('${safeAuthorUid}', '${safeAuthor}', '${safeEmail}')">${safeAuthor}</strong></span>
                 </div>
                 <div class="card-actions">
                     <a href="${note.fileUrl}" target="_blank" class="btn-download">📥 ดาวน์โหลดไฟล์ PDF สรุป</a>
@@ -1205,46 +1208,3 @@ uploadForm.addEventListener('submit', async (e) => {
         submitBtn.innerText = "บันทึกสรุป PDF ขึ้นเว็บทันที";
     }
 });
-
-// ตรวจสอบลิงก์รีเซ็ตรหัสผ่านเมื่อเปิดหน้าเว็บ
-async function handleIncomingResetLink() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const mode = urlParams.get('mode');
-    const oobCode = urlParams.get('oobCode');
-
-    if (mode === 'resetPassword' && oobCode) {
-        try {
-            const email = await verifyPasswordResetCode(auth, oobCode);
-            document.getElementById('resetAccountEmailLabel').innerText = `บัญชี: ${email}`;
-            document.getElementById('newPasswordModal').style.display = 'flex';
-
-            const confirmForm = document.getElementById('confirmNewPasswordForm');
-            confirmForm.onsubmit = async (e) => {
-                e.preventDefault();
-                const newPass = document.getElementById('newResetPasswordInput').value;
-                const btn = document.getElementById('confirmNewPassBtn');
-
-                try {
-                    btn.disabled = true;
-                    btn.innerText = "กำลังบันทึก...";
-                    await confirmPasswordReset(auth, oobCode, newPass);
-                    alert("✅ เปลี่ยนรหัสผ่านสำเร็จ! สามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้ทันทีครับ");
-                    document.getElementById('newPasswordModal').style.display = 'none';
-                    confirmForm.reset();
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                    openStudentAuthModal();
-                } catch (err) {
-                    alert("❌ ไม่สามารถเปลี่ยนรหัสผ่านได้: " + err.message);
-                } finally {
-                    btn.disabled = false;
-                    btn.innerText = "บันทึกรหัสผ่านใหม่";
-                }
-            };
-        } catch (error) {
-            alert("❌ ลิงก์รีเซ็ตรหัสผ่านหมดอายุหรือถูกใช้งานไปแล้ว กรุณากดขอใหม่อีกครั้งครับ");
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
-    }
-}
-
-handleIncomingResetLink();
