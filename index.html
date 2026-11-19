@@ -263,6 +263,9 @@
                 <div class="form-group">
                     <label>รหัสผ่าน *</label>
                     <input type="password" id="loginPassword" required placeholder="กรอกรหัสผ่านของบัญชี...">
+                    <div style="text-align: right; margin-top: 6px;">
+                        <button type="button" onclick="openForgotPasswordView()" style="background: none; border: none; color: var(--royal-blue); font-size: 0.8rem; cursor: pointer; text-decoration: underline; font-weight: 500;">ลืมรหัสผ่าน?</button>
+                    </div>
                 </div>
                 <button type="submit" id="loginSubmitBtn" class="btn-submit">เข้าสู่ระบบ BENEFIT</button>
             </form>
@@ -284,6 +287,20 @@
                     <input type="password" id="regPassword" required minlength="6" placeholder="กำหนดรหัสผ่าน...">
                 </div>
                 <button type="submit" id="regSubmitBtn" class="btn-submit">สมัครสมาชิกและเข้าใช้งาน</button>
+            </form>
+
+            <!-- ฟอร์มลืมรหัสผ่าน (เฉพาะบัญชีนักเรียน/คุณครู) -->
+            <form id="forgotPasswordForm" style="display: none;">
+                <div style="margin-bottom: 0.8rem;">
+                    <button type="button" onclick="switchAuthTab('login')" style="background: none; border: none; color: #64748B; font-size: 0.82rem; cursor: pointer; padding: 0;">← กลับไปหน้าเข้าสู่ระบบ</button>
+                </div>
+                <h3 style="color: var(--royal-blue); margin-bottom: 0.4rem;">🔑 รีเซ็ตรหัสผ่านบัญชีโรงเรียน</h3>
+                <p class="modal-sub">ระบบจะส่งลิงก์สำหรับตั้งรหัสผ่านใหม่ไปยังอีเมลโรงเรียนของคุณ (ตรวจสอบใน Spam / Junk ด้วยหากไม่พบ)</p>
+                <div class="form-group">
+                    <label>อีเมลโรงเรียนที่ลงทะเบียนไว้ *</label>
+                    <input type="email" id="resetEmail" required placeholder="รหัสนักเรียน@ben.ac.th">
+                </div>
+                <button type="submit" id="resetSubmitBtn" class="btn-submit">ส่งลิงก์รีเซ็ตรหัสผ่าน</button>
             </form>
         </div>
     </div>
@@ -413,7 +430,7 @@
         </div>
     </div>
 
-    <!-- Modal แจกชีทสรุป PDF (ตัดช่องพิมพ์ชื่อผู้จัดทำออก ใช้ Username อัตโนมัติ) -->
+    <!-- Modal แจกชีทสรุป PDF -->
     <div id="uploadModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal('uploadModal')">&times;</span>
