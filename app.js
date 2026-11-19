@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, getDoc, setDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const SCHOOL_DOMAIN = "@ben.ac.th";
 const ADMIN_PASSWORD = "PongpichiTLnwZa555";
@@ -45,6 +45,7 @@ const feedbackModal = document.getElementById('feedbackModal');
 
 const loginForm = document.getElementById('loginForm');
 const registerForm = document.getElementById('registerForm');
+const forgotPasswordForm = document.getElementById('forgotPasswordForm');
 const editNicknameForm = document.getElementById('editNicknameForm');
 const passwordForm = document.getElementById('passwordForm');
 const adminPasswordInput = document.getElementById('adminPasswordInput');
@@ -156,9 +157,23 @@ window.openAdminPasswordModal = function() {
     passwordModal.style.display = 'flex';
 };
 
+window.openForgotPasswordView = function() {
+    document.getElementById('tabLoginBtn').classList.remove('active');
+    document.getElementById('tabRegisterBtn').classList.remove('active');
+    loginForm.style.display = 'none';
+    registerForm.style.display = 'none';
+    forgotPasswordForm.style.display = 'block';
+
+    const typedLoginEmail = document.getElementById('loginEmail').value.trim();
+    if (typedLoginEmail) {
+        document.getElementById('resetEmail').value = typedLoginEmail;
+    }
+};
+
 window.switchAuthTab = function(tab) {
     const tabLogin = document.getElementById('tabLoginBtn');
     const tabReg = document.getElementById('tabRegisterBtn');
+    forgotPasswordForm.style.display = 'none';
     if (tab === 'login') {
         tabLogin.classList.add('active');
         tabReg.classList.remove('active');
@@ -171,6 +186,37 @@ window.switchAuthTab = function(tab) {
         loginForm.style.display = 'none';
     }
 };
+
+forgotPasswordForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('resetEmail').value.trim().toLowerCase();
+    const resetBtn = document.getElementById('resetSubmitBtn');
+
+    if (!isValidSchoolEmail(email)) {
+        alert(`❌ กรุณากรอกอีเมลของโรงเรียน (${SCHOOL_DOMAIN}) เท่านั้นครับ`);
+        return;
+    }
+
+    try {
+        resetBtn.disabled = true;
+        resetBtn.innerText = "กำลังส่งลิงก์...";
+
+        await sendPasswordResetEmail(auth, email);
+        alert(`📩 ส่งลิงก์รีเซ็ตรหัสผ่านไปที่ ${email} แล้วครับ กรุณาเช็กกล่องข้อความหรือโฟลเดอร์ Spam / Junk`);
+        forgotPasswordForm.reset();
+        switchAuthTab('login');
+    } catch (error) {
+        console.error("Reset Password Error:", error);
+        if (error.code === 'auth/user-not-found') {
+            alert("❌ ไม่พบบัญชีที่ใช้อีเมลโรงเรียนนี้ในระบบ กรุณาสมัครสมาชิกก่อนครับ");
+        } else {
+            alert("❌ ไม่สามารถส่งลิงก์รีเซ็ตรหัสผ่านได้: " + error.message);
+        }
+    } finally {
+        resetBtn.disabled = false;
+        resetBtn.innerText = "ส่งลิงก์รีเซ็ตรหัสผ่าน";
+    }
+});
 
 registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -981,7 +1027,7 @@ postForm.addEventListener('submit', async (e) => {
 
     if (containsBadWord(content)) {
         alert("⚠️ ขออภัยครับ ตรวจพบคำที่ไม่สุภาพในโพสต์ ระบบไม่อนุญาตให้เผยแพร่ครับ");
-        return;
+        return; 
     }
 
     lastPostTime = nowTime;
