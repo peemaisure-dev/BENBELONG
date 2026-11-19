@@ -249,7 +249,7 @@ window.handleRegEmailInput = function() {
         labelEl.innerText = "ชื่อภาษาไทย (ห้ามมีภาษาอังกฤษ และโปรดใส่ชื่อตัวเอง) *";
     } else {
         hintEl.style.display = 'none';
-        labelEl.innerText = "ตั้งชื่อแสดงผล (Username) *";
+        labelEl.innerText = "ตั้งชื่อที่อยากแสดง *";
     }
 };
 
