@@ -24,6 +24,7 @@ const auth = getAuth(app);
 let currentUserRole = null;
 let currentUserProfile = null;
 let authReadyUser = null;
+let deferredInstallPrompt = null;
 let allNotes = [];
 let allEvents = [];
 let allPosts = [];
@@ -88,6 +89,83 @@ const postsLeftBadge = document.getElementById('postsLeftBadge');
 const submitPostBtn = document.getElementById('submitPostBtn');
 
 let lastPostTime = 0;
+
+// ปุ่มดาวน์โหลดแอปขึ้นหน้าจอหลัก (โทรศัพท์ / iPad)
+function isIosOrIpadDevice() {
+    const ua = navigator.userAgent || '';
+    const isAppleMobile = /iPhone|iPad|iPod/i.test(ua);
+    const isIpadOsDesktopMode = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+    return isAppleMobile || isIpadOsDesktopMode;
+}
+
+function isRunningAsInstalledApp() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function refreshInstallShortcutUI() {
+    const btn = document.getElementById('installAppBtn');
+    const hint = document.getElementById('installShortcutHint');
+    if (!btn) return;
+
+    if (isRunningAsInstalledApp()) {
+        btn.innerHTML = `<span>✅</span><span>เปิดใช้งานในโหมดแอปแล้ว</span>`;
+        btn.disabled = true;
+        btn.style.opacity = '0.75';
+        btn.style.cursor = 'default';
+        if (hint) hint.innerText = "กำลังเปิดผ่านทางลัดหน้าจอหลักของอุปกรณ์นี้";
+        return;
+    }
+
+    if (isIosOrIpadDevice()) {
+        btn.innerHTML = `<span>📲</span><span>วิธีเพิ่มขึ้นหน้าจอหลัก (iPhone / iPad)</span>`;
+        if (hint) hint.innerText = "กดปุ่มนี้เพื่อดูวิธีปักหมุดทางลัดบน Safari";
+    }
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    refreshInstallShortcutUI();
+});
+
+window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    refreshInstallShortcutUI();
+    alert("🎉 ติดตั้งทางลัด BENEFIT ลงหน้าจอหลักเรียบร้อยแล้วครับ!");
+});
+
+window.handleInstallShortcut = async function() {
+    if (isRunningAsInstalledApp()) return;
+
+    if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        const choiceResult = await deferredInstallPrompt.userChoice;
+        if (choiceResult.outcome === 'accepted') {
+            alert("🎉 กำลังเพิ่มทางลัด BENEFIT ลงหน้าจอหลักครับ!");
+        }
+        deferredInstallPrompt = null;
+        refreshInstallShortcutUI();
+        return;
+    }
+
+    if (isIosOrIpadDevice()) {
+        alert(
+            "📲 วิธีเพิ่มแอป BENEFIT ขึ้นหน้าจอหลัก (iPhone / iPad)\n\n" +
+            "1. เปิดเว็บไซต์นี้ในเบราว์เซอร์ Safari\n" +
+            "2. กดปุ่ม 'แชร์' (ไอคอนสี่เหลี่ยมมีลูกศรชี้ขึ้น)\n" +
+            "3. เลื่อนลงแล้วกด 'เพิ่มไปยังหน้าจอโฮม' (Add to Home Screen)\n" +
+            "4. กด 'เพิ่ม' (Add) ที่มุมขวาบน"
+        );
+        return;
+    }
+
+    alert(
+        "📲 วิธีเพิ่มแอป BENEFIT ขึ้นหน้าจอหลัก\n\n" +
+        "กดปุ่มเมนู (⋮ หรือ ⋯) ของเบราว์เซอร์ แล้วเลือก 'เพิ่มไปยังหน้าจอหลัก' หรือ 'ติดตั้งแอป' ได้เลยครับ"
+    );
+};
+
+refreshInstallShortcutUI();
 
 // ตรวจอีเมลนักเรียน: sXXXXX@ben.ac.th หรือ XXXXX@ben.ac.th (X คือเลข 5 ตัว)
 function isStudentFormatEmail(email) {
@@ -222,7 +300,6 @@ async function hydrateStudentProfileFromUser(user) {
     return currentUserProfile;
 }
 
-// ติดตามสถานะ Firebase Auth เฉพาะเพื่อเตรียมข้อมูลบัญชี แต่ยังไม่บังคับย้ายหน้าจนกว่าจะกดเลือกบทบาท
 onAuthStateChanged(auth, async (user) => {
     authReadyUser = user || null;
     const subtext = document.getElementById('studentEntrySubtext');
@@ -241,7 +318,6 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// กดปุ่ม คุณครู / นักเรียนโรงเรียนเบญฯ บนหน้าเลือกบทบาท
 window.handleStudentEntry = async function() {
     const activeUser = auth.currentUser || authReadyUser;
     if (activeUser && isValidSchoolEmail(activeUser.email)) {
@@ -285,7 +361,6 @@ window.switchAuthTab = function(tab) {
     }
 };
 
-// ปรับคำแนะนำเมื่อตรวจพบอีเมลรูปแบบอื่นที่ไม่ใช่ sXXXXX@ben.ac.th หรือ XXXXX@ben.ac.th
 window.handleRegEmailInput = function() {
     const emailInput = document.getElementById('regEmail');
     const hintEl = document.getElementById('thaiNameHint');
@@ -417,7 +492,6 @@ if (loginForm) {
     });
 }
 
-// เปิด Pop-up โปรไฟล์ผู้ใช้งานเมื่อกดที่ชื่อหรือรูปโปรไฟล์
 window.openUserProfile = async function(uid, fallbackName, fallbackEmail) {
     if (!userProfileModal) return;
     const avatarEl = document.getElementById('profileAvatarCircle');
@@ -658,7 +732,6 @@ if (passwordForm) {
     });
 }
 
-// กดปุ่มออกจากระบบ: กลับสู่หน้าเลือกบทบาท (และหากเป็นบัญชีนักเรียน/คุณครูที่ล็อกอินไว้ ก็คงเซสชันไว้ให้กดเข้าบัญชีเดิมได้ทันที)
 window.logoutToLanding = function() {
     const confirmed = confirm(
         "คุณต้องการกลับไปหน้าเลือกบทบาทใช่ไหม?\n\nหากล็อกอินบัญชีคุณครู/นักเรียนไว้แล้ว รอบหน้ากดปุ่ม 'คุณครู / นักเรียนโรงเรียนเบญฯ' จะเข้าบัญชีเดิมได้ทันทีครับ"
