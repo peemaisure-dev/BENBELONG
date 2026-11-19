@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, getDoc, setDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const SCHOOL_DOMAIN = "@ben.ac.th";
 const ADMIN_PASSWORD = "PongpichiTLnwZa555";
@@ -148,9 +148,13 @@ function containsBadWord(text) {
     return badWords.some(word => cleanText.includes(word.toLowerCase()));
 }
 
-// โหลดโปรไฟล์ที่เคยล็อกอินค้างไว้ในเครื่องอัตโนมัติ (อยู่ถาวร)
+// โหลดโปรไฟล์ที่เคยยืนยันอีเมลและล็อกอินค้างไว้ในเครื่องอัตโนมัติ (อยู่ถาวร)
 onAuthStateChanged(auth, async (user) => {
     if (user && isValidSchoolEmail(user.email)) {
+        if (!user.emailVerified) {
+            currentUserProfile = null;
+            return;
+        }
         try {
             const userDoc = await getDoc(doc(db, "users", user.uid));
             const nickname = userDoc.exists() && userDoc.data().nickname ? userDoc.data().nickname : user.email.split('@')[0];
@@ -164,6 +168,8 @@ onAuthStateChanged(auth, async (user) => {
                 subtext.innerText = `บัญชีถาวร: ${nickname} (${user.email})`;
             }
         } catch (e) {}
+    } else {
+        currentUserProfile = null;
     }
 });
 
@@ -220,7 +226,7 @@ if (registerForm) {
 
         try {
             regBtn.disabled = true;
-            regBtn.innerText = "กำลังสร้างบัญชี...";
+            regBtn.innerText = "กำลังส่งอีเมลยืนยัน...";
 
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
@@ -232,10 +238,13 @@ if (registerForm) {
                 createdAt: serverTimestamp()
             });
 
-            currentUserProfile = { uid: user.uid, email: email, nickname: nickname };
+            await sendEmailVerification(user);
+            await signOut(auth);
+            currentUserProfile = null;
+
             studentAuthModal.style.display = 'none';
             registerForm.reset();
-            selectRole('student');
+            alert(`📩 ส่งลิงก์ยืนยันตัวตนไปที่ ${email} แล้วครับ\nกรุณาเปิดอีเมลโรงเรียน (เช็กในกล่องข้อความหรือ Spam) แล้วกดลิงก์ยืนยันก่อน จึงค่อยกลับมาเข้าสู่ระบบครับ`);
         } catch (error) {
             if (error.code === 'auth/email-already-in-use') {
                 alert("❌ อีเมลโรงเรียนนี้ถูกใช้สร้างบัญชีไปแล้ว (1 อีเมลสร้างได้ 1 บัญชีเท่านั้น) กรุณากดแท็บ 'เข้าสู่ระบบ' ครับ");
@@ -263,10 +272,18 @@ if (loginForm) {
 
         try {
             loginBtn.disabled = true;
-            loginBtn.innerText = "กำลังเข้าสู่ระบบ...";
+            loginBtn.innerText = "กำลังตรวจสอบบัญชี...";
 
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
+
+            if (!user.emailVerified) {
+                await sendEmailVerification(user).catch(() => {});
+                await signOut(auth);
+                currentUserProfile = null;
+                alert("⚠️ บัญชีนี้ยังไม่ได้ยืนยันอีเมลโรงเรียนครับ\nระบบส่งลิงก์ยืนยันให้ใหม่แล้ว กรุณากดยืนยันในอีเมลก่อนเข้าใช้งานครับ");
+                return;
+            }
 
             const userDoc = await getDoc(doc(db, "users", user.uid));
             let nickname = email.split('@')[0];
