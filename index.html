@@ -40,6 +40,16 @@
                     </div>
                 </button>
             </div>
+
+            <div class="install-shortcut-box" style="margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid #E2E8F0; text-align: center;">
+                <button type="button" id="installAppBtn" class="btn-install-shortcut" onclick="handleInstallShortcut()" style="width: 100%; padding: 0.75rem 1rem; border-radius: 12px; border: 1px solid #BFDBFE; background: #EFF6FF; color: #1D56B8; font-family: 'Prompt', sans-serif; font-weight: 600; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <span>📲</span>
+                    <span>ดาวน์โหลดแอปขึ้นหน้าจอหลัก (โทรศัพท์ / iPad)</span>
+                </button>
+                <p id="installShortcutHint" style="margin: 0.45rem 0 0; font-size: 0.76rem; color: #64748B;">
+                    ติดตั้งเป็นทางลัดเปิดใช้งานได้ไวเหมือนแอปบนมือถือและ iPad
+                </p>
+            </div>
         </div>
     </div>
 
@@ -314,7 +324,7 @@
         <div class="modal-content modal-sm">
             <span class="close-btn" onclick="closeModal('editNicknameModal')">&times;</span>
             <h3 style="color: var(--royal-blue); margin-bottom: 0.5rem;">✏️ เปลี่ยน Username ของคุณ</h3>
-            <p class="modal-sub">บัญชีของคุณยังคงผูกกับอีเมลโรงเรียนเดิม แต่ชื่อที่แสดงจะอัปเดตทันที</p>
+            <p class="modal-sub">บัญชีของคุณยังคงผูกกับอีเมลโรงเรียนเดิม แต่ชื่อที่แสดงจะอัปเดตทันที (เปลี่ยนได้เดือนละ 1 ครั้ง)</p>
             <form id="editNicknameForm">
                 <div class="form-group">
                     <input type="text" id="newNicknameInput" required maxlength="25" placeholder="กรอกชื่อใหม่...">
@@ -486,13 +496,13 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js?v=7')
+          navigator.serviceWorker.register('sw.js?v=8')
             .then((reg) => console.log('Service Worker Registered!', reg))
             .catch((err) => console.log('Service Worker Failed', err));
         });
       }
     </script>
 
-    <script type="module" src="app.js?v=7"></script>
+    <script type="module" src="app.js?v=8"></script>
 </body>
 </html>
