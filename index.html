@@ -81,7 +81,7 @@
 
             <div class="sidebar-footer">
                 <button id="sidebarFeedbackBtn" class="btn-feedback-menu" onclick="openFeedbackModal()">💡 ส่ง Feedback / แจ้งบัค</button>
-                <button id="adminLogoutBtn" class="btn-logout" onclick="logoutAdminToLanding()" style="display: none;">🚪 ออกจากโหมดทีมงานพรรค</button>
+                <button id="logoutBtn" class="btn-logout" onclick="logoutToLanding()">🚪 ออกจากระบบ</button>
             </div>
         </aside>
 
@@ -254,7 +254,7 @@
             <!-- ฟอร์มเข้าสู่ระบบ -->
             <form id="loginForm">
                 <h3 style="color: var(--royal-blue); margin-bottom: 0.4rem;">🎓 เข้าสู่ระบบด้วยอีเมลโรงเรียน</h3>
-                <p class="modal-sub">เมื่อเข้าสู่ระบบแล้ว บัญชีจะผูกติดกับอุปกรณ์นี้ถาวร</p>
+                <p class="modal-sub">เมื่อเข้าสู่ระบบแล้ว เปิดเว็บครั้งต่อไปเข้าใช้งานได้ทันทีโดยไม่ต้องล็อกอินซ้ำ</p>
                 <div class="form-group">
                     <label>อีเมลโรงเรียน *</label>
                     <input type="email" id="loginEmail" required placeholder="รหัสนักเรียน@ben.ac.th">
@@ -269,7 +269,7 @@
             <!-- ฟอร์มสมัครสมาชิก -->
             <form id="registerForm" style="display: none;">
                 <h3 style="color: var(--royal-blue); margin-bottom: 0.4rem;">✨ สร้างบัญชี BENEFIT</h3>
-                <p class="modal-sub">1 อีเมลโรงเรียน (<span id="domainHintText">@ben.ac.th</span>) สร้างได้ 1 บัญชีถาวร</p>
+                <p class="modal-sub">1 อีเมลโรงเรียน (<span id="domainHintText">@ben.ac.th</span>) สร้างได้ 1 บัญชี และต้องยืนยันลิงก์ในอีเมลจริง</p>
                 <div class="form-group">
                     <label>อีเมลโรงเรียน *</label>
                     <input type="email" id="regEmail" required placeholder="รหัสนักเรียน@ben.ac.th">
@@ -282,7 +282,7 @@
                     <label>ตั้งรหัสผ่าน (อย่างน้อย 6 ตัวอักษร) *</label>
                     <input type="password" id="regPassword" required minlength="6" placeholder="กำหนดรหัสผ่าน...">
                 </div>
-                <button type="submit" id="regSubmitBtn" class="btn-submit">สมัครสมาชิกและเข้าใช้งานถาวร</button>
+                <button type="submit" id="regSubmitBtn" class="btn-submit">สมัครสมาชิกและส่งอีเมลยืนยัน</button>
             </form>
         </div>
     </div>
@@ -485,13 +485,13 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js?v=2')
+          navigator.serviceWorker.register('sw.js?v=3')
             .then((reg) => console.log('Service Worker Registered!', reg))
             .catch((err) => console.log('Service Worker Failed', err));
         });
       }
     </script>
 
-    <script type="module" src="app.js?v=2"></script>
+    <script type="module" src="app.js?v=3"></script>
 </body>
 </html>
