@@ -417,13 +417,17 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>วันที่จัดงาน *</label>
+                        <label>วันที่เริ่มจัดงาน *</label>
                         <input type="date" id="eventDate" required>
                     </div>
                     <div class="form-group">
-                        <label>เวลา *</label>
-                        <input type="text" id="eventTime" required placeholder="เช่น 09:00 - 11:30 น.">
+                        <label>ถึงวันที่ (ไม่บังคับ หากจัดวันเดียว)</label>
+                        <input type="date" id="eventEndDate">
                     </div>
+                </div>
+                <div class="form-group">
+                    <label>เวลา *</label>
+                    <input type="text" id="eventTime" required placeholder="เช่น 09:00 - 11:30 น.">
                 </div>
                 <div class="form-group">
                     <label>สถานที่ *</label>
@@ -490,13 +494,13 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js?v=9')
+          navigator.serviceWorker.register('sw.js?v=10')
             .then((reg) => console.log('Service Worker Registered!', reg))
             .catch((err) => console.log('Service Worker Failed', err));
         });
       }
     </script>
 
-    <script type="module" src="app.js?v=9"></script>
+    <script type="module" src="app.js?v=10"></script>
 </body>
 </html>
