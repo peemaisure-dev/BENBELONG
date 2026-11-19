@@ -25,11 +25,11 @@
             <p>โรงเรียนเบญจมราชูทิศ ราชบุรี • ยืนยันตัวตนด้วยอีเมลโรงเรียนเพื่อเข้าใช้งาน</p>
             
             <div class="role-buttons">
-                <button class="role-btn btn-student" onclick="openStudentAuthModal()">
+                <button class="role-btn btn-student" onclick="handleStudentEntry()">
                     <span class="role-icon">🎓</span>
                     <div>
                         <h3>คุณครู / นักเรียนโรงเรียนเบญฯ</h3>
-                        <p style="margin: 0; font-size: 0.8rem; color: #64748B;">เข้าสู่ระบบ หรือ สร้างบัญชีด้วยอีเมลโรงเรียน</p>
+                        <p id="studentEntrySubtext" style="margin: 0; font-size: 0.8rem; color: #64748B;">เข้าใช้งานด้วยบัญชี Google โรงเรียน (@ben.ac.th)</p>
                     </div>
                 </button>
                 
@@ -72,7 +72,7 @@
                     <span>📚</span> คลังสรุป PDF (StudyHub)
                 </a>
                 
-                <!-- ปุ่มแชร์ชีทสรุป PDF สำหรับทุกคนที่ล็อกอิน -->
+                <!-- ปุ่มแชร์ชีทสรุป PDF -->
                 <div style="margin-top: 1rem; border-top: 1px solid #E2E8F0; padding-top: 1rem;">
                     <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 0.5rem; padding: 0 0.5rem;">เครื่องมือแบ่งปันข้อมูล</p>
                     <button class="btn-sidebar-action" onclick="openUploadModal()">📄 แจกชีทสรุป PDF</button>
@@ -82,7 +82,7 @@
 
             <div class="sidebar-footer">
                 <button id="sidebarFeedbackBtn" class="btn-feedback-menu" onclick="openFeedbackModal()">💡 ส่ง Feedback / แจ้งบัค</button>
-                <button class="btn-logout" onclick="logoutToLanding()">🚪 ออกจากระบบ</button>
+                <button id="adminLogoutBtn" class="btn-logout" onclick="logoutAdminToLanding()" style="display: none;">🚪 ออกจากโหมดทีมงานพรรค</button>
             </div>
         </aside>
 
@@ -97,7 +97,7 @@
                     </div>
                 </div>
                 <div class="top-nav-right">
-                    <span id="userRoleIndicator" class="text-role">ผู้ใช้งานทั่วไป</span>
+                    <span id="userRoleIndicator" class="text-role" style="cursor: pointer;" onclick="openOwnProfile()">ผู้ใช้งานทั่วไป</span>
                 </div>
             </header>
 
@@ -161,7 +161,7 @@
                         <div class="x-compose-box">
                             <form id="postForm">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #F1F5F9; padding-bottom: 6px;">
-                                    <span style="font-size: 0.85rem; color: #64748B;">โพสต์ในชื่อ: <strong id="composeDisplayNickname" style="color: var(--royal-blue);">ผู้ใช้งาน</strong></span>
+                                    <span style="font-size: 0.85rem; color: #64748B;">โพสต์ในชื่อ: <strong id="composeDisplayNickname" style="color: var(--royal-blue); cursor: pointer;" onclick="openOwnProfile()">ผู้ใช้งาน</strong></span>
                                     <button type="button" id="changeNickShortcut" onclick="openEditNicknameModal()" style="background: none; border: none; color: var(--royal-blue); font-size: 0.78rem; cursor: pointer; text-decoration: underline;">เปลี่ยนชื่อ</button>
                                 </div>
                                 <textarea id="postContentInput" class="x-textarea" rows="3" required maxlength="300" placeholder="What is happening?! (พิมพ์ได้สูงสุด 300 ตัวอักษร)"></textarea>
@@ -242,84 +242,45 @@
         </div>
     </div>
 
-<!-- Modal ยืนยันตัวตนนักเรียน/คุณครู ด้วยอีเมลโรงเรียน -->
-    <div id="studentAuthModal" class="modal">
-        <div class="modal-content" style="max-width: 440px;">
-            <span class="close-btn" onclick="closeModal('studentAuthModal')">&times;</span>
-            
-            <div class="auth-tabs">
-                <button type="button" id="tabLoginBtn" class="auth-tab active" onclick="switchAuthTab('login')">เข้าสู่ระบบ</button>
-                <button type="button" id="tabRegisterBtn" class="auth-tab" onclick="switchAuthTab('register')">สร้างบัญชีใหม่</button>
-            </div>
-
-            <!-- ฟอร์มเข้าสู่ระบบ -->
-            <form id="loginForm">
-                <h3 style="color: var(--royal-blue); margin-bottom: 0.4rem;">🎓 เข้าสู่ระบบด้วยอีเมลโรงเรียน</h3>
-                <p class="modal-sub">เฉพาะบุคลากรและนักเรียนโรงเรียนเบญจมราชูทิศ ราชบุรี</p>
-                <div class="form-group">
-                    <label>อีเมลโรงเรียน *</label>
-                    <input type="email" id="loginEmail" required placeholder="รหัสนักเรียน@ben.ac.th">
-                </div>
-                <div class="form-group">
-                    <label>รหัสผ่าน *</label>
-                    <input type="password" id="loginPassword" required placeholder="กรอกรหัสผ่านของบัญชี...">
-                    <div style="text-align: right; margin-top: 6px;">
-                        <button type="button" onclick="openForgotPasswordView()" style="background: none; border: none; color: var(--royal-blue); font-size: 0.8rem; cursor: pointer; text-decoration: underline; font-weight: 500;">ลืมรหัสผ่าน?</button>
-                    </div>
-                </div>
-                <button type="submit" id="loginSubmitBtn" class="btn-submit">เข้าสู่ระบบ BENEFIT</button>
-            </form>
-
-            <!-- ฟอร์มสมัครสมาชิก -->
-            <form id="registerForm" style="display: none;">
-                <h3 style="color: var(--royal-blue); margin-bottom: 0.4rem;">✨ สร้างบัญชี BENEFIT</h3>
-                <p class="modal-sub">บังคับใช้อีเมลโรงเรียน (<span id="domainHintText">@ben.ac.th</span>) และตั้ง Username ได้อิสระ</p>
-                <div class="form-group">
-                    <label>อีเมลโรงเรียน (ใช้เป็นชื่อบัญชีจริง) *</label>
-                    <input type="email" id="regEmail" required placeholder="รหัสนักเรียน@ben.ac.th">
-                </div>
-                <div class="form-group">
-                    <label>ตั้งชื่อแสดงผล (Username) *</label>
-                    <input type="text" id="regNickname" required maxlength="25" placeholder="ตั้งชื่อที่อยากให้แสดงใน BenX และ StudyHub...">
-                </div>
-                <div class="form-group">
-                    <label>ตั้งรหัสผ่าน (อย่างน้อย 6 ตัวอักษร) *</label>
-                    <input type="password" id="regPassword" required minlength="6" placeholder="กำหนดรหัสผ่าน...">
-                </div>
-                <button type="submit" id="regSubmitBtn" class="btn-submit">สมัครสมาชิกและเข้าใช้งาน</button>
-            </form>
-
-            <!-- ฟอร์มลืมรหัสผ่าน (เฉพาะบัญชีนักเรียน/คุณครู) -->
-            <form id="forgotPasswordForm" style="display: none;">
-                <div style="margin-bottom: 0.8rem;">
-                    <button type="button" onclick="switchAuthTab('login')" style="background: none; border: none; color: #64748B; font-size: 0.82rem; cursor: pointer; padding: 0;">← กลับไปหน้าเข้าสู่ระบบ</button>
-                </div>
-                <h3 style="color: var(--royal-blue); margin-bottom: 0.4rem;">🔑 รีเซ็ตรหัสผ่านบัญชีโรงเรียน</h3>
-                <p class="modal-sub">ระบบจะส่งลิงก์สำหรับตั้งรหัสผ่านใหม่ไปยังอีเมลโรงเรียนของคุณ (ตรวจสอบใน Spam / Junk ด้วยหากไม่พบ)</p>
-                <div class="form-group">
-                    <label>อีเมลโรงเรียนที่ลงทะเบียนไว้ *</label>
-                    <input type="email" id="resetEmail" required placeholder="รหัสนักเรียน@ben.ac.th">
-                </div>
-                <button type="submit" id="resetSubmitBtn" class="btn-submit">ส่งลิงก์รีเซ็ตรหัสผ่าน</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal ตั้งรหัสผ่านใหม่เมื่อคลิกลิงก์จากอีเมล -->
-    <div id="newPasswordModal" class="modal">
+    <!-- Modal ตั้งชื่อ Username ครั้งแรกหลังยืนยัน Google โรงเรียน -->
+    <div id="setupUsernameModal" class="modal">
         <div class="modal-content modal-sm">
-            <span class="close-btn" onclick="closeModal('newPasswordModal')">&times;</span>
-            <h3 style="color: var(--royal-blue); margin-bottom: 0.4rem;">🔐 ตั้งรหัสผ่านใหม่</h3>
-            <p class="modal-sub" id="resetAccountEmailLabel">กำลังตั้งรหัสผ่านใหม่สำหรับบัญชีของคุณ</p>
-            <form id="confirmNewPasswordForm">
+            <h3 style="color: var(--royal-blue); margin-bottom: 0.4rem;">✨ ยินดีต้อนรับสู่ BENEFIT</h3>
+            <p class="modal-sub" id="setupEmailDisplay">ยืนยันอีเมลโรงเรียนสำเร็จ กรุณาตั้งชื่อแสดงผล (Username) ของคุณ</p>
+            <form id="setupUsernameForm">
                 <div class="form-group">
-                    <label>รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร) *</label>
-                    <input type="password" id="newResetPasswordInput" required minlength="6" placeholder="กรอกรหัสผ่านใหม่...">
+                    <label>ชื่อแสดงผล (Username) *</label>
+                    <input type="text" id="initialNicknameInput" required maxlength="25" placeholder="ตั้งชื่อที่อยากให้แสดงใน BenX และ StudyHub...">
                 </div>
-                <button type="submit" id="confirmNewPassBtn" class="btn-submit">บันทึกรหัสผ่านใหม่</button>
+                <button type="submit" id="saveInitialNickBtn" class="btn-submit">ยืนยันและเข้าใช้งานถาวร</button>
             </form>
         </div>
     </div>
+
+    <!-- Modal แสดงโปรไฟล์ผู้ใช้งาน (คลิกได้จากชื่อใน BenX และ StudyHub) -->
+    <div id="userProfileModal" class="modal">
+        <div class="modal-content modal-sm" style="padding: 0; overflow: hidden; border-radius: 20px; text-align: center;">
+            <!-- แถบพื้นหลังโทนสีหลักของเว็บไซต์ -->
+            <div style="background: linear-gradient(135deg, #1D56B8 0%, #3B82F6 60%, #EC4899 100%); height: 105px; position: relative;">
+                <span class="close-btn" onclick="closeModal('userProfileModal')" style="color: white; top: 12px; right: 16px; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">&times;</span>
+            </div>
+            <!-- วงกลมโปรไฟล์หลัก -->
+            <div style="margin-top: -52px; display: flex; justify-content: center; position: relative; z-index: 2;">
+                <div id="profileAvatarCircle" style="width: 104px; height: 104px; border-radius: 50%; background: #EFF6FF; border: 4px solid #FFFFFF; box-shadow: 0 6px 16px rgba(29, 86, 184, 0.25); display: flex; align-items: center; justify-content: center; font-size: 2.6rem; font-weight: 800; color: #1D56B8; overflow: hidden;">
+                    👤
+                </div>
+            </div>
+            <!-- ชื่อ Username และอีเมลโรงเรียนด้านใต้ -->
+            <div style="padding: 1rem 1.5rem 1.8rem;">
+                <h3 id="profileModalUsername" style="color: #0F172A; font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem;">Username</h3>
+                <p id="profileModalEmail" style="color: #64748B; font-size: 0.88rem; font-weight: 500; word-break: break-all; margin-bottom: 0.9rem;">student@ben.ac.th</p>
+                <span style="display: inline-block; background: #EFF6FF; color: #1D56B8; font-size: 0.78rem; font-weight: 600; padding: 4px 12px; border-radius: 999px; border: 1px solid #BFDBFE;">
+                    🎓 บัญชีโรงเรียนเบญจมราชูทิศ ราชบุรี
+                </span>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal แก้ไข Username -->
     <div id="editNicknameModal" class="modal">
         <div class="modal-content modal-sm">
