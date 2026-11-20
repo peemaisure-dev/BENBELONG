@@ -1096,6 +1096,123 @@ window.deleteEvent = async function(targetKey, id) {
     }
 };
 
+// ระบบจัดอันดับฟีด BenX (For You / เทรนด์ และความสนใจของผู้ใช้)
+function getUserInterestStorageKey() {
+    const uid = currentUserProfile && currentUserProfile.uid ? currentUserProfile.uid : 'guest';
+    return `benbelong_interest_profile_${uid}`;
+}
+
+function loadUserInterestProfile() {
+    try {
+        const raw = localStorage.getItem(getUserInterestStorageKey());
+        const parsed = raw ? JSON.parse(raw) : {};
+        return {
+            tags: parsed.tags || {},
+            keywords: parsed.keywords || {}
+        };
+    } catch (e) {
+        return { tags: {}, keywords: {} };
+    }
+}
+
+function saveUserInterestProfile(profile) {
+    try {
+        localStorage.setItem(getUserInterestStorageKey(), JSON.stringify(profile));
+    } catch (e) {}
+}
+
+function extractPostTagsAndKeywords(content) {
+    const text = (content || '').toLowerCase();
+    const tags = (text.match(/#([a-zA-Zก-ฮ0-9_]+)/g) || []).map(t => t.toLowerCase());
+    const cleanWords = text
+        .replace(/#([a-zA-Zก-ฮ0-9_]+)/g, ' ')
+        .replace(/[^a-zA-Zก-๙0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length >= 2);
+    const keywords = [...new Set(cleanWords)].slice(0, 12);
+    return { tags, keywords };
+}
+
+function recordUserInterestFromPost(post, weight = 1) {
+    if (!post || !post.content) return;
+    const profile = loadUserInterestProfile();
+    const { tags, keywords } = extractPostTagsAndKeywords(post.content);
+
+    tags.forEach(tag => {
+        profile.tags[tag] = (profile.tags[tag] || 0) + (3 * weight);
+    });
+
+    keywords.forEach(word => {
+        profile.keywords[word] = (profile.keywords[word] || 0) + (1 * weight);
+    });
+
+    saveUserInterestProfile(profile);
+}
+
+function getPostTimestampMs(createdAt) {
+    if (!createdAt) return Date.now();
+    if (typeof createdAt.toMillis === 'function') return createdAt.toMillis();
+    if (typeof createdAt === 'number') return createdAt;
+    const parsed = Date.parse(createdAt);
+    return Number.isFinite(parsed) ? parsed : Date.now();
+}
+
+function computeTagPopularityMap(posts) {
+    const tagCounts = {};
+    posts.forEach(post => {
+        const matches = (post.content || '').match(/#([A-Za-zก-ฮ0-9_]+)/g);
+        if (matches) {
+            const uniqueInPost = [...new Set(matches.map(t => t.toLowerCase()))];
+            uniqueInPost.forEach(tag => {
+                tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+            });
+        }
+    });
+    return tagCounts;
+}
+
+function rankPostsForFeed(posts) {
+    const tagCounts = computeTagPopularityMap(posts);
+    const interestProfile = loadUserInterestProfile();
+    const nowMs = Date.now();
+
+    return [...posts]
+        .map((post, idx) => {
+            const likesCount = Number(post.likes) || 0;
+            const commentsCount = Array.isArray(post.comments) ? post.comments.length : 0;
+
+            const engagementScore = (likesCount * 4) + (commentsCount * 7);
+            const { tags, keywords } = extractPostTagsAndKeywords(post.content || '');
+            let trendTagScore = 0;
+            tags.forEach(tag => {
+                const count = tagCounts[tag] || 0;
+                if (count >= 2) {
+                    trendTagScore += count * 5;
+                }
+            });
+
+            let personalInterestScore = 0;
+            tags.forEach(tag => {
+                personalInterestScore += (interestProfile.tags[tag] || 0) * 2.5;
+            });
+            keywords.forEach(word => {
+                personalInterestScore += (interestProfile.keywords[word] || 0) * 1.2;
+            });
+
+            const tsMs = getPostTimestampMs(post.createdAt);
+            const ageHours = Math.max(0, (nowMs - tsMs) / (1000 * 60 * 60));
+            const freshnessScore = Math.max(0, 24 - (ageHours * 0.45));
+
+            const totalScore = engagementScore + trendTagScore + personalInterestScore + freshnessScore;
+            return { post, totalScore, idx };
+        })
+        .sort((a, b) => {
+            if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+            return a.idx - b.idx;
+        })
+        .map(item => item.post);
+}
+
 async function fetchPosts() {
     try {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
@@ -1112,7 +1229,8 @@ async function fetchPosts() {
             });
         });
         postsLoading.style.display = 'none';
-        renderPosts(allPosts);
+        const rankedPosts = rankPostsForFeed(allPosts);
+        renderPosts(rankedPosts);
         extractAndRenderTrends(allPosts);
     } catch (error) {
         postsLoading.innerText = "ยังไม่มีโพสต์ในระบบ";
@@ -1133,6 +1251,7 @@ function renderPosts(posts) {
 
     const currentUid = currentUserProfile ? currentUserProfile.uid : '';
     const currentNickname = currentUserProfile ? currentUserProfile.nickname : 'ผู้ใช้งาน';
+    const tagCounts = computeTagPopularityMap(allPosts);
 
     posts.forEach(post => {
         const card = document.createElement('div');
@@ -1144,10 +1263,18 @@ function renderPosts(posts) {
         }
 
         let formattedContent = escapeHTML(post.content);
-        formattedContent = formattedContent.replace(/#([A-Za-zก-ฮ0-9_]+)/g, '<span class="x-hashtag">#$1</span>');
+        formattedContent = formattedContent.replace(/#([A-Za-zก-ฮ0-9_]+)/g, '<span class="x-hashtag" onclick="window.filterByHashtag(\'#$1\')" style="cursor:pointer;">#$1</span>');
 
         const hasLiked = post.likedBy && post.likedBy.includes(currentUid);
         const heartIcon = hasLiked ? '❤️' : '🤍';
+
+        const likesCount = Number(post.likes) || 0;
+        const commentsCount = Array.isArray(post.comments) ? post.comments.length : 0;
+        const postTags = ((post.content || '').match(/#([A-Za-zก-ฮ0-9_]+)/g) || []).map(t => t.toLowerCase());
+        const isTrendingPost = (likesCount + commentsCount >= 3) || postTags.some(t => (tagCounts[t] || 0) >= 2);
+        const trendBadgeHtml = isTrendingPost
+            ? `<span style="margin-left: 8px; background: #FFF1F2; color: #E11D48; border: 1px solid #FECDD3; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px;">🔥 กำลังมาแรง</span>`
+            : '';
 
         const safeAuthor = escapeHTML(post.author);
         const safeEmail = escapeHTML(post.schoolEmail || '');
@@ -1182,6 +1309,7 @@ function renderPosts(posts) {
                 <div class="x-post-header">
                     <div>
                         <span class="x-post-author" style="cursor: pointer;" onclick="window.openUserProfile('${safeAuthorUid}', '${safeAuthor}', '${safeEmail}')">${safeAuthor}</span>
+                        ${trendBadgeHtml}
                     </div>
                     ${deleteBtnHtml}
                 </div>
@@ -1189,10 +1317,10 @@ function renderPosts(posts) {
                 
                 <div class="x-post-actions">
                     <button class="x-action-btn" onclick="window.toggleLike('${post.id}')">
-                        ${heartIcon} <span>${post.likes || 0}</span>
+                        ${heartIcon} <span>${likesCount}</span>
                     </button>
                     <button class="x-action-btn" onclick="window.toggleCommentBox('${post.id}')">
-                        💬 <span>${post.comments ? post.comments.length : 0}</span>
+                        💬 <span>${commentsCount}</span>
                     </button>
                 </div>
 
@@ -1230,6 +1358,7 @@ window.toggleLike = async function(postId) {
         } else {
             likedBy.push(uid);
             likes += 1;
+            recordUserInterestFromPost(data, 1.5);
         }
 
         await updateDoc(postRef, { likes, likedBy });
@@ -1275,6 +1404,7 @@ window.submitComment = async function(e, postId) {
             createdAt: new Date().toISOString()
         });
 
+        recordUserInterestFromPost(data, 2);
         await updateDoc(postRef, { comments });
         textInput.value = '';
         fetchPosts();
@@ -1300,7 +1430,12 @@ window.deleteComment = async function(postId, commentIndex) {
 
 window.filterPostsBySearch = function() {
     const keyword = searchInputFeed.value.toLowerCase().trim();
-    const filtered = allPosts.filter(post => {
+    const ranked = rankPostsForFeed(allPosts);
+    if (!keyword) {
+        renderPosts(ranked);
+        return;
+    }
+    const filtered = ranked.filter(post => {
         return post.content.toLowerCase().includes(keyword) || post.author.toLowerCase().includes(keyword);
     });
     renderPosts(filtered);
@@ -1312,15 +1447,7 @@ window.filterByHashtag = function(tag) {
 };
 
 function extractAndRenderTrends(posts) {
-    const tagCounts = {};
-    posts.forEach(post => {
-        const matches = post.content.match(/#([A-Za-zก-ฮ0-9_]+)/g);
-        if (matches) {
-            matches.forEach(tag => {
-                tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-            });
-        }
-    });
+    const tagCounts = computeTagPopularityMap(posts);
 
     const sortedTags = Object.keys(tagCounts).sort((a, b) => tagCounts[b] - tagCounts[a]);
     trendingTagsList.innerHTML = '';
@@ -1395,7 +1522,7 @@ if (postForm) {
             alert("เกิดข้อผิดพลาดในการโพสต์ข้อความ");
         } finally {
             submitPostBtn.disabled = false;
-            submitBtn.innerText = "Post";
+            submitPostBtn.innerText = "Post";
         }
     });
 }
