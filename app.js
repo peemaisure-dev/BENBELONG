@@ -9,8 +9,8 @@ const NICKNAME_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // คูลดาวน�
 const DRIVE_CHECK_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx82iP7Dx0qbeFOBEnCzNFJw053EyDOfXol705EP-wGR-_rcW9nT5YtSoWlLrx7pF8hMw/exec";
 
 // ตั้งค่า Supabase Storage สำหรับรูปภาพอีเวนต์ (อนุญาตเฉพาะบัญชีของพรรคเท่านั้น)
-const SUPABASE_URL = "https://YOUR_PROJECT_REF.supabase.co";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_URL = "https://hurjpkudocnapkdteokf.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_dzOK5hneWLpL4ZxQefP0vA_KCwBL1Mb";
 const SUPABASE_EVENT_IMAGE_BUCKET = "EVENT-IMAGE";
 const MAX_EVENT_IMAGE_BYTES = 5 * 1024 * 1024; // จำกัดไม่เกิน 5 MB ต่อรูป
 
