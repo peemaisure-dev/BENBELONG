@@ -456,6 +456,7 @@
         </div>
     </div>
 
+    <!-- Modal เพิ่มอีเวนต์ (ในโรงเรียน / นอกโรงเรียน) -->
     <div id="eventModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal('eventModal')">&times;</span>
@@ -487,6 +488,10 @@
                 <div class="form-group">
                     <label>รายละเอียดเพิ่มเติม *</label>
                     <input type="text" id="eventDesc" required placeholder="เช่น แจกนโยบายหาเสียงรอบสุดท้าย">
+                </div>
+                <div class="form-group">
+                    <label>แนบรูปภาพโปสเตอร์ / เนื้อหากิจกรรม (เฉพาะบัญชีพรรค • ไม่บังคับ • สูงสุด 5 MB)</label>
+                    <input type="file" id="eventImageInput" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp">
                 </div>
                 <button type="submit" id="eventSubmitBtn" class="btn-submit">บันทึกอีเวนต์ลงปฏิทิน</button>
             </form>
