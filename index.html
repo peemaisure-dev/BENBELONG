@@ -535,7 +535,10 @@
                 </div>
                 <div class="form-group">
                     <label>ลิงก์ไฟล์ PDF (Google Drive) *</label>
-                    <input type="text" id="noteFileUrl" required placeholder="https://drive.google.com/file/d/...">
+                    <input type="url" id="noteFileUrl" required placeholder="https://drive.google.com/file/d/..." oninput="resetDriveVerificationState()">
+                    <small id="driveVerifyStatus" style="display: block; margin-top: 6px; font-size: 0.8rem; color: #64748B;">
+                        ระบบจะตรวจสอบสิทธิ์ "ทุกคนที่มีลิงก์" อัตโนมัติก่อนบันทึกชีทครับ
+                    </small>
                 </div>
                 <button type="submit" id="submitBtn" class="btn-submit">บันทึกสรุป PDF ขึ้นเว็บทันที</button>
             </form>
@@ -545,13 +548,13 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js?v=11')
+          navigator.serviceWorker.register('sw.js?v=12')
             .then((reg) => console.log('Service Worker Registered!', reg))
             .catch((err) => console.log('Service Worker Failed', err));
         });
       }
     </script>
 
-    <script type="module" src="app.js?v=11"></script>
+    <script type="module" src="app.js?v=12"></script>
 </body>
 </html>
