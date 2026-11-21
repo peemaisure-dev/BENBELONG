@@ -33,6 +33,7 @@ let currentUserProfile = null;
 let authReadyUser = null;
 let deferredInstallPrompt = null;
 let activeEventTarget = 'school';
+let editingEventState = null; // { targetKey, eventId, existingImageUrl }
 let allNotes = [];
 let allPosts = [];
 let verifiedDriveUrl = "";
@@ -847,20 +848,84 @@ window.logoutToLanding = function() {
 window.closeModal = function(modalId) {
     const el = document.getElementById(modalId);
     if (el) el.style.display = 'none';
+    if (modalId === 'eventModal') {
+        editingEventState = null;
+    }
 };
+
+function setEventImageHint(hasExistingImage) {
+    const hintEl = document.getElementById('currentEventImageHint');
+    if (!hintEl) return;
+    if (editingEventState && hasExistingImage) {
+        hintEl.style.display = 'block';
+        hintEl.innerText = "🖼️ อีเวนต์นี้มีรูปภาพอยู่แล้ว: หากไม่เลือกไฟล์ใหม่ ระบบจะใช้รูปเดิมไว้ครับ (ถ้าเลือกไฟล์ใหม่จะแทนที่รูปเดิม)";
+    } else {
+        hintEl.style.display = 'none';
+        hintEl.innerText = "";
+    }
+}
 
 window.openEventModal = function(targetKey = 'school') {
     if (!isPartyAccountAuthorized()) {
-        alert("❌ สิทธิ์ไม่เพียงพอ: เฉพาะบัญชีของพรรค / ทีมงานเท่านั้นที่สามารถเพิ่มอีเวนต์หรืออัปโหลดรูปภาพกิจกรรมได้ครับ");
+        alert("❌ สิทธิ์ไม่เพียงพอ: เฉพาะบัญชีของพรรค / ทีมงานเท่านั้นที่สามารถเพิ่มหรือแก้ไขอีเวนต์ได้ครับ");
         return;
     }
+    editingEventState = null;
     activeEventTarget = calendarBoards[targetKey] ? targetKey : 'school';
+    if (eventForm) eventForm.reset();
+
     const titleEl = document.getElementById('eventModalTitle');
+    const submitBtn = document.getElementById('eventSubmitBtn');
     if (titleEl) {
         titleEl.innerText = activeEventTarget === 'outside'
             ? "🗓️ เพิ่มอีเวนต์กิจกรรมนอกโรงเรียน"
             : "📅 เพิ่มอีเวนต์ / กิจกรรมสำคัญในปฏิทิน";
     }
+    if (submitBtn) submitBtn.innerText = "บันทึกอีเวนต์ลงปฏิทิน";
+    setEventImageHint(false);
+
+    if (eventModal) eventModal.style.display = 'flex';
+};
+
+window.openEditEventModal = function(targetKey, eventId) {
+    if (!isPartyAccountAuthorized()) {
+        alert("❌ สิทธิ์ไม่เพียงพอ: เฉพาะบัญชีของพรรค / ทีมงานเท่านั้นที่สามารถแก้ไขอีเวนต์ได้ครับ");
+        return;
+    }
+    const boardKey = calendarBoards[targetKey] ? targetKey : 'school';
+    const board = calendarBoards[boardKey];
+    const targetEv = board.allEvents.find(ev => ev.id === eventId);
+    if (!targetEv) {
+        alert("⚠️ ไม่พบข้อมูลอีเวนต์ที่ต้องการแก้ไขครับ");
+        return;
+    }
+
+    activeEventTarget = boardKey;
+    editingEventState = {
+        targetKey: boardKey,
+        eventId: targetEv.id,
+        existingImageUrl: targetEv.imageUrl || ""
+    };
+
+    if (eventForm) eventForm.reset();
+    document.getElementById('eventTitle').value = targetEv.title || "";
+    document.getElementById('eventDate').value = normalizeDateStr(targetEv.eventDate);
+    document.getElementById('eventEndDate').value = normalizeDateStr(targetEv.eventEndDate);
+    document.getElementById('eventTime').value = targetEv.eventTime || "";
+    document.getElementById('eventLocation').value = targetEv.location || "";
+    document.getElementById('eventDesc').value = targetEv.desc || "";
+
+    const titleEl = document.getElementById('eventModalTitle');
+    const submitBtn = document.getElementById('eventSubmitBtn');
+    if (titleEl) {
+        titleEl.innerText = boardKey === 'outside'
+            ? "✏️ แก้ไขอีเวนต์กิจกรรมนอกโรงเรียน"
+            : "✏️ แก้ไขอีเวนต์ / กิจกรรมสำคัญในปฏิทิน";
+    }
+    if (submitBtn) submitBtn.innerText = "บันทึกการแก้ไขอีเวนต์";
+    setEventImageHint(Boolean(targetEv.imageUrl));
+
+    if (eventDetailModal) eventDetailModal.style.display = 'none';
     if (eventModal) eventModal.style.display = 'flex';
 };
 
@@ -980,14 +1045,17 @@ window.onclick = (e) => {
     if (e.target === userProfileModal) userProfileModal.style.display = 'none';
     if (e.target === editNicknameModal) editNicknameModal.style.display = 'none';
     if (e.target === passwordModal) passwordModal.style.display = 'none';
-    if (e.target === eventModal) eventModal.style.display = 'none';
+    if (e.target === eventModal) {
+        eventModal.style.display = 'none';
+        editingEventState = null;
+    }
     if (e.target === uploadModal) uploadModal.style.display = 'none';
     if (e.target === eventDetailModal) eventDetailModal.style.display = 'none';
     if (e.target === feedbackModal) feedbackModal.style.display = 'none';
 };
 
 // อัปโหลดและจัดการรูปภาพอีเวนต์บน Supabase Storage (อนุญาตเฉพาะบัญชีของพรรคเท่านั้น)
-async function uploadEventImageToSupabaseStorage(file) {
+async function uploadEventImageToSupabaseStorage(file, targetFolder = activeEventTarget) {
     assertPartyImageUploadPermission();
 
     if (!SUPABASE_URL || SUPABASE_URL.includes("YOUR_PROJECT_REF") || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes("YOUR_SUPABASE_ANON_KEY")) {
@@ -1002,7 +1070,7 @@ async function uploadEventImageToSupabaseStorage(file) {
         .replace(/\.(jpg|jpeg|png|webp)$/i, "")
         .replace(/[^a-zA-Z0-9_-]/g, "_")
         .slice(0, 35) || "event_banner";
-    const filePath = `party_admin/${activeEventTarget}/${Date.now()}_${safeBaseName}.${ext}`;
+    const filePath = `party_admin/${targetFolder}/${Date.now()}_${safeBaseName}.${ext}`;
 
     const uploadEndpoint = `${SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/${encodeURIComponent(SUPABASE_EVENT_IMAGE_BUCKET)}/${filePath}`;
     const res = await fetch(uploadEndpoint, {
@@ -1093,6 +1161,10 @@ function renderEvents(targetKey = 'school', events = []) {
                </div>`
             : '';
 
+        const editQuickBtnHtml = isPartyAccountAuthorized()
+            ? `<button type="button" onclick="event.stopPropagation(); window.openEditEventModal('${targetKey}', '${escapeHTML(ev.id)}')" style="background: #EFF6FF; color: #1D56B8; border: 1px solid #BFDBFE; padding: 4px 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">✏️ แก้ไข</button>`
+            : '';
+
         card.innerHTML = `
             ${bannerHtml}
             <div class="event-date-badge">
@@ -1104,8 +1176,9 @@ function renderEvents(targetKey = 'school', events = []) {
                 <p class="ev-loc">📍 <strong>สถานที่:</strong> ${escapeHTML(ev.location)}</p>
                 <p class="ev-desc">${escapeHTML(ev.desc)}</p>
             </div>
-            <div class="event-card-footer">
+            <div class="event-card-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
                 <span style="font-size: 0.8rem; color: var(--royal-blue); font-weight: 600;">🔍 คลิกเพื่อดูรายละเอียดเต็มๆ</span>
+                ${editQuickBtnHtml}
             </div>
         `;
         board.gridEl.appendChild(card);
@@ -1135,10 +1208,15 @@ window.openEventDetail = function(targetKey, ev) {
             : '';
     }
 
+    const editContainer = document.getElementById('modalEditActionContainer');
     const deleteContainer = document.getElementById('modalDeleteActionContainer');
     if (isPartyAccountAuthorized()) {
+        if (editContainer) {
+            editContainer.innerHTML = `<button type="button" onclick="window.openEditEventModal('${boardKey}', '${escapeHTML(ev.id)}')" style="background: #1D56B8; color: #FFFFFF; border: none; padding: 0.6rem 1.1rem; border-radius: 10px; font-family: 'Prompt', sans-serif; font-weight: 600; font-size: 0.88rem; cursor: pointer;">✏️ แก้ไขอีเวนต์</button>`;
+        }
         deleteContainer.innerHTML = `<button class="btn-delete-event" onclick="window.deleteEvent('${boardKey}', '${ev.id}')">🗑️ ลบอีเวนต์นี้</button>`;
     } else {
+        if (editContainer) editContainer.innerHTML = '';
         deleteContainer.innerHTML = '';
     }
 
@@ -1149,11 +1227,13 @@ if (eventForm) {
     eventForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!isPartyAccountAuthorized()) {
-            alert("❌ สิทธิ์ไม่เพียงพอ: เฉพาะบัญชีของพรรค / ทีมงานเท่านั้นที่สามารถสร้างอีเวนต์หรืออัปโหลดรูปภาพกิจกรรมได้ครับ");
+            alert("❌ สิทธิ์ไม่เพียงพอ: เฉพาะบัญชีของพรรค / ทีมงานเท่านั้นที่สามารถสร้างหรือแก้ไขอีเวนต์ได้ครับ");
             return;
         }
 
-        const board = calendarBoards[activeEventTarget] || calendarBoards.school;
+        const isEditing = Boolean(editingEventState && editingEventState.eventId);
+        const targetKey = isEditing ? editingEventState.targetKey : activeEventTarget;
+        const board = calendarBoards[targetKey] || calendarBoards.school;
         const startDate = normalizeDateStr(document.getElementById('eventDate').value);
         const rawEndDate = normalizeDateStr(document.getElementById('eventEndDate').value);
         const imageInput = document.getElementById('eventImageInput');
@@ -1184,16 +1264,21 @@ if (eventForm) {
 
         const submitBtn = document.getElementById('eventSubmitBtn');
         submitBtn.disabled = true;
-        submitBtn.innerText = selectedImage ? "กำลังอัปโหลดรูปภาพ..." : "กำลังบันทึกอีเวนต์...";
+        submitBtn.innerText = selectedImage ? "กำลังอัปโหลดรูปภาพ..." : (isEditing ? "กำลังบันทึกการแก้ไข..." : "กำลังบันทึกอีเวนต์...");
 
         try {
-            let imageUrl = "";
+            let imageUrl = isEditing ? (editingEventState.existingImageUrl || "") : "";
             if (selectedImage) {
-                imageUrl = await uploadEventImageToSupabaseStorage(selectedImage);
-                submitBtn.innerText = "กำลังบันทึกอีเวนต์...";
+                imageUrl = await uploadEventImageToSupabaseStorage(selectedImage, targetKey);
+                if (isEditing && editingEventState.existingImageUrl && editingEventState.existingImageUrl !== imageUrl) {
+                    try {
+                        await deleteEventImageFromSupabaseStorage(editingEventState.existingImageUrl);
+                    } catch (delErr) {}
+                }
+                submitBtn.innerText = isEditing ? "กำลังบันทึกการแก้ไข..." : "กำลังบันทึกอีเวนต์...";
             }
 
-            await addDoc(collection(db, board.collectionName), {
+            const payload = {
                 title: document.getElementById('eventTitle').value.trim(),
                 eventDate: startDate,
                 eventEndDate: rawEndDate || startDate,
@@ -1201,14 +1286,28 @@ if (eventForm) {
                 location: document.getElementById('eventLocation').value.trim(),
                 desc: document.getElementById('eventDesc').value.trim(),
                 imageUrl: imageUrl,
-                createdByRole: "admin",
-                createdAt: serverTimestamp()
-            });
+                createdByRole: "admin"
+            };
 
-            alert("🎉 เพิ่มอีเวนต์ลงปฏิทินสำเร็จ!");
+            if (isEditing) {
+                await updateDoc(doc(db, board.collectionName, editingEventState.eventId), {
+                    ...payload,
+                    updatedAt: serverTimestamp()
+                });
+                alert("✅ แก้ไขอีเวนต์เรียบร้อยแล้วครับ!");
+            } else {
+                await addDoc(collection(db, board.collectionName), {
+                    ...payload,
+                    createdAt: serverTimestamp()
+                });
+                alert("🎉 เพิ่มอีเวนต์ลงปฏิทินสำเร็จ!");
+            }
+
+            editingEventState = null;
+            setEventImageHint(false);
             eventForm.reset();
             eventModal.style.display = 'none';
-            fetchEvents(activeEventTarget);
+            fetchEvents(targetKey);
         } catch (error) {
             alert("❌ เกิดข้อผิดพลาดในการบันทึกอีเวนต์: " + error.message);
         } finally {
