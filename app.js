@@ -850,20 +850,76 @@ window.closeModal = function(modalId) {
     if (el) el.style.display = 'none';
     if (modalId === 'eventModal') {
         editingEventState = null;
+        setEventImageHint(false);
     }
 };
 
 function setEventImageHint(hasExistingImage) {
     const hintEl = document.getElementById('currentEventImageHint');
-    if (!hintEl) return;
-    if (editingEventState && hasExistingImage) {
-        hintEl.style.display = 'block';
-        hintEl.innerText = "🖼️ อีเวนต์นี้มีรูปภาพอยู่แล้ว: หากไม่เลือกไฟล์ใหม่ ระบบจะใช้รูปเดิมไว้ครับ (ถ้าเลือกไฟล์ใหม่จะแทนที่รูปเดิม)";
-    } else {
-        hintEl.style.display = 'none';
-        hintEl.innerText = "";
+    const removeWrapEl = document.getElementById('removeEventImageWrap');
+    const showRemove = Boolean(editingEventState && hasExistingImage);
+
+    if (hintEl) {
+        if (showRemove) {
+            hintEl.style.display = 'block';
+            hintEl.innerText = "🖼️ อีเวนต์นี้มีรูปภาพอยู่แล้ว: หากไม่เลือกไฟล์ใหม่ ระบบจะใช้รูปเดิมไว้ครับ (ถ้าเลือกไฟล์ใหม่จะแทนที่รูปเดิม)";
+        } else {
+            hintEl.style.display = 'none';
+            hintEl.innerText = "";
+        }
+    }
+
+    if (removeWrapEl) {
+        removeWrapEl.style.display = showRemove ? 'block' : 'none';
     }
 }
+
+window.removeCurrentEventImage = async function() {
+    if (!isPartyAccountAuthorized()) {
+        alert("❌ สิทธิ์ไม่เพียงพอ: เฉพาะบัญชีของพรรค / ทีมงานเท่านั้นที่สามารถลบรูปภาพกิจกรรมได้ครับ");
+        return;
+    }
+    if (!editingEventState || !editingEventState.eventId || !editingEventState.existingImageUrl) {
+        return;
+    }
+
+    const confirmed = confirm("⚠️ ต้องการลบรูปภาพออกจากอีเวนต์นี้ใช่หรือไม่? (ข้อมูลอีเวนต์จะยังคงอยู่)");
+    if (!confirmed) return;
+
+    const btn = document.getElementById('removeEventImageBtn');
+    const { targetKey, eventId, existingImageUrl } = editingEventState;
+    const board = calendarBoards[targetKey] || calendarBoards.school;
+
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = "กำลังลบรูปภาพ...";
+        }
+
+        try {
+            await deleteEventImageFromSupabaseStorage(existingImageUrl);
+        } catch (storageErr) {}
+
+        await updateDoc(doc(db, board.collectionName, eventId), {
+            imageUrl: "",
+            updatedAt: serverTimestamp()
+        });
+
+        editingEventState.existingImageUrl = "";
+        const fileInput = document.getElementById('eventImageInput');
+        if (fileInput) fileInput.value = "";
+        setEventImageHint(false);
+        await fetchEvents(targetKey);
+        alert("🗑️ ลบรูปภาพออกจากอีเวนต์เรียบร้อยแล้วครับ!");
+    } catch (error) {
+        alert("❌ ลบรูปภาพไม่สำเร็จ: " + error.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "🗑️ ลบรูปภาพนี้ออก";
+        }
+    }
+};
 
 window.openEventModal = function(targetKey = 'school') {
     if (!isPartyAccountAuthorized()) {
@@ -1048,6 +1104,7 @@ window.onclick = (e) => {
     if (e.target === eventModal) {
         eventModal.style.display = 'none';
         editingEventState = null;
+        setEventImageHint(false);
     }
     if (e.target === uploadModal) uploadModal.style.display = 'none';
     if (e.target === eventDetailModal) eventDetailModal.style.display = 'none';
