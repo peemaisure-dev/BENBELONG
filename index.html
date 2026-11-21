@@ -496,6 +496,11 @@
                     <label>แนบรูปภาพโปสเตอร์ / เนื้อหากิจกรรม (เฉพาะบัญชีพรรค • ไม่บังคับ • สูงสุด 5 MB)</label>
                     <input type="file" id="eventImageInput" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp">
                     <small id="currentEventImageHint" style="display: none; margin-top: 6px; font-size: 0.78rem; color: #1D56B8;"></small>
+                    <div id="removeEventImageWrap" style="display: none; margin-top: 8px;">
+                        <button type="button" id="removeEventImageBtn" onclick="window.removeCurrentEventImage()" style="background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; padding: 5px 12px; border-radius: 8px; font-family: 'Prompt', sans-serif; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                            🗑️ ลบรูปภาพนี้ออก
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" id="eventSubmitBtn" class="btn-submit">บันทึกอีเวนต์ลงปฏิทิน</button>
             </form>
