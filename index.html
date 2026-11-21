@@ -405,7 +405,10 @@
                     <p id="modalEventDesc" class="detail-desc-text">รายละเอียดเนื้อหาทั้งหมด...</p>
                 </div>
             </div>
-            <div id="modalDeleteActionContainer" style="margin-top: 1.5rem; text-align: right;"></div>
+            <div id="modalActionFooter" style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;">
+                <div id="modalEditActionContainer"></div>
+                <div id="modalDeleteActionContainer"></div>
+            </div>
         </div>
     </div>
 
@@ -456,7 +459,7 @@
         </div>
     </div>
 
-    <!-- Modal เพิ่มอีเวนต์ (ในโรงเรียน / นอกโรงเรียน) -->
+    <!-- Modal เพิ่ม / แก้ไขอีเวนต์ (ในโรงเรียน / นอกโรงเรียน) -->
     <div id="eventModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal('eventModal')">&times;</span>
@@ -492,6 +495,7 @@
                 <div class="form-group">
                     <label>แนบรูปภาพโปสเตอร์ / เนื้อหากิจกรรม (เฉพาะบัญชีพรรค • ไม่บังคับ • สูงสุด 5 MB)</label>
                     <input type="file" id="eventImageInput" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp">
+                    <small id="currentEventImageHint" style="display: none; margin-top: 6px; font-size: 0.78rem; color: #1D56B8;"></small>
                 </div>
                 <button type="submit" id="eventSubmitBtn" class="btn-submit">บันทึกอีเวนต์ลงปฏิทิน</button>
             </form>
