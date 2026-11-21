@@ -8,6 +8,12 @@ const DEVICE_REGISTERED_KEY = "benefit_device_registered_account";
 const NICKNAME_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // คูลดาวน์ 1 เดือน (30 วัน)
 const DRIVE_CHECK_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx82iP7Dx0qbeFOBEnCzNFJw053EyDOfXol705EP-wGR-_rcW9nT5YtSoWlLrx7pF8hMw/exec";
 
+// ตั้งค่า Supabase Storage สำหรับรูปภาพอีเวนต์ (อนุญาตเฉพาะบัญชีของพรรคเท่านั้น)
+const SUPABASE_URL = "https://YOUR_PROJECT_REF.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_EVENT_IMAGE_BUCKET = "EVENT-IMAGE";
+const MAX_EVENT_IMAGE_BYTES = 5 * 1024 * 1024; // จำกัดไม่เกิน 5 MB ต่อรูป
+
 const firebaseConfig = {
     apiKey: "AIzaSyAZBNNxWgnkCH2RbmM-wJ4qDtuqW_pZWaQ",
     authDomain: "benbelong-fcd54.firebaseapp.com",
@@ -107,6 +113,17 @@ const postsLeftBadge = document.getElementById('postsLeftBadge');
 const submitPostBtn = document.getElementById('submitPostBtn');
 
 let lastPostTime = 0;
+
+// ตรวจสอบสิทธิ์เฉพาะบัญชีของพรรค / ทีมงาน
+function isPartyAccountAuthorized() {
+    return currentUserRole === 'admin' && currentUserProfile && currentUserProfile.uid === 'admin';
+}
+
+function assertPartyImageUploadPermission() {
+    if (!isPartyAccountAuthorized()) {
+        throw new Error("สิทธิ์ไม่เพียงพอ: อนุญาตเฉพาะบัญชีของพรรค / ทีมงานเท่านั้นที่สามารถอัปโหลดหรืออัปเดตรูปภาพอีเวนต์ได้ครับ");
+    }
+}
 
 // ปุ่มดาวน์โหลดแอปขึ้นหน้าจอหลัก (โทรศัพท์ / iPad)
 function isIosOrIpadDevice() {
@@ -616,7 +633,7 @@ if (editNicknameForm) {
 }
 
 function updateUserUI() {
-    if (currentUserRole === 'admin') {
+    if (isPartyAccountAuthorized()) {
         userRoleBadge.innerText = "⚙️ ทีมงานพรรค BENBELONG";
         userAccountSubInfo.innerText = "สิทธิ์ผู้ดูแลระบบ";
         editNicknameBtn.style.display = 'none';
@@ -649,10 +666,10 @@ window.selectRole = function(role) {
     mainDashboardView.style.display = 'flex';
 
     document.querySelectorAll('.add-event-quick-btn').forEach(btn => {
-        btn.style.display = role === 'admin' ? 'inline-block' : 'none';
+        btn.style.display = isPartyAccountAuthorized() ? 'inline-block' : 'none';
     });
 
-    if (role === 'admin') {
+    if (isPartyAccountAuthorized()) {
         if (sidebarFeedbackBtn) sidebarFeedbackBtn.innerText = "📖 อ่าน Feedback ทั้งหมด";
     } else {
         if (sidebarFeedbackBtn) sidebarFeedbackBtn.innerText = "💡 ส่ง Feedback / แจ้งบัค";
@@ -833,6 +850,10 @@ window.closeModal = function(modalId) {
 };
 
 window.openEventModal = function(targetKey = 'school') {
+    if (!isPartyAccountAuthorized()) {
+        alert("❌ สิทธิ์ไม่เพียงพอ: เฉพาะบัญชีของพรรค / ทีมงานเท่านั้นที่สามารถเพิ่มอีเวนต์หรืออัปโหลดรูปภาพกิจกรรมได้ครับ");
+        return;
+    }
     activeEventTarget = calendarBoards[targetKey] ? targetKey : 'school';
     const titleEl = document.getElementById('eventModalTitle');
     if (titleEl) {
@@ -855,7 +876,7 @@ window.openFeedbackModal = function() {
     const studentView = document.getElementById('studentFeedbackView');
     const adminView = document.getElementById('adminFeedbackView');
 
-    if (currentUserRole === 'admin') {
+    if (isPartyAccountAuthorized()) {
         studentView.style.display = 'none';
         adminView.style.display = 'block';
         fetchFeedbacksForAdmin();
@@ -965,6 +986,63 @@ window.onclick = (e) => {
     if (e.target === feedbackModal) feedbackModal.style.display = 'none';
 };
 
+// อัปโหลดและจัดการรูปภาพอีเวนต์บน Supabase Storage (อนุญาตเฉพาะบัญชีของพรรคเท่านั้น)
+async function uploadEventImageToSupabaseStorage(file) {
+    assertPartyImageUploadPermission();
+
+    if (!SUPABASE_URL || SUPABASE_URL.includes("YOUR_PROJECT_REF") || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes("YOUR_SUPABASE_ANON_KEY")) {
+        throw new Error("ยังไม่ได้ตั้งค่า SUPABASE_URL หรือ SUPABASE_ANON_KEY ใน app.js ครับ");
+    }
+
+    const extMatch = (file.name || '').toLowerCase().match(/\.(jpg|jpeg|png|webp)$/);
+    const ext = extMatch ? extMatch[1] : (file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg');
+    const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+
+    const safeBaseName = (file.name || 'event_banner')
+        .replace(/\.(jpg|jpeg|png|webp)$/i, "")
+        .replace(/[^a-zA-Z0-9_-]/g, "_")
+        .slice(0, 35) || "event_banner";
+    const filePath = `party_admin/${activeEventTarget}/${Date.now()}_${safeBaseName}.${ext}`;
+
+    const uploadEndpoint = `${SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/${encodeURIComponent(SUPABASE_EVENT_IMAGE_BUCKET)}/${filePath}`;
+    const res = await fetch(uploadEndpoint, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+            "apikey": SUPABASE_ANON_KEY,
+            "Content-Type": contentType,
+            "x-upsert": "false"
+        },
+        body: file
+    });
+
+    if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || "อัปโหลดรูปภาพกิจกรรมไม่สำเร็จ");
+    }
+
+    return `${SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/public/${encodeURIComponent(SUPABASE_EVENT_IMAGE_BUCKET)}/${filePath}`;
+}
+
+async function deleteEventImageFromSupabaseStorage(imageUrl) {
+    assertPartyImageUploadPermission();
+    if (!imageUrl || !SUPABASE_URL || SUPABASE_URL.includes("YOUR_PROJECT_REF") || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes("YOUR_SUPABASE_ANON_KEY")) {
+        return;
+    }
+    const prefix = `${SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/public/${SUPABASE_EVENT_IMAGE_BUCKET}/`;
+    if (!imageUrl.startsWith(prefix)) return;
+
+    const objectPath = decodeURIComponent(imageUrl.slice(prefix.length));
+    const deleteEndpoint = `${SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/${encodeURIComponent(SUPABASE_EVENT_IMAGE_BUCKET)}/${objectPath}`;
+    await fetch(deleteEndpoint, {
+        method: "DELETE",
+        headers: {
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+            "apikey": SUPABASE_ANON_KEY
+        }
+    });
+}
+
 async function fetchEvents(targetKey = 'school') {
     const board = calendarBoards[targetKey] || calendarBoards.school;
     try {
@@ -1008,8 +1086,15 @@ function renderEvents(targetKey = 'school', events = []) {
         card.onclick = () => openEventDetail(targetKey, ev);
 
         const dateLabel = formatEventDateRange(ev.eventDate, ev.eventEndDate);
+        const safeImageUrl = escapeHTML(ev.imageUrl || '');
+        const bannerHtml = safeImageUrl
+            ? `<div style="margin-bottom: 0.75rem; border-radius: 12px; overflow: hidden; border: 1px solid #E2E8F0; background: #F8FAFC;">
+                   <img src="${safeImageUrl}" alt="${escapeHTML(ev.title)}" style="width: 100%; max-height: 210px; object-fit: cover; display: block;">
+               </div>`
+            : '';
 
         card.innerHTML = `
+            ${bannerHtml}
             <div class="event-date-badge">
                 <span class="ev-day">🗓️ ${escapeHTML(dateLabel)}</span>
                 <span class="ev-time">⏰ ${escapeHTML(ev.eventTime)}</span>
@@ -1035,8 +1120,23 @@ window.openEventDetail = function(targetKey, ev) {
     document.getElementById('modalEventLocation').innerText = ev.location;
     document.getElementById('modalEventDesc').innerText = ev.desc;
 
+    const modalBody = document.querySelector('#eventDetailModal .event-detail-body');
+    if (modalBody) {
+        let previewWrap = document.getElementById('modalEventImageWrap');
+        if (!previewWrap) {
+            previewWrap = document.createElement('div');
+            previewWrap.id = 'modalEventImageWrap';
+            previewWrap.style.marginBottom = '1rem';
+            modalBody.prepend(previewWrap);
+        }
+        const safeImageUrl = escapeHTML(ev.imageUrl || '');
+        previewWrap.innerHTML = safeImageUrl
+            ? `<img src="${safeImageUrl}" alt="${escapeHTML(ev.title)}" style="width: 100%; max-height: 320px; object-fit: contain; border-radius: 12px; border: 1px solid #E2E8F0; background: #F8FAFC; display: block;">`
+            : '';
+    }
+
     const deleteContainer = document.getElementById('modalDeleteActionContainer');
-    if (currentUserRole === 'admin') {
+    if (isPartyAccountAuthorized()) {
         deleteContainer.innerHTML = `<button class="btn-delete-event" onclick="window.deleteEvent('${boardKey}', '${ev.id}')">🗑️ ลบอีเวนต์นี้</button>`;
     } else {
         deleteContainer.innerHTML = '';
@@ -1048,9 +1148,16 @@ window.openEventDetail = function(targetKey, ev) {
 if (eventForm) {
     eventForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (!isPartyAccountAuthorized()) {
+            alert("❌ สิทธิ์ไม่เพียงพอ: เฉพาะบัญชีของพรรค / ทีมงานเท่านั้นที่สามารถสร้างอีเวนต์หรืออัปโหลดรูปภาพกิจกรรมได้ครับ");
+            return;
+        }
+
         const board = calendarBoards[activeEventTarget] || calendarBoards.school;
         const startDate = normalizeDateStr(document.getElementById('eventDate').value);
         const rawEndDate = normalizeDateStr(document.getElementById('eventEndDate').value);
+        const imageInput = document.getElementById('eventImageInput');
+        const selectedImage = imageInput && imageInput.files ? imageInput.files[0] : null;
 
         if (!startDate) {
             alert("⚠️ กรุณาเลือกวันที่เริ่มจัดงานครับ");
@@ -1062,11 +1169,30 @@ if (eventForm) {
             return;
         }
 
+        if (selectedImage) {
+            const validTypes = ["image/jpeg", "image/png", "image/webp"];
+            const hasValidExt = /\.(jpg|jpeg|png|webp)$/i.test(selectedImage.name || '');
+            if (!validTypes.includes(selectedImage.type) && !hasValidExt) {
+                alert("⚠️ รองรับเฉพาะไฟล์รูปภาพ .jpg, .png หรือ .webp เท่านั้นครับ");
+                return;
+            }
+            if (selectedImage.size > MAX_EVENT_IMAGE_BYTES) {
+                alert("⚠️ ขนาดรูปภาพเกิน 5 MB กรุณาเลือกรูปที่ขนาดเล็กลงครับ");
+                return;
+            }
+        }
+
         const submitBtn = document.getElementById('eventSubmitBtn');
         submitBtn.disabled = true;
-        submitBtn.innerText = "กำลังบันทึกอีเวนต์...";
+        submitBtn.innerText = selectedImage ? "กำลังอัปโหลดรูปภาพ..." : "กำลังบันทึกอีเวนต์...";
 
         try {
+            let imageUrl = "";
+            if (selectedImage) {
+                imageUrl = await uploadEventImageToSupabaseStorage(selectedImage);
+                submitBtn.innerText = "กำลังบันทึกอีเวนต์...";
+            }
+
             await addDoc(collection(db, board.collectionName), {
                 title: document.getElementById('eventTitle').value.trim(),
                 eventDate: startDate,
@@ -1074,6 +1200,8 @@ if (eventForm) {
                 eventTime: document.getElementById('eventTime').value.trim(),
                 location: document.getElementById('eventLocation').value.trim(),
                 desc: document.getElementById('eventDesc').value.trim(),
+                imageUrl: imageUrl,
+                createdByRole: "admin",
                 createdAt: serverTimestamp()
             });
 
@@ -1082,7 +1210,7 @@ if (eventForm) {
             eventModal.style.display = 'none';
             fetchEvents(activeEventTarget);
         } catch (error) {
-            alert("เกิดข้อผิดพลาดในการบันทึกอีเวนต์");
+            alert("❌ เกิดข้อผิดพลาดในการบันทึกอีเวนต์: " + error.message);
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerText = "บันทึกอีเวนต์ลงปฏิทิน";
@@ -1091,9 +1219,19 @@ if (eventForm) {
 }
 
 window.deleteEvent = async function(targetKey, id) {
+    if (!isPartyAccountAuthorized()) {
+        alert("❌ สิทธิ์ไม่เพียงพอ: เฉพาะบัญชีของพรรค / ทีมงานเท่านั้นที่สามารถลบอีเวนต์หรือรูปภาพกิจกรรมได้ครับ");
+        return;
+    }
     const board = calendarBoards[targetKey] || calendarBoards.school;
     if (confirm("⚠️ คุณต้องการลบอีเวนต์นี้ออกจากปฏิทินใช่หรือไม่?")) {
         try {
+            const targetEvent = board.allEvents.find(ev => ev.id === id);
+            if (targetEvent && targetEvent.imageUrl) {
+                try {
+                    await deleteEventImageFromSupabaseStorage(targetEvent.imageUrl);
+                } catch (imgErr) {}
+            }
             await deleteDoc(doc(db, board.collectionName, id));
             alert("🗑️ ลบอีเวนต์สำเร็จ!");
             eventDetailModal.style.display = 'none';
@@ -1264,7 +1402,7 @@ function renderPosts(posts) {
         card.className = 'x-post-item';
 
         let deleteBtnHtml = '';
-        if (currentUserRole === 'admin' || (currentUid && post.authorUid === currentUid)) {
+        if (isPartyAccountAuthorized() || (currentUid && post.authorUid === currentUid)) {
             deleteBtnHtml = `<button class="x-delete-btn" onclick="window.deletePost('${post.id}')">🗑️ ลบ</button>`;
         }
 
@@ -1290,7 +1428,7 @@ function renderPosts(posts) {
         if (post.comments && post.comments.length > 0) {
             post.comments.forEach((comm, cIndex) => {
                 let commentDeleteBtn = '';
-                if (currentUserRole === 'admin' || (currentUid && comm.authorUid === currentUid)) {
+                if (isPartyAccountAuthorized() || (currentUid && comm.authorUid === currentUid)) {
                     commentDeleteBtn = `<button class="comm-delete-btn" onclick="window.deleteComment('${post.id}', ${cIndex})">✕</button>`;
                 }
                 const cAuthor = escapeHTML(comm.author);
@@ -1600,7 +1738,7 @@ function renderNotes(notes) {
     notes.forEach(note => {
         const card = document.createElement('div');
         card.className = 'note-card';
-        const canDelete = (currentUserRole === 'admin') || (currentUid && note.authorUid === currentUid);
+        const canDelete = isPartyAccountAuthorized() || (currentUid && note.authorUid === currentUid);
         const deleteBtnStyle = canDelete ? 'display: block;' : 'display: none;';
 
         const safeAuthor = escapeHTML(note.author);
