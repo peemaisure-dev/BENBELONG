@@ -9,13 +9,17 @@ import {
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// เปลี่ยนเป็น false เมื่อทดสอบผ่านแล้วและพร้อมใช้งานกับฐานข้อมูลจริง
 const IS_TEST_MODE = true;
 const PREFIX = IS_TEST_MODE ? "test_" : "";
 
 const COL_SHOPS = `${PREFIX}fastwork_shops`;
 const COL_CHATS = `${PREFIX}fastwork_chats`;
 const COL_REVIEWS = `${PREFIX}fastwork_reviews`;
+
+const SUPABASE_URL = "https://hurjpkudocnapkdteokf.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_dzOK5hneWLpL4ZxQefP0vA_KCwBL1Mb";
+const FW_IMAGE_BUCKET = "fastwork-shop-images";
+const MAX_FW_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export const FASTWORK_CATEGORIES = [
     "รับจ้างติว",
@@ -28,6 +32,17 @@ export const FASTWORK_CATEGORIES = [
     "บริการอื่นๆ ในโรงเรียน"
 ];
 
+function escapeHtml(str) {
+    if (!str) return "";
+    return String(str).replace(/[&<>'"]/g, (tag) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#39;",
+        '"': "&quot;"
+    }[tag]));
+}
+
 export function createBenFastworkController({ db, getCurrentUser }) {
     let shops = [];
     let reviews = [];
@@ -38,7 +53,6 @@ export function createBenFastworkController({ db, getCurrentUser }) {
     let activeChatShopId = null;
 
     const els = {
-        view: () => document.getElementById("benFastworkViewContainer"),
         pills: () => document.getElementById("fwCategoryPills"),
         search: () => document.getElementById("fwSearchInput"),
         categorySelect: () => document.getElementById("fwCategorySelect"),
@@ -52,6 +66,11 @@ export function createBenFastworkController({ db, getCurrentUser }) {
         shopCategory: () => document.getElementById("fwShopCategory"),
         shopDesc: () => document.getElementById("fwShopDesc"),
         shopPayment: () => document.getElementById("fwShopPayment"),
+        shopImageInput: () => document.getElementById("fwShopImageInput"),
+        shopImagePreviewWrap: () => document.getElementById("fwShopImagePreviewWrap"),
+        shopImagePreview: () => document.getElementById("fwShopImagePreview"),
+        currentImageHint: () => document.getElementById("fwCurrentImageHint"),
+        saveShopBtn: () => document.getElementById("fwSaveShopBtn"),
         chatModal: () => document.getElementById("fwChatModal"),
         chatTitle: () => document.getElementById("fwChatModalTitle"),
         chatMessages: () => document.getElementById("fwChatMessages"),
@@ -92,6 +111,59 @@ export function createBenFastworkController({ db, getCurrentUser }) {
             return acc + fourAvg;
         }, 0);
         return { avgText: (sum / list.length).toFixed(1), count: list.length };
+    }
+
+    async function uploadShopImage(file, uid) {
+        const validTypes = ["image/jpeg", "image/png", "image/webp"];
+        const hasValidExt = /\.(jpg|jpeg|png|webp)$/i.test(file.name || "");
+        if (!validTypes.includes(file.type) && !hasValidExt) {
+            throw new Error("รองรับเฉพาะไฟล์รูปภาพ .jpg, .png หรือ .webp เท่านั้นครับ");
+        }
+        if (file.size > MAX_FW_IMAGE_BYTES) {
+            throw new Error("ขนาดรูปภาพเกิน 5 MB กรุณาเลือกรูปที่ขนาดเล็กลงครับ");
+        }
+
+        const extMatch = (file.name || "").toLowerCase().match(/\.(jpg|jpeg|png|webp)$/);
+        const ext = extMatch ? extMatch[1] : (file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg");
+        const contentType = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+        const safeName = (file.name || "shop_cover")
+            .replace(/\.(jpg|jpeg|png|webp)$/i, "")
+            .replace(/[^a-zA-Z0-9_-]/g, "_")
+            .slice(0, 30) || "shop_cover";
+        const folder = IS_TEST_MODE ? `test/${uid}` : `shops/${uid}`;
+        const filePath = `${folder}/${Date.now()}_${safeName}.${ext}`;
+
+        const endpoint = `${SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/${encodeURIComponent(FW_IMAGE_BUCKET)}/${filePath}`;
+        const res = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+                "apikey": SUPABASE_ANON_KEY,
+                "Content-Type": contentType,
+                "x-upsert": "false"
+            },
+            body: file
+        });
+
+        if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(errText || "อัปโหลดรูปภาพร้านค้าไม่สำเร็จ");
+        }
+
+        return `${SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/public/${encodeURIComponent(FW_IMAGE_BUCKET)}/${filePath}`;
+    }
+
+    function updateImagePreview(url = "") {
+        const wrap = els.shopImagePreviewWrap();
+        const img = els.shopImagePreview();
+        if (!wrap || !img) return;
+        if (url) {
+            img.src = url;
+            wrap.style.display = "block";
+        } else {
+            img.src = "";
+            wrap.style.display = "none";
+        }
     }
 
     function initCategoryControls() {
@@ -184,25 +256,33 @@ export function createBenFastworkController({ db, getCurrentUser }) {
             const rating = computeAverageRating(shop.id);
             const likedBy = Array.isArray(shop.likedBy) ? shop.likedBy : [];
             const isLiked = user ? likedBy.includes(user.uid) : false;
+            const safeTitle = escapeHtml(shop.title || "ร้านบริการ");
+            const safeCat = escapeHtml(shop.category || "ทั่วไป");
+            const safeDesc = escapeHtml(shop.description || "");
+            const safeOwner = escapeHtml(shop.ownerName || "นักเรียนเบญฯ");
+            const imgBlock = shop.imageUrl
+                ? `<div class="fw-card-img-wrap"><img src="${escapeHtml(shop.imageUrl)}" alt="${safeTitle}"></div>`
+                : `<div class="fw-card-img-wrap"><span class="fw-card-img-placeholder">${safeCat}</span></div>`;
+
             return `
-                <article class="fw-shop-card" data-shop-id="${shop.id}">
-                    <div class="fw-card-img-placeholder">${shop.category || "บริการ"}</div>
+                <article class="fw-shop-card" data-shop-id="${escapeHtml(shop.id)}">
+                    ${imgBlock}
                     <div class="fw-card-body">
                         <div class="fw-card-top-row">
-                            <span class="fw-cat-badge">${shop.category || "ทั่วไป"}</span>
+                            <span class="fw-cat-badge">${safeCat}</span>
                             <span class="fw-rating-pill">⭐ ${rating.avgText} (${rating.count})</span>
                         </div>
-                        <h3 class="fw-shop-title">${shop.title || "ร้านบริการ"}</h3>
-                        <p class="fw-shop-desc">${shop.description || ""}</p>
+                        <h3 class="fw-shop-title">${safeTitle}</h3>
+                        <p class="fw-shop-desc">${safeDesc}</p>
                         <div class="fw-shop-meta">
-                            <span>ผู้ให้บริการ: ${shop.ownerName || "นักเรียนเบญฯ"}</span>
+                            <span>ผู้ให้บริการ: ${safeOwner}</span>
                             <span>สำเร็จ: ${Number(shop.completedCount || 0)} งาน</span>
                         </div>
                         <div class="fw-card-actions">
-                            <button type="button" class="fw-like-btn ${isLiked ? "liked" : ""}" data-like-id="${shop.id}">
+                            <button type="button" class="fw-like-btn ${isLiked ? "liked" : ""}" data-like-id="${escapeHtml(shop.id)}">
                                 ${isLiked ? "❤️" : "🤍"} <span>${likedBy.length}</span>
                             </button>
-                            <button type="button" class="fw-chat-trigger-btn" data-open-shop="${shop.id}">ดูรายละเอียด</button>
+                            <button type="button" class="fw-chat-trigger-btn" data-open-shop="${escapeHtml(shop.id)}">ดูรายละเอียด</button>
                         </div>
                     </div>
                 </article>
@@ -248,6 +328,10 @@ export function createBenFastworkController({ db, getCurrentUser }) {
         const shopReviews = getShopReviews(shop.id);
         const likedBy = Array.isArray(shop.likedBy) ? shop.likedBy : [];
         const isLiked = user ? likedBy.includes(user.uid) : false;
+        const safeTitle = escapeHtml(shop.title || "");
+        const bannerHtml = shop.imageUrl
+            ? `<img src="${escapeHtml(shop.imageUrl)}" alt="${safeTitle}" class="fw-detail-banner">`
+            : "";
 
         detailEl.innerHTML = `
             <div class="fw-detail-card">
@@ -255,26 +339,27 @@ export function createBenFastworkController({ db, getCurrentUser }) {
                     <button type="button" class="fw-back-btn" id="fwBackToListBtn">← กลับหน้ารวมร้าน</button>
                     ${isOwner ? `<button type="button" class="btn-primary-sm" id="fwEditThisShopBtn">✏️ แก้ไขร้านของฉัน</button>` : ""}
                 </div>
+                ${bannerHtml}
                 <div class="fw-detail-header-row">
                     <div>
-                        <span class="fw-cat-badge">${shop.category || "บริการ"}</span>
-                        <h2 style="margin-top:0.45rem; font-size:1.3rem;">${shop.title || ""}</h2>
-                        <div style="font-size:0.85rem; color:#64748B; margin-top:4px;">เจ้าของร้าน: <strong>${shop.ownerName || "นักเรียนเบญฯ"}</strong></div>
+                        <span class="fw-cat-badge">${escapeHtml(shop.category || "บริการ")}</span>
+                        <h2 style="margin-top:0.45rem; font-size:1.3rem;">${safeTitle}</h2>
+                        <div style="font-size:0.85rem; color:#64748B; margin-top:4px;">เจ้าของร้าน: <strong>${escapeHtml(shop.ownerName || "นักเรียนเบญฯ")}</strong></div>
                     </div>
                     <div class="fw-score-big-box">
                         <div class="fw-score-big-num">⭐ ${rating.avgText}</div>
                         <div style="font-size:0.76rem; color:#92400E;">จาก ${rating.count} รีวิว</div>
                     </div>
                 </div>
-                <p class="fw-detail-desc">${shop.description || ""}</p>
-                ${shop.paymentNote ? `<div class="fw-payment-note"><strong>การนัดแนะ / ชำระเงิน:</strong> ${shop.paymentNote}</div>` : ""}
+                <p class="fw-detail-desc">${escapeHtml(shop.description || "")}</p>
+                ${shop.paymentNote ? `<div class="fw-payment-note"><strong>การนัดแนะ / ชำระเงิน:</strong> ${escapeHtml(shop.paymentNote)}</div>` : ""}
                 <div class="fw-detail-action-bar">
                     <button type="button" class="fw-like-btn ${isLiked ? "liked" : ""}" id="fwDetailLikeBtn">
                         ${isLiked ? "❤️ ถูกใจแล้ว" : "🤍 ถูกใจร้าน"} (${likedBy.length})
                     </button>
                     <span class="fw-sold-counter-badge">ปิดงานสำเร็จ: ${Number(shop.completedCount || 0)}</span>
                     <span class="fw-cancel-counter-badge">ยกเลิก: ${Number(shop.cancelledCount || 0)}</span>
-                    ${!isOwner ? `<button type="button" class="fw-chat-trigger-btn" id="fwOpenChatBtn">💬 แชท / สั่งงาน</button>` : `<button type="button" class="fw-chat-trigger-btn" id="fwOpenChatBtn">💬 ดูแชทและคำสั่งซื้อ</button>`}
+                    <button type="button" class="fw-chat-trigger-btn" id="fwOpenChatBtn">${!isOwner ? "💬 แชท / สั่งงาน" : "💬 ดูแชทและคำสั่งซื้อ"}</button>
                     ${!isOwner ? `<button type="button" class="fw-review-trigger-btn" id="fwOpenReviewBtn">⭐ ให้คะแนน / รีวิว</button>` : ""}
                 </div>
                 <div style="margin-top:1.4rem;">
@@ -284,10 +369,10 @@ export function createBenFastworkController({ db, getCurrentUser }) {
                         return `
                             <div class="fw-comment-card">
                                 <div style="display:flex; justify-content:space-between; font-size:0.84rem; font-weight:600;">
-                                    <span>${r.reviewerName || "ผู้ใช้งาน"}</span>
+                                    <span>${escapeHtml(r.reviewerName || "ผู้ใช้งาน")}</span>
                                     <span style="color:#D97706;">⭐ ${avg}</span>
                                 </div>
-                                <p style="margin-top:0.35rem; font-size:0.86rem; color:#334155;">${r.comment || "ไม่ได้ระบุข้อความเพิ่มเติม"}</p>
+                                <p style="margin-top:0.35rem; font-size:0.86rem; color:#334155;">${escapeHtml(r.comment || "ไม่ได้ระบุข้อความเพิ่มเติม")}</p>
                             </div>
                         `;
                     }).join("") : `<p style="font-size:0.86rem; color:#64748B;">ยังไม่มีรีวิวสำหรับร้านนี้ครับ</p>`}
@@ -350,6 +435,19 @@ export function createBenFastworkController({ db, getCurrentUser }) {
         els.shopCategory().value = myExistingShop?.category || FASTWORK_CATEGORIES[0];
         els.shopDesc().value = myExistingShop?.description || "";
         els.shopPayment().value = myExistingShop?.paymentNote || "";
+        if (els.shopImageInput()) els.shopImageInput().value = "";
+
+        const hint = els.currentImageHint();
+        if (hint) {
+            if (myExistingShop?.imageUrl) {
+                hint.style.display = "block";
+                hint.innerText = "ร้านนี้มีรูปอยู่แล้ว หากไม่เลือกไฟล์ใหม่จะใช้รูปเดิมครับ";
+            } else {
+                hint.style.display = "none";
+                hint.innerText = "";
+            }
+        }
+        updateImagePreview(myExistingShop?.imageUrl || "");
         modal.style.display = "flex";
     }
 
@@ -358,35 +456,59 @@ export function createBenFastworkController({ db, getCurrentUser }) {
         const user = requireSignedInUser();
         if (!user) return;
 
-        const payload = {
-            title: els.shopTitle().value.trim(),
-            category: els.shopCategory().value,
-            description: els.shopDesc().value.trim(),
-            paymentNote: els.shopPayment().value.trim(),
-            ownerUid: user.uid,
-            ownerName: user.nickname || user.email || "นักเรียนเบญฯ"
-        };
-        if (!payload.title || !payload.description) return;
+        const btn = els.saveShopBtn();
+        const file = els.shopImageInput()?.files?.[0] || null;
 
-        if (editingShop) {
-            await updateDoc(doc(db, COL_SHOPS, editingShop.id), {
-                ...payload,
-                updatedAt: serverTimestamp()
-            });
-        } else {
-            await addDoc(collection(db, COL_SHOPS), {
-                ...payload,
-                likedBy: [],
-                completedCount: 0,
-                cancelledCount: 0,
-                createdAt: serverTimestamp()
-            });
+        try {
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = file ? "กำลังอัปโหลดรูปภาพ..." : "กำลังบันทึกร้าน...";
+            }
+
+            let imageUrl = editingShop?.imageUrl || "";
+            if (file) {
+                imageUrl = await uploadShopImage(file, user.uid);
+            }
+
+            const payload = {
+                title: els.shopTitle().value.trim(),
+                category: els.shopCategory().value,
+                description: els.shopDesc().value.trim(),
+                paymentNote: els.shopPayment().value.trim(),
+                imageUrl,
+                ownerUid: user.uid,
+                ownerName: user.nickname || user.email || "นักเรียนเบญฯ"
+            };
+            if (!payload.title || !payload.description) return;
+
+            if (editingShop) {
+                await updateDoc(doc(db, COL_SHOPS, editingShop.id), {
+                    ...payload,
+                    updatedAt: serverTimestamp()
+                });
+            } else {
+                await addDoc(collection(db, COL_SHOPS), {
+                    ...payload,
+                    likedBy: [],
+                    completedCount: 0,
+                    cancelledCount: 0,
+                    createdAt: serverTimestamp()
+                });
+            }
+
+            els.shopModal().style.display = "none";
+            els.shopForm().reset();
+            updateImagePreview("");
+            editingShop = null;
+            await loadData();
+        } catch (err) {
+            alert("❌ บันทึกร้านไม่สำเร็จ: " + err.message);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = "บันทึกร้านบริการ";
+            }
         }
-
-        els.shopModal().style.display = "none";
-        els.shopForm().reset();
-        editingShop = null;
-        await loadData();
     }
 
     function openChatModal(shopId) {
@@ -419,17 +541,17 @@ export function createBenFastworkController({ db, getCurrentUser }) {
                 return `
                     <div class="fw-order-card">
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                            <strong>คำขอสั่งงาน: ${m.orderNote || "-"}</strong>
-                            <span class="fw-order-status ${m.status || "pending"}">${m.status || "pending"}</span>
+                            <strong>คำขอสั่งงาน: ${escapeHtml(m.orderNote || "-")}</strong>
+                            <span class="fw-order-status ${m.status || "pending"}">${escapeHtml(m.status || "pending")}</span>
                         </div>
-                        <div style="font-size:0.78rem; color:#64748B; margin-top:4px;">กำหนดส่ง: ${m.deadline || "ไม่ได้ระบุ"} • โดย ${m.senderName || "ผู้สั่ง"}</div>
+                        <div style="font-size:0.78rem; color:#64748B; margin-top:4px;">กำหนดส่ง: ${escapeHtml(m.deadline || "ไม่ได้ระบุ")} • โดย ${escapeHtml(m.senderName || "ผู้สั่ง")}</div>
                     </div>
                 `;
             }
             return `
                 <div class="fw-msg-bubble ${isMine ? "mine" : "theirs"}">
-                    <div class="fw-msg-sender">${m.senderName || "ผู้ใช้งาน"}</div>
-                    <div>${m.text || ""}</div>
+                    <div class="fw-msg-sender">${escapeHtml(m.senderName || "ผู้ใช้งาน")}</div>
+                    <div>${escapeHtml(m.text || "")}</div>
                 </div>
             `;
         }).join("");
@@ -535,6 +657,16 @@ export function createBenFastworkController({ db, getCurrentUser }) {
             renderShops();
         });
         els.myShopBtn()?.addEventListener("click", () => openShopModal(null));
+        els.shopImageInput()?.addEventListener("change", (e) => {
+            const file = e.target.files?.[0];
+            if (!file) {
+                updateImagePreview(editingShop?.imageUrl || "");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => updateImagePreview(String(reader.result || ""));
+            reader.readAsDataURL(file);
+        });
         els.shopForm()?.addEventListener("submit", handleShopSubmit);
         els.chatForm()?.addEventListener("submit", handleChatSubmit);
         els.requestOrderBtn()?.addEventListener("click", handleRequestOrder);
