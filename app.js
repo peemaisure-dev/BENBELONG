@@ -8,11 +8,22 @@ const DEVICE_REGISTERED_KEY = "benefit_device_registered_account";
 const NICKNAME_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // คูลดาวน์ 1 เดือน (30 วัน)
 const DRIVE_CHECK_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx82iP7Dx0qbeFOBEnCzNFJw053EyDOfXol705EP-wGR-_rcW9nT5YtSoWlLrx7pF8hMw/exec";
 
-// ตั้งค่า Supabase Storage สำหรับรูปภาพอีเวนต์ (อนุญาตเฉพาะบัญชีของพรรคเท่านั้น)
+// ตั้งค่า Supabase Storage สำหรับรูปภาพอีเวนต์และหน้าร้าน BenFastwork
 const SUPABASE_URL = "https://hurjpkudocnapkdteokf.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_dzOK5hneWLpL4ZxQefP0vA_KCwBL1Mb";
 const SUPABASE_EVENT_IMAGE_BUCKET = "event-image";
 const MAX_EVENT_IMAGE_BYTES = 5 * 1024 * 1024; // จำกัดไม่เกิน 5 MB ต่อรูป
+
+const FASTWORK_CATEGORIES = [
+    "รับจ้างติว",
+    "ช่างภาพ",
+    "เล่นเกมเป็นเพื่อน",
+    "ช่วยทำงาน",
+    "ช่วยทำการตลาดขายของ",
+    "ช่วยกราฟฟิก",
+    "ทำเว็ปไซต์",
+    "บริการอื่นๆ ในโรงเรียน"
+];
 
 const firebaseConfig = {
     apiKey: "AIzaSyAZBNNxWgnkCH2RbmM-wJ4qDtuqW_pZWaQ",
@@ -38,6 +49,16 @@ let allNotes = [];
 let allPosts = [];
 let verifiedDriveUrl = "";
 let isVerifiedPublicDrive = false;
+
+// สถานะระบบ BenFastwork
+let allFastworkShops = [];
+let allFastworkReviews = [];
+let selectedFastworkCategory = "all";
+let activeFastworkShopId = null;
+let editingFastworkShop = null;
+let activeChatShopId = null;
+let activeChatBuyerUid = null;
+let showAllFastworkComments = false;
 
 const calendarBoards = {
     school: {
@@ -70,6 +91,7 @@ const calendarViewContainer = document.getElementById('calendarViewContainer');
 const outsideCalendarViewContainer = document.getElementById('outsideCalendarViewContainer');
 const communityViewContainer = document.getElementById('communityViewContainer');
 const studyHubViewContainer = document.getElementById('studyHubViewContainer');
+const benFastworkViewContainer = document.getElementById('benFastworkViewContainer');
 
 const studentAuthModal = document.getElementById('studentAuthModal');
 const userProfileModal = document.getElementById('userProfileModal');
@@ -79,6 +101,9 @@ const eventModal = document.getElementById('eventModal');
 const uploadModal = document.getElementById('uploadModal');
 const eventDetailModal = document.getElementById('eventDetailModal');
 const feedbackModal = document.getElementById('feedbackModal');
+const fwShopModal = document.getElementById('fwShopModal');
+const fwChatModal = document.getElementById('fwChatModal');
+const fwReviewModal = document.getElementById('fwReviewModal');
 
 const loginForm = document.getElementById('loginForm');
 const registerForm = document.getElementById('registerForm');
@@ -89,6 +114,9 @@ const eventForm = document.getElementById('eventForm');
 const uploadForm = document.getElementById('uploadForm');
 const postForm = document.getElementById('postForm');
 const feedbackForm = document.getElementById('feedbackForm');
+const fwShopForm = document.getElementById('fwShopForm');
+const fwChatMessageForm = document.getElementById('fwChatMessageForm');
+const fwReviewForm = document.getElementById('fwReviewForm');
 
 const userRoleBadge = document.getElementById('userRoleBadge');
 const userAccountSubInfo = document.getElementById('userAccountSubInfo');
@@ -115,7 +143,6 @@ const submitPostBtn = document.getElementById('submitPostBtn');
 
 let lastPostTime = 0;
 
-// ตรวจสอบสิทธิ์เฉพาะบัญชีของพรรค / ทีมงาน
 function isPartyAccountAuthorized() {
     return currentUserRole === 'admin' && currentUserProfile && currentUserProfile.uid === 'admin';
 }
@@ -126,7 +153,6 @@ function assertPartyImageUploadPermission() {
     }
 }
 
-// ปุ่มดาวน์โหลดแอปขึ้นหน้าจอหลัก (โทรศัพท์ / iPad)
 function isIosOrIpadDevice() {
     const ua = navigator.userAgent || '';
     const isAppleMobile = /iPhone|iPad|iPod/i.test(ua);
@@ -203,14 +229,12 @@ window.handleInstallShortcut = async function() {
 
 refreshInstallShortcutUI();
 
-// ตรวจอีเมลนักเรียน: sXXXXX@ben.ac.th หรือ XXXXX@ben.ac.th (X คือเลข 5 ตัว)
 function isStudentFormatEmail(email) {
     if (!email) return false;
     const clean = email.toLowerCase().trim();
     return /^(s?\d{5})@ben\.ac\.th$/.test(clean);
 }
 
-// ตรวจอีเมลรูปแบบอื่นที่ลงท้าย @ben.ac.th (เช่น อีเมลคุณครู)
 function isOtherBenEmail(email) {
     if (!email) return false;
     const clean = email.toLowerCase().trim();
@@ -221,7 +245,6 @@ function isValidSchoolEmail(email) {
     return isStudentFormatEmail(email) || isOtherBenEmail(email);
 }
 
-// บังคับชื่อภาษาไทยล้วน (สระ พยัญชนะ วรรณยุกต์ และช่องว่างได้ ห้ามมีตัวอักษรภาษาอังกฤษ)
 function isPureThaiName(name) {
     if (!name) return false;
     const trimmed = name.trim();
@@ -675,6 +698,7 @@ window.selectRole = function(role) {
     } else {
         if (sidebarFeedbackBtn) sidebarFeedbackBtn.innerText = "💡 ส่ง Feedback / แจ้งบัค";
     }
+    initFastworkCategoriesUI();
     updateUserUI();
     updateCalendarDisplay('school');
     fetchEvents('school');
@@ -689,6 +713,7 @@ window.switchMainTab = function(tabName, clickedEl) {
     outsideCalendarViewContainer.style.display = 'none';
     communityViewContainer.style.display = 'none';
     studyHubViewContainer.style.display = 'none';
+    if (benFastworkViewContainer) benFastworkViewContainer.style.display = 'none';
 
     document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
     if (clickedEl) {
@@ -710,6 +735,10 @@ window.switchMainTab = function(tabName, clickedEl) {
     } else if (tabName === 'studyhub') {
         studyHubViewContainer.style.display = 'block';
         fetchNotes();
+    } else if (tabName === 'benFastwork') {
+        if (benFastworkViewContainer) benFastworkViewContainer.style.display = 'block';
+        initFastworkCategoriesUI();
+        fetchFastworkData();
     }
 
     if (window.innerWidth <= 768) {
@@ -851,6 +880,9 @@ window.closeModal = function(modalId) {
     if (modalId === 'eventModal') {
         editingEventState = null;
         setEventImageHint(false);
+    }
+    if (modalId === 'fwShopModal') {
+        editingFastworkShop = null;
     }
 };
 
@@ -1109,12 +1141,15 @@ window.onclick = (e) => {
     if (e.target === uploadModal) uploadModal.style.display = 'none';
     if (e.target === eventDetailModal) eventDetailModal.style.display = 'none';
     if (e.target === feedbackModal) feedbackModal.style.display = 'none';
+    if (e.target === fwShopModal) {
+        fwShopModal.style.display = 'none';
+        editingFastworkShop = null;
+    }
+    if (e.target === fwChatModal) fwChatModal.style.display = 'none';
+    if (e.target === fwReviewModal) fwReviewModal.style.display = 'none';
 };
 
-// อัปโหลดและจัดการรูปภาพอีเวนต์บน Supabase Storage (อนุญาตเฉพาะบัญชีของพรรคเท่านั้น)
-async function uploadEventImageToSupabaseStorage(file, targetFolder = activeEventTarget) {
-    assertPartyImageUploadPermission();
-
+async function uploadImageToSupabaseBucket(file, folderName) {
     if (!SUPABASE_URL || SUPABASE_URL.includes("YOUR_PROJECT_REF") || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes("YOUR_SUPABASE_ANON_KEY")) {
         throw new Error("ยังไม่ได้ตั้งค่า SUPABASE_URL หรือ SUPABASE_ANON_KEY ใน app.js ครับ");
     }
@@ -1123,11 +1158,11 @@ async function uploadEventImageToSupabaseStorage(file, targetFolder = activeEven
     const ext = extMatch ? extMatch[1] : (file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg');
     const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
 
-    const safeBaseName = (file.name || 'event_banner')
+    const safeBaseName = (file.name || 'image')
         .replace(/\.(jpg|jpeg|png|webp)$/i, "")
         .replace(/[^a-zA-Z0-9_-]/g, "_")
-        .slice(0, 35) || "event_banner";
-    const filePath = `party_admin/${targetFolder}/${Date.now()}_${safeBaseName}.${ext}`;
+        .slice(0, 35) || "image";
+    const filePath = `${folderName}/${Date.now()}_${safeBaseName}.${ext}`;
 
     const uploadEndpoint = `${SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/${encodeURIComponent(SUPABASE_EVENT_IMAGE_BUCKET)}/${filePath}`;
     const res = await fetch(uploadEndpoint, {
@@ -1143,10 +1178,15 @@ async function uploadEventImageToSupabaseStorage(file, targetFolder = activeEven
 
     if (!res.ok) {
         const errText = await res.text();
-        throw new Error(errText || "อัปโหลดรูปภาพกิจกรรมไม่สำเร็จ");
+        throw new Error(errText || "อัปโหลดรูปภาพไม่สำเร็จ");
     }
 
     return `${SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/public/${encodeURIComponent(SUPABASE_EVENT_IMAGE_BUCKET)}/${filePath}`;
+}
+
+async function uploadEventImageToSupabaseStorage(file, targetFolder = activeEventTarget) {
+    assertPartyImageUploadPermission();
+    return await uploadImageToSupabaseBucket(file, `party_admin/${targetFolder}`);
 }
 
 async function deleteEventImageFromSupabaseStorage(imageUrl) {
@@ -1396,7 +1436,7 @@ window.deleteEvent = async function(targetKey, id) {
     }
 };
 
-// ระบบจัดอันดับฟีด BenX (For You / เทรนด์ และความสนใจของผู้ใช้)
+// ระบบจัดอันดับฟีด BenX
 function getUserInterestStorageKey() {
     const uid = currentUserProfile && currentUserProfile.uid ? currentUserProfile.uid : 'guest';
     return `benbelong_interest_profile_${uid}`;
@@ -1926,7 +1966,7 @@ function renderNotes(notes) {
 
 function escapeHTML(str) {
     if (!str) return '';
-    return str.replace(/[&<>'"]/g, tag => ({
+    return String(str).replace(/[&<>'"]/g, tag => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
     }[tag]));
 }
@@ -2034,6 +2074,906 @@ if (uploadForm) {
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerText = "บันทึกสรุป PDF ขึ้นเว็บทันที";
+        }
+    });
+}
+
+// ==================== ระบบ BenFastwork ====================
+
+function initFastworkCategoriesUI() {
+    const selectEl = document.getElementById('fwCategorySelect');
+    const modalSelectEl = document.getElementById('fwShopCategory');
+    const pillsEl = document.getElementById('fwCategoryPills');
+
+    if (selectEl && selectEl.options.length <= 1) {
+        FASTWORK_CATEGORIES.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.innerText = cat;
+            selectEl.appendChild(opt);
+        });
+    }
+
+    if (modalSelectEl && modalSelectEl.options.length === 0) {
+        FASTWORK_CATEGORIES.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.innerText = cat;
+            modalSelectEl.appendChild(opt);
+        });
+    }
+
+    if (pillsEl) {
+        const allCategories = ["all", ...FASTWORK_CATEGORIES];
+        pillsEl.innerHTML = allCategories.map(cat => {
+            const label = cat === "all" ? "ทั้งหมด" : cat;
+            const activeClass = selectedFastworkCategory === cat ? "fw-pill active" : "fw-pill";
+            return `<button type="button" class="${activeClass}" onclick="window.selectFastworkCategory('${escapeHTML(cat)}')">${escapeHTML(label)}</button>`;
+        }).join('');
+    }
+
+    updateFastworkOwnerButton();
+}
+
+function updateFastworkOwnerButton() {
+    const btn = document.getElementById('fwMyShopActionBtn');
+    if (!btn) return;
+    const uid = currentUserProfile ? currentUserProfile.uid : '';
+    const myShop = uid ? allFastworkShops.find(s => s.ownerUid === uid) : null;
+    if (myShop) {
+        btn.innerText = "✏️ แก้ไขร้านของฉัน (1/1)";
+    } else {
+        btn.innerText = "+ เปิดร้านบริการของฉัน";
+    }
+}
+
+window.selectFastworkCategory = function(cat) {
+    selectedFastworkCategory = cat;
+    const selectEl = document.getElementById('fwCategorySelect');
+    if (selectEl) selectEl.value = cat;
+    initFastworkCategoriesUI();
+    renderFastworkShops();
+};
+
+function roundOneDecimal(num) {
+    return Number((Math.round((Number(num) || 0) * 10) / 10).toFixed(1));
+}
+
+function computeSingleReviewAverage(r) {
+    const vals = [
+        Number(r.starChat) || 5,
+        Number(r.starService) || 5,
+        Number(r.starQuality) || 5,
+        Number(r.starValue) || 5
+    ];
+    const avg = vals.reduce((a, b) => a + b, 0) / 4;
+    return roundOneDecimal(avg);
+}
+
+function computeShopRatingSummary(shopId) {
+    const shopReviews = allFastworkReviews.filter(r => r.shopId === shopId);
+    if (shopReviews.length === 0) {
+        return { avgStr: "0.0", count: 0, reviews: [] };
+    }
+    const sumReviewAvgs = shopReviews.reduce((acc, r) => acc + computeSingleReviewAverage(r), 0);
+    const overallAvg = roundOneDecimal(sumReviewAvgs / shopReviews.length);
+    return {
+        avgStr: overallAvg.toFixed(1),
+        count: shopReviews.length,
+        reviews: shopReviews
+    };
+}
+
+async function fetchFastworkData() {
+    const loadingEl = document.getElementById('fwShopsLoading');
+    try {
+        const [shopsSnap, reviewsSnap] = await Promise.all([
+            getDocs(query(collection(db, "fastwork_shops"), orderBy("createdAt", "desc"))),
+            getDocs(query(collection(db, "fastwork_reviews"), orderBy("createdAt", "desc")))
+        ]);
+
+        allFastworkShops = [];
+        shopsSnap.forEach(d => {
+            const data = d.data();
+            allFastworkShops.push({
+                id: d.id,
+                ...data,
+                likedBy: Array.isArray(data.likedBy) ? data.likedBy : [],
+                completedCount: Number(data.completedCount) || 0,
+                cancelCount: Number(data.cancelCount) || 0
+            });
+        });
+
+        allFastworkReviews = [];
+        reviewsSnap.forEach(d => {
+            const rData = d.data();
+            allFastworkReviews.push({
+                id: d.id,
+                ...rData,
+                reviewAvg: computeSingleReviewAverage(rData)
+            });
+        });
+
+        if (loadingEl) loadingEl.style.display = 'none';
+        updateFastworkOwnerButton();
+        renderFastworkShops();
+        if (activeFastworkShopId) {
+            renderFastworkShopDetail(activeFastworkShopId);
+        }
+    } catch (err) {
+        if (loadingEl) loadingEl.innerText = "ยังไม่มีร้านบริการในระบบ";
+        renderFastworkShops();
+    }
+}
+
+window.renderFastworkShops = function() {
+    const gridEl = document.getElementById('fwShopsGrid');
+    const searchEl = document.getElementById('fwSearchInput');
+    const selectEl = document.getElementById('fwCategorySelect');
+    if (!gridEl) return;
+
+    const kw = searchEl ? searchEl.value.trim().toLowerCase() : "";
+    const dropdownCat = selectEl ? selectEl.value : "all";
+    const activeCat = selectedFastworkCategory !== "all" ? selectedFastworkCategory : dropdownCat;
+
+    const filtered = allFastworkShops.filter(shop => {
+        const matchCat = activeCat === "all" || shop.category === activeCat;
+        const matchKw = !kw
+            || (shop.shopName || "").toLowerCase().includes(kw)
+            || (shop.description || "").toLowerCase().includes(kw)
+            || (shop.ownerName || "").toLowerCase().includes(kw)
+            || (shop.category || "").toLowerCase().includes(kw);
+        return matchCat && matchKw;
+    });
+
+    if (filtered.length === 0) {
+        gridEl.innerHTML = `
+            <div style="grid-column: 1/-1; text-align:center; padding: 3rem; background: white; border-radius: 16px; color: #64748b;">
+                <p style="font-size: 1.1rem; margin-bottom: 0.4rem;">⚡ ยังไม่มีร้านบริการในหมวดนี้</p>
+                <p style="font-size: 0.9rem;">เป็นคนแรกที่เปิดร้านบริการในหมวดนี้ได้เลยครับ</p>
+            </div>`;
+        return;
+    }
+
+    const uid = currentUserProfile ? currentUserProfile.uid : '';
+    gridEl.innerHTML = filtered.map(shop => {
+        const rating = computeShopRatingSummary(shop.id);
+        const likesCount = shop.likedBy.length;
+        const hasLiked = uid && shop.likedBy.includes(uid);
+        const cancelCount = Number(shop.cancelCount) || 0;
+        const completedCount = Number(shop.completedCount) || 0;
+
+        const imgHtml = shop.imageUrl
+            ? `<img src="${escapeHTML(shop.imageUrl)}" alt="${escapeHTML(shop.shopName)}" class="fw-card-img">`
+            : `<div class="fw-card-img-placeholder">⚡ ${escapeHTML(shop.category || "บริการ")}</div>`;
+
+        return `
+            <div class="fw-shop-card" onclick="window.openFastworkShopDetail('${escapeHTML(shop.id)}')">
+                ${imgHtml}
+                <div class="fw-card-body">
+                    <div class="fw-card-top-row">
+                        <span class="fw-cat-badge">${escapeHTML(shop.category)}</span>
+                        <span class="fw-rating-pill">★ ${rating.avgStr} (${rating.count})</span>
+                    </div>
+                    <h3 class="fw-shop-title">${escapeHTML(shop.shopName)}</h3>
+                    <p class="fw-shop-desc">${escapeHTML(shop.description)}</p>
+                    <div class="fw-shop-meta">
+                        <span>👤 ${escapeHTML(shop.ownerName)}</span>
+                        <span>💰 ${escapeHTML(shop.priceHint || "ตามตกลง")}</span>
+                    </div>
+                    <div class="fw-shop-stats-row">
+                        <span>✅ ซื้อแล้ว ${completedCount} ครั้ง</span>
+                        <span>🤍 กดใจ ${likesCount} คน</span>
+                        <span>🚫 ยกเลิก ${cancelCount} ครั้ง</span>
+                    </div>
+                    <div class="fw-card-actions" onclick="event.stopPropagation()">
+                        <button type="button" class="fw-like-btn ${hasLiked ? 'liked' : ''}" onclick="window.toggleFastworkLike('${escapeHTML(shop.id)}')">
+                            ${hasLiked ? '❤️' : '🤍'} <span>${likesCount}</span>
+                        </button>
+                        <button type="button" class="fw-chat-trigger-btn" onclick="window.openFastworkChat('${escapeHTML(shop.id)}')">
+                            💬 แชท / สั่งซื้อ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+};
+
+window.openCreateOrEditShopModal = function() {
+    if (!currentUserProfile) {
+        alert("⚠️ กรุณาเข้าสู่ระบบก่อนเปิดร้านบริการครับ");
+        return;
+    }
+    initFastworkCategoriesUI();
+    const existingShop = allFastworkShops.find(s => s.ownerUid === currentUserProfile.uid);
+    const titleEl = document.getElementById('fwShopModalTitle');
+    const submitBtn = document.getElementById('fwShopSubmitBtn');
+    const hintEl = document.getElementById('fwShopExistingImageHint');
+
+    if (fwShopForm) fwShopForm.reset();
+    const fileInput = document.getElementById('fwShopImageInput');
+    if (fileInput) fileInput.value = "";
+
+    if (existingShop) {
+        editingFastworkShop = existingShop;
+        if (titleEl) titleEl.innerText = "✏️ แก้ไขร้านบริการของคุณ (จำกัด 1 บัญชี / 1 ร้าน)";
+        if (submitBtn) submitBtn.innerText = "บันทึกการแก้ไขร้าน";
+        document.getElementById('fwShopName').value = existingShop.shopName || "";
+        document.getElementById('fwShopCategory').value = existingShop.category || FASTWORK_CATEGORIES[0];
+        document.getElementById('fwShopPriceHint').value = existingShop.priceHint || "";
+        document.getElementById('fwShopDesc').value = existingShop.description || "";
+        if (hintEl) {
+            hintEl.style.display = existingShop.imageUrl ? 'block' : 'none';
+            hintEl.innerText = existingShop.imageUrl ? "🖼️ มีรูปภาพร้านเดิมอยู่แล้ว (เลือกไฟล์ใหม่เพื่อเปลี่ยนรูปได้)" : "";
+        }
+    } else {
+        editingFastworkShop = null;
+        if (titleEl) titleEl.innerText = "⚡ เปิดร้านบริการบน BenFastwork";
+        if (submitBtn) submitBtn.innerText = "เปิดร้านบริการ (1 บัญชี / 1 ร้าน)";
+        if (hintEl) hintEl.style.display = 'none';
+    }
+
+    if (fwShopModal) fwShopModal.style.display = 'flex';
+};
+
+if (fwShopForm) {
+    fwShopForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!currentUserProfile) return;
+
+        const uid = currentUserProfile.uid;
+        const myExisting = allFastworkShops.find(s => s.ownerUid === uid);
+        if (!editingFastworkShop && myExisting) {
+            alert("⚠️ 1 บัญชีสามารถสร้างได้เพียง 1 ร้านเท่านั้นครับ คุณสามารถกดแก้ไขร้านของตนเองได้");
+            return;
+        }
+
+        const fileInput = document.getElementById('fwShopImageInput');
+        const selectedFile = fileInput && fileInput.files ? fileInput.files[0] : null;
+        if (selectedFile) {
+            const validTypes = ["image/jpeg", "image/png", "image/webp"];
+            if (!validTypes.includes(selectedFile.type) && !/\.(jpg|jpeg|png|webp)$/i.test(selectedFile.name || '')) {
+                alert("⚠️ รองรับเฉพาะไฟล์รูปภาพ .jpg, .png หรือ .webp เท่านั้นครับ");
+                return;
+            }
+            if (selectedFile.size > MAX_EVENT_IMAGE_BYTES) {
+                alert("⚠️ ขนาดรูปภาพเกิน 5 MB ครับ");
+                return;
+            }
+        }
+
+        const submitBtn = document.getElementById('fwShopSubmitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerText = selectedFile ? "กำลังอัปโหลดรูปภาพ..." : "กำลังบันทึกข้อมูลร้าน...";
+
+        try {
+            let imageUrl = editingFastworkShop ? (editingFastworkShop.imageUrl || "") : "";
+            if (selectedFile) {
+                imageUrl = await uploadImageToSupabaseBucket(selectedFile, `fastwork_shops/${uid}`);
+            }
+
+            const payload = {
+                shopName: document.getElementById('fwShopName').value.trim(),
+                category: document.getElementById('fwShopCategory').value,
+                priceHint: document.getElementById('fwShopPriceHint').value.trim(),
+                description: document.getElementById('fwShopDesc').value.trim(),
+                imageUrl: imageUrl,
+                ownerUid: uid,
+                ownerName: currentUserProfile.nickname,
+                ownerEmail: currentUserProfile.email
+            };
+
+            if (editingFastworkShop) {
+                await updateDoc(doc(db, "fastwork_shops", editingFastworkShop.id), {
+                    ...payload,
+                    updatedAt: serverTimestamp()
+                });
+                alert("✅ แก้ไขข้อมูลร้านบริการเรียบร้อยแล้วครับ!");
+            } else {
+                await addDoc(collection(db, "fastwork_shops"), {
+                    ...payload,
+                    likedBy: [],
+                    completedCount: 0,
+                    cancelCount: 0,
+                    createdAt: serverTimestamp()
+                });
+                alert("🎉 เปิดร้านบริการบน BenFastwork สำเร็จแล้วครับ!");
+            }
+
+            editingFastworkShop = null;
+            fwShopForm.reset();
+            fwShopModal.style.display = 'none';
+            await fetchFastworkData();
+        } catch (err) {
+            alert("❌ บันทึกร้านไม่สำเร็จ: " + err.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "บันทึกร้านบริการ";
+        }
+    });
+}
+
+window.toggleFastworkLike = async function(shopId) {
+    if (!currentUserProfile) {
+        alert("⚠️ กรุณาเข้าสู่ระบบก่อนกดใจครับ");
+        return;
+    }
+    try {
+        const ref = doc(db, "fastwork_shops", shopId);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) return;
+        const data = snap.data();
+        const likedBy = Array.isArray(data.likedBy) ? [...data.likedBy] : [];
+        const uid = currentUserProfile.uid;
+        const idx = likedBy.indexOf(uid);
+        if (idx > -1) {
+            likedBy.splice(idx, 1);
+        } else {
+            likedBy.push(uid);
+        }
+        await updateDoc(ref, { likedBy });
+        await fetchFastworkData();
+    } catch (err) {}
+};
+
+window.openFastworkShopDetail = function(shopId) {
+    activeFastworkShopId = shopId;
+    showAllFastworkComments = false;
+    renderFastworkShopDetail(shopId);
+    const panel = document.getElementById('fwShopDetailPanel');
+    if (panel) {
+        panel.style.display = 'block';
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+};
+
+window.closeFastworkShopDetail = function() {
+    activeFastworkShopId = null;
+    const panel = document.getElementById('fwShopDetailPanel');
+    if (panel) panel.style.display = 'none';
+};
+
+window.toggleMoreFastworkComments = function() {
+    showAllFastworkComments = !showAllFastworkComments;
+    if (activeFastworkShopId) {
+        renderFastworkShopDetail(activeFastworkShopId);
+    }
+};
+
+function renderFastworkShopDetail(shopId) {
+    const panel = document.getElementById('fwShopDetailPanel');
+    if (!panel) return;
+
+    const shop = allFastworkShops.find(s => s.id === shopId);
+    if (!shop) {
+        panel.style.display = 'none';
+        return;
+    }
+
+    const uid = currentUserProfile ? currentUserProfile.uid : '';
+    const isOwner = uid && shop.ownerUid === uid;
+    const rating = computeShopRatingSummary(shop.id);
+    const likesCount = shop.likedBy.length;
+    const hasLiked = uid && shop.likedBy.includes(uid);
+    const cancelCount = Number(shop.cancelCount) || 0;
+    const completedCount = Number(shop.completedCount) || 0;
+
+    // เฉลี่ยแต่ละด้าน 4 ด้าน (ทศนิยม 1 ตำแหน่ง)
+    const avgOfField = (field) => {
+        if (!rating.reviews.length) return "0.0";
+        const sum = rating.reviews.reduce((a, r) => a + (Number(r[field]) || 0), 0);
+        return roundOneDecimal(sum / rating.reviews.length).toFixed(1);
+    };
+
+    const commentsWithText = rating.reviews.filter(r => (r.comment || "").trim().length > 0);
+    const visibleComments = showAllFastworkComments ? commentsWithText : commentsWithText.slice(0, 5);
+    const hasMoreComments = commentsWithText.length > 5;
+
+    const sameCategoryShops = allFastworkShops
+        .filter(s => s.id !== shop.id && s.category === shop.category)
+        .slice(0, 4);
+
+    const sameCatHtml = sameCategoryShops.length > 0
+        ? sameCategoryShops.map(rel => {
+            const relRating = computeShopRatingSummary(rel.id);
+            return `
+                <div class="fw-related-card" onclick="window.openFastworkShopDetail('${escapeHTML(rel.id)}')">
+                    <div class="fw-related-title">${escapeHTML(rel.shopName)}</div>
+                    <div class="fw-related-meta">★ ${relRating.avgStr} • ซื้อแล้ว ${Number(rel.completedCount) || 0} ครั้ง</div>
+                    <div class="fw-related-owner">โดย ${escapeHTML(rel.ownerName)}</div>
+                </div>
+            `;
+        }).join('')
+        : `<p style="color: #64748B; font-size: 0.88rem;">ยังไม่มีร้านอื่นในหมวดหมู่ "${escapeHTML(shop.category)}" ครับ</p>`;
+
+    panel.innerHTML = `
+        <div class="fw-detail-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 1rem;">
+                <button type="button" class="fw-back-btn" onclick="window.closeFastworkShopDetail()">← กลับหน้ารวมร้าน</button>
+                ${isOwner ? `<button type="button" class="btn-primary-sm" style="width: auto;" onclick="window.openCreateOrEditShopModal()">✏️ แก้ไขร้านของฉัน</button>` : ''}
+            </div>
+
+            ${shop.imageUrl ? `<img src="${escapeHTML(shop.imageUrl)}" alt="${escapeHTML(shop.shopName)}" class="fw-detail-banner">` : ''}
+
+            <div class="fw-detail-header-row">
+                <div>
+                    <span class="fw-cat-badge">${escapeHTML(shop.category)}</span>
+                    <h2 style="margin-top: 8px; color: #0F172A; font-size: 1.4rem;">${escapeHTML(shop.shopName)}</h2>
+                    <p style="color: #64748B; font-size: 0.9rem;">เจ้าของร้าน: <strong>${escapeHTML(shop.ownerName)}</strong> • เรทเริ่มต้น: <strong>${escapeHTML(shop.priceHint || "ตามตกลง")}</strong></p>
+                </div>
+                <div class="fw-score-big-box">
+                    <div class="fw-score-big-num">★ ${rating.avgStr}</div>
+                    <div style="font-size: 0.78rem; color: #64748B;">จาก 5.0 (${rating.count} รีวิว)</div>
+                </div>
+            </div>
+
+            <p class="fw-detail-desc">${escapeHTML(shop.description)}</p>
+            <p class="fw-payment-note">💡 การชำระเงิน: นัดแนะโอนเงินหรือจ่ายเงินสดตกลงกันโดยตรงในแชทได้เลยครับ</p>
+
+            <!-- แถบปุ่มกดใจ + ยอดยกเลิกคำสั่งซื้อข้างปุ่มไลค์ + ยอดซื้อ + แชท/รีวิว -->
+            <div class="fw-detail-action-bar">
+                <div class="fw-like-cancel-group">
+                    <button type="button" class="fw-like-btn ${hasLiked ? 'liked' : ''}" onclick="window.toggleFastworkLike('${escapeHTML(shop.id)}')">
+                        ${hasLiked ? '❤️' : '🤍'} <span>กดใจ ${likesCount} คน</span>
+                    </button>
+                    <span class="fw-cancel-counter-badge">🚫 ยกเลิก ${cancelCount} ครั้ง</span>
+                </div>
+                <span class="fw-sold-counter-badge">✅ ซื้อบริการแล้ว ${completedCount} ครั้ง</span>
+                <button type="button" class="fw-chat-trigger-btn" onclick="window.openFastworkChat('${escapeHTML(shop.id)}')">💬 แชทคุย / สั่งซื้อบริการ</button>
+                <button type="button" class="fw-review-trigger-btn" onclick="window.openFastworkReviewModal('${escapeHTML(shop.id)}')">⭐ ให้คะแนนรีวิว 4 ด้าน</button>
+            </div>
+
+            <!-- สรุป 4 ด้าน -->
+            <div class="fw-four-aspects-box">
+                <div class="fw-aspect-item"><span>1. ตอบแชทเร็ว</span><strong>★ ${avgOfField("starChat")}</strong></div>
+                <div class="fw-aspect-item"><span>2. บริการ</span><strong>★ ${avgOfField("starService")}</strong></div>
+                <div class="fw-aspect-item"><span>3. ฝีมือและคุณภาพ</span><strong>★ ${avgOfField("starQuality")}</strong></div>
+                <div class="fw-aspect-item"><span>4. ความคุ้มค่าต่อราคา</span><strong>★ ${avgOfField("starValue")}</strong></div>
+            </div>
+
+            <!-- คอมเมนต์รีวิว (แสดงสูงสุด 5 คอมเมนต์แรก + ปุ่มดูเพิ่มเติม) -->
+            <div style="margin-top: 1.25rem;">
+                <h3 style="font-size: 1rem; color: #0F172A; margin-bottom: 0.6rem;">💬 คอมเมนต์จากผู้ว่าจ้าง (${commentsWithText.length})</h3>
+                ${visibleComments.length > 0
+                    ? visibleComments.map(c => `
+                        <div class="fw-comment-card">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <strong style="color: var(--royal-blue); font-size: 0.88rem;">${escapeHTML(c.reviewerName || "ผู้ใช้งาน")}</strong>
+                                <span style="font-weight: 700; color: #D97706; font-size: 0.85rem;">★ ${Number(c.reviewAvg || 0).toFixed(1)}</span>
+                            </div>
+                            <p style="margin: 0; color: #334155; font-size: 0.9rem;">${escapeHTML(c.comment)}</p>
+                        </div>
+                    `).join('')
+                    : `<p style="color: #64748B; font-size: 0.88rem;">ยังไม่มีคอมเมนต์เพิ่มเติมสำหรับร้านนี้</p>`
+                }
+                ${hasMoreComments
+                    ? `<button type="button" class="fw-see-more-btn" onclick="window.toggleMoreFastworkComments()">
+                        ${showAllFastworkComments ? "ย่อคอมเมนต์ (แสดง 5 รายการแรก)" : `ดูเพิ่มเติม (${commentsWithText.length - 5} คอมเมนต์ที่เหลือ)`}
+                       </button>`
+                    : ''
+                }
+            </div>
+
+            <!-- ร้านแนะนำในหมวดหมู่เดียวกัน -->
+            <div style="margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid #E2E8F0;">
+                <h3 style="font-size: 1.05rem; color: #0F172A; margin-bottom: 0.75rem;">🏪 ร้านอื่นๆ ในหมวดหมู่ "${escapeHTML(shop.category)}"</h3>
+                <div class="fw-related-grid">${sameCatHtml}</div>
+            </div>
+        </div>
+    `;
+}
+
+// ==================== แชท & ยืนยันการซื้อ / Deadline / ยกเลิก ====================
+
+function buildChatThreadId(shopId, buyerUid) {
+    return `${shopId}__${buyerUid}`;
+}
+
+window.openFastworkChat = async function(shopId) {
+    if (!currentUserProfile) {
+        alert("⚠️ กรุณาเข้าสู่ระบบก่อนใช้งานแชทครับ");
+        return;
+    }
+    const shop = allFastworkShops.find(s => s.id === shopId);
+    if (!shop) return;
+
+    activeChatShopId = shopId;
+    const isOwner = currentUserProfile.uid === shop.ownerUid;
+    const buyerBox = document.getElementById('fwBuyerOrderBox');
+    const titleEl = document.getElementById('fwChatShopTitle');
+    const subEl = document.getElementById('fwChatSubtitle');
+
+    if (titleEl) titleEl.innerText = `💬 แชท: ${shop.shopName}`;
+
+    if (isOwner) {
+        if (buyerBox) buyerBox.style.display = 'none';
+        if (subEl) subEl.innerText = "คุณเป็นเจ้าของร้าน: กดยืนยันคำสั่งซื้อเมื่อตกลงงานกับผู้ซื้อ หรือกดยกเลิกคำสั่งซื้อได้ตลอดเวลา";
+    } else {
+        activeChatBuyerUid = currentUserProfile.uid;
+        if (buyerBox) buyerBox.style.display = 'block';
+        if (subEl) subEl.innerText = `คุยกับเจ้าของร้าน (${shop.ownerName}) • กดปุ่ม "ต้องการสั่งซื้อบริการ" และเลือกวัน Deadline ได้เลยครับ`;
+        const deadlineInput = document.getElementById('fwOrderDeadlineInput');
+        if (deadlineInput && !deadlineInput.value) {
+            deadlineInput.value = getThaiDateString();
+        }
+    }
+
+    if (fwChatModal) fwChatModal.style.display = 'flex';
+    await renderFastworkChatMessages();
+};
+
+async function renderFastworkChatMessages() {
+    const listEl = document.getElementById('fwChatMessagesList');
+    if (!listEl || !activeChatShopId || !currentUserProfile) return;
+
+    const shop = allFastworkShops.find(s => s.id === activeChatShopId);
+    if (!shop) return;
+
+    const isOwner = currentUserProfile.uid === shop.ownerUid;
+    const targetBuyerUid = isOwner ? (activeChatBuyerUid || "") : currentUserProfile.uid;
+
+    try {
+        const snap = await getDocs(collection(db, "fastwork_chats"));
+        const messages = [];
+        const buyerMap = new Map();
+
+        snap.forEach(d => {
+            const data = d.data();
+            if (data.shopId === activeChatShopId) {
+                if (data.buyerUid && data.buyerName) {
+                    buyerMap.set(data.buyerUid, data.buyerName);
+                }
+                if (!isOwner) {
+                    if (data.buyerUid === currentUserProfile.uid) {
+                        messages.push({ id: d.id, ...data });
+                    }
+                } else {
+                    if (!targetBuyerUid || data.buyerUid === targetBuyerUid) {
+                        messages.push({ id: d.id, ...data });
+                    }
+                }
+            }
+        });
+
+        messages.sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0));
+
+        let selectorHtml = "";
+        if (isOwner && buyerMap.size > 0) {
+            const options = [...buyerMap.entries()].map(([bUid, bName]) => {
+                const selected = bUid === activeChatBuyerUid ? "selected" : "";
+                return `<option value="${escapeHTML(bUid)}" ${selected}>ผู้ซื้อ: ${escapeHTML(bName)}</option>`;
+            }).join('');
+            selectorHtml = `
+                <div style="margin-bottom: 8px;">
+                    <label style="font-size: 0.78rem; color: #475569; margin-right: 6px;">เลือกห้องแชทผู้ซื้อ:</label>
+                    <select onchange="window.switchOwnerChatBuyer(this.value)" style="padding: 4px 8px; border-radius: 8px; border: 1px solid #CBD5E1; font-family: 'Prompt', sans-serif; font-size: 0.82rem;">
+                        ${options}
+                    </select>
+                </div>
+            `;
+        }
+
+        const todayStr = getThaiDateString();
+
+        const msgsHtml = messages.length > 0
+            ? messages.map(m => {
+                if (m.type === "order_request") {
+                    const deadlineStr = normalizeDateStr(m.deadlineDate);
+                    const isPastDeadline = deadlineStr ? (todayStr > deadlineStr) : false;
+                    const status = m.orderStatus || "pending";
+
+                    let statusBadge = `<span class="fw-order-status pending">⏳ รอเจ้าของร้านยืนยัน (Deadline: ${escapeHTML(deadlineStr || "-")})</span>`;
+                    if (status === "confirmed") {
+                        statusBadge = `<span class="fw-order-status confirmed">✅ เจ้าของร้านยืนยันคำสั่งซื้อแล้ว (Deadline: ${escapeHTML(deadlineStr || "-")})</span>`;
+                    } else if (status === "cancelled") {
+                        statusBadge = `<span class="fw-order-status cancelled">🚫 ยกเลิกคำสั่งซื้อแล้ว</span>`;
+                    }
+
+                    let buttonsHtml = "";
+                    if (status === "pending") {
+                        if (isOwner) {
+                            buttonsHtml = `
+                                <div class="fw-order-btn-group">
+                                    <button type="button" class="fw-confirm-order-btn" onclick="window.ownerConfirmFastworkOrder('${escapeHTML(m.id)}')">✅ ยืนยันคำสั่งซื้อ</button>
+                                    <button type="button" class="fw-cancel-order-btn" onclick="window.cancelFastworkOrder('${escapeHTML(m.id)}', true)">🚫 ยกเลิกคำสั่งซื้อ</button>
+                                </div>
+                            `;
+                        } else {
+                            if (isPastDeadline) {
+                                buttonsHtml = `
+                                    <div class="fw-order-btn-group">
+                                        <button type="button" class="fw-cancel-order-btn" onclick="window.cancelFastworkOrder('${escapeHTML(m.id)}', false)">🚫 เลย Deadline แล้ว • กดยกเลิกคำสั่งซื้อ</button>
+                                    </div>
+                                `;
+                            } else {
+                                buttonsHtml = `
+                                    <div class="fw-deadline-lock-note">🔒 ยังไม่ถึงวัน Deadline (${escapeHTML(deadlineStr)}) ผู้ซื้อยังไม่สามารถกดยกเลิกได้</div>
+                                `;
+                            }
+                        }
+                    } else if (status === "confirmed" && isOwner) {
+                        buttonsHtml = `
+                            <div class="fw-order-btn-group">
+                                <button type="button" class="fw-cancel-order-btn" onclick="window.cancelFastworkOrder('${escapeHTML(m.id)}', true)">🚫 เจ้าของร้านกดยกเลิกคำสั่งซื้อ</button>
+                            </div>
+                        `;
+                    }
+
+                    return `
+                        <div class="fw-order-card">
+                            <div style="font-weight: 700; color: #0F172A; font-size: 0.9rem;">📋 คำขอสั่งซื้อบริการโดย ${escapeHTML(m.senderName || "ผู้ซื้อ")}</div>
+                            ${m.note ? `<div style="font-size: 0.86rem; color: #334155; margin-top: 4px;">รายละเอียด: ${escapeHTML(m.note)}</div>` : ""}
+                            <div style="margin-top: 6px;">${statusBadge}</div>
+                            ${buttonsHtml}
+                        </div>
+                    `;
+                }
+
+                const isMine = m.senderUid === currentUserProfile.uid;
+                return `
+                    <div class="fw-msg-bubble ${isMine ? 'mine' : 'theirs'}">
+                        <div class="fw-msg-sender">${escapeHTML(m.senderName || "ผู้ใช้")}</div>
+                        <div>${escapeHTML(m.text || "")}</div>
+                    </div>
+                `;
+            }).join('')
+            : `<p style="text-align: center; color: #94A3B8; font-size: 0.88rem; margin: 2rem 0;">เริ่มทักแชทพูดคุยรายละเอียดได้เลยครับ</p>`;
+
+        listEl.innerHTML = selectorHtml + msgsHtml;
+        listEl.scrollTop = listEl.scrollHeight;
+    } catch (err) {
+        listEl.innerHTML = `<p style="text-align: center; color: #DC2626; font-size: 0.88rem;">โหลดข้อความแชทไม่สำเร็จ</p>`;
+    }
+}
+
+window.switchOwnerChatBuyer = async function(buyerUid) {
+    activeChatBuyerUid = buyerUid;
+    await renderFastworkChatMessages();
+};
+
+window.requestFastworkOrder = async function() {
+    if (!currentUserProfile || !activeChatShopId) return;
+    const shop = allFastworkShops.find(s => s.id === activeChatShopId);
+    if (!shop) return;
+
+    if (currentUserProfile.uid === shop.ownerUid) {
+        alert("⚠️ เจ้าของร้านไม่ต้องกดสั่งซื้อร้านตัวเองครับ");
+        return;
+    }
+
+    const deadlineStr = normalizeDateStr(document.getElementById('fwOrderDeadlineInput')?.value);
+    const noteText = (document.getElementById('fwOrderNoteInput')?.value || "").trim();
+
+    if (!deadlineStr) {
+        alert("⚠️ กรุณาเลือกวัน Deadline ก่อนกดต้องการสั่งซื้อบริการครับ");
+        return;
+    }
+
+    try {
+        const nowMs = Date.now();
+        await addDoc(collection(db, "fastwork_chats"), {
+            threadId: buildChatThreadId(activeChatShopId, currentUserProfile.uid),
+            shopId: activeChatShopId,
+            buyerUid: currentUserProfile.uid,
+            buyerName: currentUserProfile.nickname,
+            senderUid: currentUserProfile.uid,
+            senderName: currentUserProfile.nickname,
+            type: "order_request",
+            orderStatus: "pending",
+            deadlineDate: deadlineStr,
+            note: noteText,
+            createdAtMs: nowMs,
+            createdAt: serverTimestamp()
+        });
+
+        const noteInput = document.getElementById('fwOrderNoteInput');
+        if (noteInput) noteInput.value = "";
+        await renderFastworkChatMessages();
+        alert("✅ ส่งคำขอสั่งซื้อบริการพร้อมวัน Deadline ให้เจ้าของร้านแล้วครับ!");
+    } catch (err) {
+        alert("❌ ส่งคำขอสั่งซื้อไม่สำเร็จ: " + err.message);
+    }
+};
+
+window.ownerConfirmFastworkOrder = async function(msgId) {
+    if (!currentUserProfile || !activeChatShopId) return;
+    const shop = allFastworkShops.find(s => s.id === activeChatShopId);
+    if (!shop || currentUserProfile.uid !== shop.ownerUid) {
+        alert("❌ เฉพาะเจ้าของร้านเท่านั้นที่กดยืนยันคำสั่งซื้อได้ครับ");
+        return;
+    }
+
+    try {
+        const msgRef = doc(db, "fastwork_chats", msgId);
+        const msgSnap = await getDoc(msgRef);
+        if (!msgSnap.exists()) return;
+        const msgData = msgSnap.data();
+        if (msgData.orderStatus === "confirmed") return;
+
+        await updateDoc(msgRef, {
+            orderStatus: "confirmed",
+            confirmedAtMs: Date.now()
+        });
+
+        const shopRef = doc(db, "fastwork_shops", activeChatShopId);
+        const shopSnap = await getDoc(shopRef);
+        if (shopSnap.exists()) {
+            const currentSold = Number(shopSnap.data().completedCount) || 0;
+            await updateDoc(shopRef, { completedCount: currentSold + 1 });
+        }
+
+        await fetchFastworkData();
+        await renderFastworkChatMessages();
+        alert("✅ ยืนยันคำสั่งซื้อเรียบร้อย! ระบบนับยอดซื้อให้ร้านแล้วครับ");
+    } catch (err) {
+        alert("❌ ยืนยันคำสั่งซื้อไม่สำเร็จ: " + err.message);
+    }
+};
+
+window.cancelFastworkOrder = async function(msgId, isOwnerAction) {
+    if (!currentUserProfile || !activeChatShopId) return;
+    const shop = allFastworkShops.find(s => s.id === activeChatShopId);
+    if (!shop) return;
+
+    const isOwner = currentUserProfile.uid === shop.ownerUid;
+    if (!isOwner && isOwnerAction) return;
+
+    try {
+        const msgRef = doc(db, "fastwork_chats", msgId);
+        const msgSnap = await getDoc(msgRef);
+        if (!msgSnap.exists()) return;
+        const msgData = msgSnap.data();
+
+        if (!isOwner) {
+            const deadlineStr = normalizeDateStr(msgData.deadlineDate);
+            const todayStr = getThaiDateString();
+            if (!deadlineStr || todayStr <= deadlineStr) {
+                alert(`⏳ ยังไม่ถึงวัน Deadline (${deadlineStr || "-"}) ผู้ซื้อยังไม่สามารถกดยกเลิกคำสั่งซื้อได้ครับ`);
+                return;
+            }
+        }
+
+        const confirmed = confirm("⚠️ ยืนยันการยกเลิกคำสั่งซื้อนี้ใช่หรือไม่? (ระบบจะบันทึกยอดยกเลิกบนหน้าร้าน)");
+        if (!confirmed) return;
+
+        await updateDoc(msgRef, {
+            orderStatus: "cancelled",
+            cancelledByUid: currentUserProfile.uid,
+            cancelledAtMs: Date.now()
+        });
+
+        const shopRef = doc(db, "fastwork_shops", activeChatShopId);
+        const shopSnap = await getDoc(shopRef);
+        if (shopSnap.exists()) {
+            const curCancel = Number(shopSnap.data().cancelCount) || 0;
+            await updateDoc(shopRef, { cancelCount: curCancel + 1 });
+        }
+
+        await fetchFastworkData();
+        await renderFastworkChatMessages();
+        alert("🚫 ยกเลิกคำสั่งซื้อเรียบร้อยแล้วครับ");
+    } catch (err) {
+        alert("❌ ยกเลิกคำสั่งซื้อไม่สำเร็จ: " + err.message);
+    }
+};
+
+if (fwChatMessageForm) {
+    fwChatMessageForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!currentUserProfile || !activeChatShopId) return;
+        const shop = allFastworkShops.find(s => s.id === activeChatShopId);
+        if (!shop) return;
+
+        const inputEl = document.getElementById('fwChatInput');
+        const text = inputEl ? inputEl.value.trim() : "";
+        if (!text) return;
+
+        const isOwner = currentUserProfile.uid === shop.ownerUid;
+        const buyerUid = isOwner ? activeChatBuyerUid : currentUserProfile.uid;
+        if (isOwner && !buyerUid) {
+            alert("⚠️ ยังไม่มีข้อความจากผู้ซื้อในห้องแชทนี้ครับ");
+            return;
+        }
+
+        try {
+            await addDoc(collection(db, "fastwork_chats"), {
+                threadId: buildChatThreadId(activeChatShopId, buyerUid),
+                shopId: activeChatShopId,
+                buyerUid: buyerUid,
+                buyerName: isOwner ? "" : currentUserProfile.nickname,
+                senderUid: currentUserProfile.uid,
+                senderName: currentUserProfile.nickname,
+                type: "text",
+                text: text,
+                createdAtMs: Date.now(),
+                createdAt: serverTimestamp()
+            });
+            if (inputEl) inputEl.value = "";
+            await renderFastworkChatMessages();
+        } catch (err) {}
+    });
+}
+
+// ==================== รีวิว 4 ด้าน + เฉลี่ยทศนิยม 1 ตำแหน่ง ====================
+
+let activeReviewShopId = null;
+
+function updateMyReviewPreview() {
+    const c = Number(document.getElementById('fwStarChat')?.value) || 5;
+    const s = Number(document.getElementById('fwStarService')?.value) || 5;
+    const q = Number(document.getElementById('fwStarQuality')?.value) || 5;
+    const v = Number(document.getElementById('fwStarValue')?.value) || 5;
+    const avg = roundOneDecimal((c + s + q + v) / 4);
+    const previewEl = document.getElementById('fwMyReviewAvgPreview');
+    if (previewEl) previewEl.innerText = avg.toFixed(1);
+}
+
+["fwStarChat", "fwStarService", "fwStarQuality", "fwStarValue"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', updateMyReviewPreview);
+});
+
+window.openFastworkReviewModal = function(shopId) {
+    if (!currentUserProfile) {
+        alert("⚠️ กรุณาเข้าสู่ระบบก่อนให้คะแนนรีวิวครับ");
+        return;
+    }
+    activeReviewShopId = shopId;
+    if (fwReviewForm) fwReviewForm.reset();
+    updateMyReviewPreview();
+    if (fwReviewModal) fwReviewModal.style.display = 'flex';
+};
+
+if (fwReviewForm) {
+    fwReviewForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!currentUserProfile || !activeReviewShopId) return;
+
+        const starChat = Number(document.getElementById('fwStarChat').value);
+        const starService = Number(document.getElementById('fwStarService').value);
+        const starQuality = Number(document.getElementById('fwStarQuality').value);
+        const starValue = Number(document.getElementById('fwStarValue').value);
+        const comment = (document.getElementById('fwReviewComment').value || "").trim();
+
+        if (comment && containsBadWord(comment)) {
+            alert("⚠️ ขออภัยครับ ตรวจพบคำที่ไม่สุภาพในคอมเมนต์");
+            return;
+        }
+
+        const reviewAvg = roundOneDecimal((starChat + starService + starQuality + starValue) / 4);
+
+        try {
+            const btn = document.getElementById('fwReviewSubmitBtn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = "กำลังบันทึกรีวิว...";
+            }
+
+            await addDoc(collection(db, "fastwork_reviews"), {
+                shopId: activeReviewShopId,
+                reviewerUid: currentUserProfile.uid,
+                reviewerName: currentUserProfile.nickname,
+                starChat,
+                starService,
+                starQuality,
+                starValue,
+                reviewAvg,
+                comment,
+                createdAt: serverTimestamp()
+            });
+
+            if (fwReviewModal) fwReviewModal.style.display = 'none';
+            await fetchFastworkData();
+            alert(`⭐ บันทึกรีวิวเรียบร้อยแล้ว! (ค่าเฉลี่ยรีวิวของคุณ: ${reviewAvg.toFixed(1)} ดาว)`);
+        } catch (err) {
+            alert("❌ บันทึกรีวิวไม่สำเร็จ: " + err.message);
+        } finally {
+            const btn = document.getElementById('fwReviewSubmitBtn');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = "ส่งรีวิวร้านนี้";
+            }
         }
     });
 }
