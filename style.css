@@ -1,11 +1,12 @@
 :root {
     --royal-blue: #1D56B8;
     --royal-blue-dark: #15408C;
-    --bg-light: #F1F5F9;
-    --card-bg: #FFFFFF;
+    --bg-gradient: linear-gradient(145deg, #93E5E8 0%, #B8C4FA 38%, #F6B2D8 72%, #7D8DF2 100%);
+    --card-bg: rgba(255, 255, 255, 0.93);
+    --card-solid: #FFFFFF;
     --text-main: #0F172A;
     --text-muted: #64748B;
-    --border-color: #E2E8F0;
+    --border-color: rgba(226, 232, 240, 0.9);
 }
 
 * {
@@ -16,7 +17,9 @@
 
 body {
     font-family: 'Prompt', sans-serif;
-    background-color: var(--bg-light);
+    background: var(--bg-gradient);
+    background-attachment: fixed;
+    min-height: 100vh;
     color: var(--text-main);
     line-height: 1.55;
     overflow-x: hidden;
@@ -29,17 +32,18 @@ body {
     align-items: center;
     justify-content: center;
     padding: 1.25rem;
-    background: linear-gradient(135deg, #EFF6FF 0%, #FDF2F8 100%);
+    background: var(--bg-gradient);
 }
 
 .landing-card {
     width: 100%;
     max-width: 460px;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    border-radius: 26px;
     padding: 2rem 1.5rem;
-    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 16px 40px rgba(30, 41, 59, 0.14);
     text-align: center;
 }
 
@@ -97,16 +101,17 @@ body {
     text-align: left;
     padding: 0.95rem 1.1rem;
     border-radius: 16px;
-    border: 1px solid var(--border-color);
+    border: 1px solid #E2E8F0;
     background: #FFFFFF;
     font-family: 'Prompt', sans-serif;
     cursor: pointer;
     transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
 }
 
 .role-btn:hover {
     border-color: var(--royal-blue);
-    background: #EFF6FF;
+    background: #F8FAFC;
     transform: translateY(-1px);
 }
 
@@ -127,11 +132,13 @@ body {
     min-height: 100vh;
     display: flex;
     position: relative;
+    background: transparent;
 }
 
 .sidebar {
     width: 260px;
-    background: var(--card-bg);
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(12px);
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
@@ -141,7 +148,7 @@ body {
     left: 0;
     z-index: 1200;
     transition: transform 0.25s ease;
-    box-shadow: 4px 0 20px rgba(15, 23, 42, 0.08);
+    box-shadow: 4px 0 24px rgba(15, 23, 42, 0.1);
 }
 
 .sidebar.sidebar-closed {
@@ -230,7 +237,7 @@ body {
 .btn-logout {
     width: 100%;
     padding: 0.65rem 0.85rem;
-    border-radius: 10px;
+    border-radius: 12px;
     border: 1px solid var(--border-color);
     font-family: 'Prompt', sans-serif;
     font-size: 0.85rem;
@@ -255,19 +262,21 @@ body {
     min-width: 0;
     display: flex;
     flex-direction: column;
+    background: transparent;
 }
 
 .top-navbar {
     position: sticky;
     top: 0;
     z-index: 1000;
-    background: rgba(255, 255, 255, 0.96);
-    backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.65);
     padding: 0.65rem 1rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
 }
 
 .nav-left-group {
@@ -277,9 +286,9 @@ body {
 }
 
 .btn-toggle-sidebar {
-    background: #F1F5F9;
+    background: rgba(255, 255, 255, 0.9);
     border: 1px solid var(--border-color);
-    border-radius: 10px;
+    border-radius: 12px;
     width: 36px;
     height: 36px;
     font-size: 1.1rem;
@@ -299,34 +308,38 @@ body {
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--royal-blue);
-    background: #EFF6FF;
-    padding: 4px 10px;
+    background: rgba(239, 246, 255, 0.95);
+    padding: 4px 12px;
     border-radius: 999px;
 }
 
 /* ส่วนเนื้อหาแต่ละแท็บ */
 .content-view-panel {
     flex: 1;
+    background: transparent;
 }
 
 .calendar-hero,
 .studyhub-hero {
-    background: linear-gradient(135deg, #1D56B8 0%, #2563EB 55%, #EC4899 100%);
+    background: linear-gradient(135deg, rgba(29, 86, 184, 0.82) 0%, rgba(124, 141, 242, 0.82) 55%, rgba(236, 72, 153, 0.82) 100%);
+    backdrop-filter: blur(10px);
     color: #FFFFFF;
     padding: 1.75rem 1.25rem;
     text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.35);
 }
 
 .hero-brand-title {
     font-size: 1.65rem;
     font-weight: 800;
     letter-spacing: 0.5px;
+    text-shadow: 0 2px 10px rgba(15, 23, 42, 0.15);
 }
 
 .studyhub-hero p {
     margin-top: 0.35rem;
     font-size: 0.9rem;
-    opacity: 0.95;
+    opacity: 0.96;
 }
 
 .calendar-container {
@@ -337,8 +350,9 @@ body {
 
 .calendar-toolbar-card {
     background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    border-radius: 18px;
     padding: 1rem;
     display: flex;
     flex-wrap: wrap;
@@ -346,7 +360,7 @@ body {
     justify-content: space-between;
     gap: 0.75rem;
     margin-bottom: 1.25rem;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 }
 
 .month-navigator {
@@ -375,7 +389,7 @@ body {
 .date-dropdown {
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--border-color);
-    border-radius: 10px;
+    border-radius: 12px;
     font-family: 'Prompt', sans-serif;
     font-size: 0.85rem;
     background: #FFFFFF;
@@ -385,12 +399,13 @@ body {
     background: var(--royal-blue);
     color: #FFFFFF;
     border: none;
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 0.55rem 0.95rem;
     font-family: 'Prompt', sans-serif;
     font-size: 0.85rem;
     font-weight: 600;
     cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
 }
 
 .btn-primary-sm:hover {
@@ -408,10 +423,11 @@ body {
 .event-card,
 .note-card {
     background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 1rem 1.1rem;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    border-radius: 18px;
+    padding: 1rem 1.15rem;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -423,8 +439,9 @@ body {
     color: var(--text-muted);
     font-size: 0.9rem;
     background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    border-radius: 18px;
 }
 
 /* BenX Layout + กล่องแยกโพสต์ชัดเจน */
@@ -448,10 +465,11 @@ body {
 
 .x-feed-header {
     background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 0.85rem 1.1rem;
-    box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    border-radius: 18px;
+    padding: 0.85rem 1.15rem;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
 }
 
 .x-feed-header h2 {
@@ -461,20 +479,22 @@ body {
 
 .x-compose-box {
     background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 1rem 1.1rem;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    border-radius: 18px;
+    padding: 1rem 1.15rem;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
 }
 
 .x-textarea {
     width: 100%;
     border: 1px solid #CBD5E1;
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 0.75rem;
     font-family: 'Prompt', sans-serif;
     font-size: 0.92rem;
     resize: vertical;
+    background: rgba(255, 255, 255, 0.95);
 }
 
 .x-compose-footer {
@@ -496,10 +516,15 @@ body {
     color: #FFFFFF;
     border: none;
     border-radius: 999px;
-    padding: 0.5rem 1.25rem;
+    padding: 0.5rem 1.3rem;
     font-family: 'Prompt', sans-serif;
     font-weight: 600;
     cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.x-post-btn:hover {
+    background: var(--royal-blue-dark);
 }
 
 #postsFeed {
@@ -514,10 +539,52 @@ body {
 #postsFeed > div,
 #postsFeed > article {
     background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 1rem 1.1rem;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    border-radius: 18px;
+    padding: 1rem 1.15rem;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
+}
+
+/* ปุ่มไลค์และปุ่มคอมเมนต์ในโพสต์ ให้โค้งมนสมูท ไม่เหลี่ยมแข็ง */
+.x-post-card button,
+.post-card button,
+#postsFeed > div button,
+#postsFeed > article button,
+.like-btn,
+.comment-btn {
+    border-radius: 999px !important;
+    border: none !important;
+    background: #F1F5F9;
+    color: #334155;
+    padding: 5px 12px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+    transition: background 0.18s ease, transform 0.15s ease, color 0.18s ease;
+}
+
+.x-post-card button:hover,
+.post-card button:hover,
+#postsFeed > div button:hover,
+#postsFeed > article button:hover,
+.like-btn:hover,
+.comment-btn:hover {
+    background: #FFE4E6;
+    color: #E11D48;
+    transform: translateY(-1px);
+}
+
+.x-post-card button:active,
+.post-card button:active,
+#postsFeed > div button:active,
+#postsFeed > article button:active {
+    transform: scale(0.96);
 }
 
 .x-sidebar-right {
@@ -529,13 +596,14 @@ body {
 
 .x-search-box {
     background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 14px;
-    padding: 0.6rem 0.9rem;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    border-radius: 999px;
+    padding: 0.6rem 0.95rem;
     display: flex;
     align-items: center;
     gap: 8px;
-    box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
 }
 
 .x-search-box input {
@@ -549,10 +617,11 @@ body {
 
 .x-trends-card {
     background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 1rem 1.1rem;
-    box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    border-radius: 18px;
+    padding: 1rem 1.15rem;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
 }
 
 .x-trends-card h3 {
@@ -579,12 +648,14 @@ body {
 .filter-bar input,
 .filter-bar select {
     padding: 0.6rem 0.85rem;
-    border-radius: 10px;
+    border-radius: 12px;
     border: none;
     font-family: 'Prompt', sans-serif;
     font-size: 0.88rem;
     color: var(--text-main);
     min-width: 180px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
 }
 
 /* Modal & Form */
@@ -594,6 +665,7 @@ body {
     inset: 0;
     z-index: 9999;
     background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
     align-items: center;
     justify-content: center;
     padding: 1rem;
@@ -606,8 +678,8 @@ body {
     max-width: 520px;
     max-height: 90vh;
     overflow-y: auto;
-    background: var(--card-bg);
-    border-radius: 20px;
+    background: var(--card-solid);
+    border-radius: 22px;
     padding: 1.5rem;
     box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
 }
@@ -636,8 +708,8 @@ body {
 .auth-tab {
     flex: 1;
     padding: 0.55rem;
-    border-radius: 10px;
-    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    border: 1px solid #E2E8F0;
     background: #F8FAFC;
     font-family: 'Prompt', sans-serif;
     font-weight: 600;
@@ -673,7 +745,7 @@ body {
     width: 100%;
     padding: 0.65rem 0.8rem;
     border: 1px solid #CBD5E1;
-    border-radius: 10px;
+    border-radius: 12px;
     font-family: 'Prompt', sans-serif;
     font-size: 0.88rem;
 }
@@ -688,7 +760,7 @@ body {
     width: 100%;
     padding: 0.75rem 1rem;
     border: none;
-    border-radius: 12px;
+    border-radius: 14px;
     background: var(--royal-blue);
     color: #FFFFFF;
     font-family: 'Prompt', sans-serif;
@@ -729,7 +801,7 @@ body {
 .detail-box {
     margin-top: 0.85rem;
     background: #F8FAFC;
-    border: 1px solid var(--border-color);
+    border: 1px solid #E2E8F0;
     border-radius: 12px;
     padding: 0.85rem;
 }
