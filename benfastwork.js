@@ -43,14 +43,12 @@ function escapeHtml(str) {
     }[tag]));
 }
 
-export function createBenFastworkController({ db, getCurrentUser }) {
+export function createBenFastworkController({ db, getCurrentUser, onNavigateToDm }) {
     let shops = [];
     let reviews = [];
-    let chats = [];
     let selectedCategory = "all";
     let activeShopId = null;
     let editingShop = null;
-    let activeChatShopId = null;
 
     const els = {
         pills: () => document.getElementById("fwCategoryPills"),
@@ -66,19 +64,12 @@ export function createBenFastworkController({ db, getCurrentUser }) {
         shopCategory: () => document.getElementById("fwShopCategory"),
         shopDesc: () => document.getElementById("fwShopDesc"),
         shopPayment: () => document.getElementById("fwShopPayment"),
+        shopHiddenInput: () => document.getElementById("fwShopHiddenInput"),
         shopImageInput: () => document.getElementById("fwShopImageInput"),
         shopImagePreviewWrap: () => document.getElementById("fwShopImagePreviewWrap"),
         shopImagePreview: () => document.getElementById("fwShopImagePreview"),
         currentImageHint: () => document.getElementById("fwCurrentImageHint"),
         saveShopBtn: () => document.getElementById("fwSaveShopBtn"),
-        chatModal: () => document.getElementById("fwChatModal"),
-        chatTitle: () => document.getElementById("fwChatModalTitle"),
-        chatMessages: () => document.getElementById("fwChatMessages"),
-        chatForm: () => document.getElementById("fwChatForm"),
-        chatInput: () => document.getElementById("fwChatInput"),
-        orderNote: () => document.getElementById("fwOrderNoteInput"),
-        orderDeadline: () => document.getElementById("fwOrderDeadlineInput"),
-        requestOrderBtn: () => document.getElementById("fwRequestOrderBtn"),
         reviewModal: () => document.getElementById("fwReviewModal"),
         reviewForm: () => document.getElementById("fwReviewForm"),
         reviewPreview: () => document.getElementById("fwReviewAvgPreview"),
@@ -199,15 +190,13 @@ export function createBenFastworkController({ db, getCurrentUser }) {
         const loadingEl = els.loading();
         if (loadingEl) loadingEl.style.display = "block";
         try {
-            const [shopsSnap, reviewsSnap, chatsSnap] = await Promise.all([
+            const [shopsSnap, reviewsSnap] = await Promise.all([
                 getDocs(query(collection(db, COL_SHOPS), orderBy("createdAt", "desc"))).catch(() => getDocs(collection(db, COL_SHOPS))),
-                getDocs(collection(db, COL_REVIEWS)).catch(() => ({ docs: [] })),
-                getDocs(collection(db, COL_CHATS)).catch(() => ({ docs: [] }))
+                getDocs(collection(db, COL_REVIEWS)).catch(() => ({ docs: [] }))
             ]);
 
             shops = shopsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
             reviews = reviewsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-            chats = chatsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
         } catch (err) {
             console.error("BenFastwork load error:", err);
         } finally {
@@ -241,6 +230,8 @@ export function createBenFastworkController({ db, getCurrentUser }) {
         const user = getCurrentUser();
 
         const filtered = shops.filter((shop) => {
+            const isOwner = Boolean(user && shop.ownerUid === user.uid);
+            if (shop.isHidden && !isOwner) return false;
             const matchCat = catFilter === "all" || shop.category === catFilter;
             const hay = `${shop.title || ""} ${shop.description || ""} ${shop.category || ""} ${shop.ownerName || ""}`.toLowerCase();
             const matchSearch = !keyword || hay.includes(keyword);
@@ -256,6 +247,7 @@ export function createBenFastworkController({ db, getCurrentUser }) {
             const rating = computeAverageRating(shop.id);
             const likedBy = Array.isArray(shop.likedBy) ? shop.likedBy : [];
             const isLiked = user ? likedBy.includes(user.uid) : false;
+            const isHidden = Boolean(shop.isHidden);
             const safeTitle = escapeHtml(shop.title || "ร้านบริการ");
             const safeCat = escapeHtml(shop.category || "ทั่วไป");
             const safeDesc = escapeHtml(shop.description || "");
@@ -263,13 +255,17 @@ export function createBenFastworkController({ db, getCurrentUser }) {
             const imgBlock = shop.imageUrl
                 ? `<div class="fw-card-img-wrap"><img src="${escapeHtml(shop.imageUrl)}" alt="${safeTitle}"></div>`
                 : `<div class="fw-card-img-wrap"><span class="fw-card-img-placeholder">${safeCat}</span></div>`;
+            const hiddenBadge = isHidden ? `<span class="fw-hidden-badge">🙈 กำลังซ่อนอยู่</span>` : "";
 
             return `
-                <article class="fw-shop-card" data-shop-id="${escapeHtml(shop.id)}">
+                <article class="fw-shop-card ${isHidden ? "hidden-shop" : ""}" data-shop-id="${escapeHtml(shop.id)}">
                     ${imgBlock}
                     <div class="fw-card-body">
                         <div class="fw-card-top-row">
-                            <span class="fw-cat-badge">${safeCat}</span>
+                            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                                <span class="fw-cat-badge">${safeCat}</span>
+                                ${hiddenBadge}
+                            </div>
                             <span class="fw-rating-pill">⭐ ${rating.avgText} (${rating.count})</span>
                         </div>
                         <h3 class="fw-shop-title">${safeTitle}</h3>
@@ -324,6 +320,7 @@ export function createBenFastworkController({ db, getCurrentUser }) {
 
         const user = getCurrentUser();
         const isOwner = Boolean(user && shop.ownerUid === user.uid);
+        const isHidden = Boolean(shop.isHidden);
         const rating = computeAverageRating(shop.id);
         const shopReviews = getShopReviews(shop.id);
         const likedBy = Array.isArray(shop.likedBy) ? shop.likedBy : [];
@@ -333,16 +330,34 @@ export function createBenFastworkController({ db, getCurrentUser }) {
             ? `<img src="${escapeHtml(shop.imageUrl)}" alt="${safeTitle}" class="fw-detail-banner">`
             : "";
 
+        const ownerControlsHtml = isOwner
+            ? `
+                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                    <button type="button" class="fw-toggle-hide-btn" id="fwToggleHideShopBtn">
+                        ${isHidden ? "👁️ แสดงร้านค้าต่อสาธารณะ" : "🙈 ซ่อนร้านค้าจากสาธารณะ"}
+                    </button>
+                    <button type="button" class="btn-primary-sm" id="fwEditThisShopBtn">✏️ แก้ไขร้านของฉัน</button>
+                </div>
+            `
+            : "";
+
+        const dmButtonLabel = !isOwner
+            ? "✉️ ทักแชทส่วนตัวเจ้าของร้าน (DM)"
+            : "✉️ เปิดกล่องข้อความส่วนตัว (DM)";
+
         detailEl.innerHTML = `
             <div class="fw-detail-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:1rem; flex-wrap:wrap;">
                     <button type="button" class="fw-back-btn" id="fwBackToListBtn">← กลับหน้ารวมร้าน</button>
-                    ${isOwner ? `<button type="button" class="btn-primary-sm" id="fwEditThisShopBtn">✏️ แก้ไขร้านของฉัน</button>` : ""}
+                    ${ownerControlsHtml}
                 </div>
                 ${bannerHtml}
                 <div class="fw-detail-header-row">
                     <div>
-                        <span class="fw-cat-badge">${escapeHtml(shop.category || "บริการ")}</span>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <span class="fw-cat-badge">${escapeHtml(shop.category || "บริการ")}</span>
+                            ${isHidden ? `<span class="fw-hidden-badge">🙈 กำลังซ่อนอยู่จากสาธารณะ</span>` : ""}
+                        </div>
                         <h2 style="margin-top:0.45rem; font-size:1.3rem;">${safeTitle}</h2>
                         <div style="font-size:0.85rem; color:#64748B; margin-top:4px;">เจ้าของร้าน: <strong>${escapeHtml(shop.ownerName || "นักเรียนเบญฯ")}</strong></div>
                     </div>
@@ -359,7 +374,7 @@ export function createBenFastworkController({ db, getCurrentUser }) {
                     </button>
                     <span class="fw-sold-counter-badge">ปิดงานสำเร็จ: ${Number(shop.completedCount || 0)}</span>
                     <span class="fw-cancel-counter-badge">ยกเลิก: ${Number(shop.cancelledCount || 0)}</span>
-                    <button type="button" class="fw-chat-trigger-btn" id="fwOpenChatBtn">${!isOwner ? "💬 แชท / สั่งงาน" : "💬 ดูแชทและคำสั่งซื้อ"}</button>
+                    <button type="button" class="fw-chat-trigger-btn" id="fwGoToDmBtn">${dmButtonLabel}</button>
                     ${!isOwner ? `<button type="button" class="fw-review-trigger-btn" id="fwOpenReviewBtn">⭐ ให้คะแนน / รีวิว</button>` : ""}
                 </div>
                 <div style="margin-top:1.4rem;">
@@ -385,6 +400,10 @@ export function createBenFastworkController({ db, getCurrentUser }) {
             renderShops();
         });
 
+        document.getElementById("fwToggleHideShopBtn")?.addEventListener("click", async () => {
+            await toggleHideShop(shop.id);
+        });
+
         document.getElementById("fwEditThisShopBtn")?.addEventListener("click", () => {
             openShopModal(shop);
         });
@@ -393,13 +412,37 @@ export function createBenFastworkController({ db, getCurrentUser }) {
             toggleLikeShop(shop.id);
         });
 
-        document.getElementById("fwOpenChatBtn")?.addEventListener("click", () => {
-            openChatModal(shop.id);
+        document.getElementById("fwGoToDmBtn")?.addEventListener("click", () => {
+            const currentUser = requireSignedInUser();
+            if (!currentUser) return;
+            if (typeof onNavigateToDm === "function") {
+                onNavigateToDm({
+                    targetUid: isOwner ? "" : (shop.ownerUid || ""),
+                    targetName: isOwner ? "" : (shop.ownerName || "เจ้าของร้าน")
+                });
+            }
         });
 
         document.getElementById("fwOpenReviewBtn")?.addEventListener("click", () => {
             openReviewModal(shop.id);
         });
+    }
+
+    async function toggleHideShop(shopId) {
+        const user = requireSignedInUser();
+        if (!user) return;
+        const shop = shops.find((s) => s.id === shopId);
+        if (!shop || shop.ownerUid !== user.uid) {
+            alert("เฉพาะเจ้าของร้านเท่านั้นที่สามารถซ่อนหรือแสดงร้านค้านี้ได้ครับ");
+            return;
+        }
+        const nextHidden = !Boolean(shop.isHidden);
+        await updateDoc(doc(db, COL_SHOPS, shopId), {
+            isHidden: nextHidden,
+            updatedAt: serverTimestamp()
+        });
+        shop.isHidden = nextHidden;
+        renderShopDetail(shopId);
     }
 
     async function toggleLikeShop(shopId) {
@@ -435,6 +478,7 @@ export function createBenFastworkController({ db, getCurrentUser }) {
         els.shopCategory().value = myExistingShop?.category || FASTWORK_CATEGORIES[0];
         els.shopDesc().value = myExistingShop?.description || "";
         els.shopPayment().value = myExistingShop?.paymentNote || "";
+        if (els.shopHiddenInput()) els.shopHiddenInput().checked = Boolean(myExistingShop?.isHidden);
         if (els.shopImageInput()) els.shopImageInput().value = "";
 
         const hint = els.currentImageHint();
@@ -475,6 +519,7 @@ export function createBenFastworkController({ db, getCurrentUser }) {
                 category: els.shopCategory().value,
                 description: els.shopDesc().value.trim(),
                 paymentNote: els.shopPayment().value.trim(),
+                isHidden: Boolean(els.shopHiddenInput()?.checked),
                 imageUrl,
                 ownerUid: user.uid,
                 ownerName: user.nickname || user.email || "นักเรียนเบญฯ"
@@ -509,103 +554,6 @@ export function createBenFastworkController({ db, getCurrentUser }) {
                 btn.innerText = "บันทึกร้านบริการ";
             }
         }
-    }
-
-    function openChatModal(shopId) {
-        const user = requireSignedInUser();
-        if (!user) return;
-        activeChatShopId = shopId;
-        const shop = shops.find((s) => s.id === shopId);
-        els.chatTitle().innerText = `แชทกับร้าน: ${shop?.title || "ร้านบริการ"}`;
-        renderChatMessages();
-        els.chatModal().style.display = "flex";
-    }
-
-    function renderChatMessages() {
-        const box = els.chatMessages();
-        const user = getCurrentUser();
-        if (!box || !activeChatShopId) return;
-
-        const list = chats
-            .filter((m) => m.shopId === activeChatShopId)
-            .sort((a, b) => (a.createdAtMillis || 0) - (b.createdAtMillis || 0));
-
-        if (!list.length) {
-            box.innerHTML = `<div style="text-align:center; color:#64748B; font-size:0.84rem;">เริ่มพูดคุยหรือส่งคำขอสั่งงานได้เลยครับ</div>`;
-            return;
-        }
-
-        box.innerHTML = list.map((m) => {
-            const isMine = user && m.senderUid === user.uid;
-            if (m.type === "order") {
-                return `
-                    <div class="fw-order-card">
-                        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                            <strong>คำขอสั่งงาน: ${escapeHtml(m.orderNote || "-")}</strong>
-                            <span class="fw-order-status ${m.status || "pending"}">${escapeHtml(m.status || "pending")}</span>
-                        </div>
-                        <div style="font-size:0.78rem; color:#64748B; margin-top:4px;">กำหนดส่ง: ${escapeHtml(m.deadline || "ไม่ได้ระบุ")} • โดย ${escapeHtml(m.senderName || "ผู้สั่ง")}</div>
-                    </div>
-                `;
-            }
-            return `
-                <div class="fw-msg-bubble ${isMine ? "mine" : "theirs"}">
-                    <div class="fw-msg-sender">${escapeHtml(m.senderName || "ผู้ใช้งาน")}</div>
-                    <div>${escapeHtml(m.text || "")}</div>
-                </div>
-            `;
-        }).join("");
-        box.scrollTop = box.scrollHeight;
-    }
-
-    async function handleChatSubmit(e) {
-        e.preventDefault();
-        const user = requireSignedInUser();
-        if (!user || !activeChatShopId) return;
-        const text = els.chatInput().value.trim();
-        if (!text) return;
-
-        const docData = {
-            shopId: activeChatShopId,
-            type: "message",
-            text,
-            senderUid: user.uid,
-            senderName: user.nickname || user.email || "นักเรียนเบญฯ",
-            createdAtMillis: Date.now(),
-            createdAt: serverTimestamp()
-        };
-        await addDoc(collection(db, COL_CHATS), docData);
-        chats.push(docData);
-        els.chatInput().value = "";
-        renderChatMessages();
-    }
-
-    async function handleRequestOrder() {
-        const user = requireSignedInUser();
-        if (!user || !activeChatShopId) return;
-        const note = els.orderNote().value.trim();
-        const deadline = els.orderDeadline().value;
-        if (!note) {
-            alert("กรุณาระบุรายละเอียดงานที่ต้องการสั่งก่อนครับ");
-            return;
-        }
-
-        const docData = {
-            shopId: activeChatShopId,
-            type: "order",
-            orderNote: note,
-            deadline: deadline || "-",
-            status: "pending",
-            senderUid: user.uid,
-            senderName: user.nickname || user.email || "นักเรียนเบญฯ",
-            createdAtMillis: Date.now(),
-            createdAt: serverTimestamp()
-        };
-        await addDoc(collection(db, COL_CHATS), docData);
-        chats.push(docData);
-        els.orderNote().value = "";
-        els.orderDeadline().value = "";
-        renderChatMessages();
     }
 
     function updateReviewPreview() {
@@ -668,8 +616,6 @@ export function createBenFastworkController({ db, getCurrentUser }) {
             reader.readAsDataURL(file);
         });
         els.shopForm()?.addEventListener("submit", handleShopSubmit);
-        els.chatForm()?.addEventListener("submit", handleChatSubmit);
-        els.requestOrderBtn()?.addEventListener("click", handleRequestOrder);
         els.reviewForm()?.addEventListener("submit", handleReviewSubmit);
 
         document.querySelectorAll(".fw-score-input").forEach((el) => {
@@ -678,9 +624,6 @@ export function createBenFastworkController({ db, getCurrentUser }) {
 
         document.getElementById("fwCloseShopModalBtn")?.addEventListener("click", () => {
             if (els.shopModal()) els.shopModal().style.display = "none";
-        });
-        document.getElementById("fwCloseChatModalBtn")?.addEventListener("click", () => {
-            if (els.chatModal()) els.chatModal().style.display = "none";
         });
         document.getElementById("fwCloseReviewModalBtn")?.addEventListener("click", () => {
             if (els.reviewModal()) els.reviewModal().style.display = "none";
