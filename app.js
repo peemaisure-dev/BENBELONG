@@ -1976,7 +1976,7 @@ function renderNotes(notes) {
                     <span>✍️ จัดทำโดย: <strong style="color: var(--royal-blue); cursor: pointer; text-decoration: underline;" onclick="window.openUserProfile('${safeAuthorUid}', '${safeAuthor}', '${safeEmail}')">${safeAuthor}</strong></span>
                 </div>
                 <div class="card-actions">
-                    <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="btn-download">📥 ดาวน์โหลดไฟล์ PDF สรุป</a>
+                    <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="btn-download" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: linear-gradient(135deg, #2563EB, #1D4ED8); color: #FFFFFF; text-decoration: none; padding: 0.55rem 0.9rem; border-radius: 10px; font-weight: 600; font-size: 0.85rem; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);">📥 ดาวน์โหลดไฟล์ PDF สรุป</a>
                     <button type="button" class="btn-delete" style="${deleteBtnStyle}" onclick="window.deleteNote('${note.id}')">🗑️ ลบสรุปนี้</button>
                 </div>
             </div>
