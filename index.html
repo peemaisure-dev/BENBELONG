@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=17">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1D56B8">
     <link rel="apple-touch-icon" href="logo.jpg">
@@ -72,17 +72,20 @@
             </div>
 
             <nav class="sidebar-menu">
-                <a href="#" class="menu-item active" onclick="switchMainTab('calendar', this)">
+                <a href="#" class="menu-item active" onclick="switchMainTab('calendar', this); return false;">
                     <span>📅</span> ปฏิทินกิจกรรมโรงเรียน
                 </a>
-                <a href="#" class="menu-item" onclick="switchMainTab('outsideCalendar', this)">
+                <a href="#" class="menu-item" onclick="switchMainTab('outsideCalendar', this); return false;">
                     <span>🗓️</span> ปฏิทินกิจกรรมนอกโรงเรียน
                 </a>
-                <a href="#" class="menu-item" onclick="switchMainTab('community', this)">
+                <a href="#" class="menu-item" onclick="switchMainTab('community', this); return false;">
                     <span>💬</span> BenX
                 </a>
-                <a href="#" class="menu-item" onclick="switchMainTab('studyhub', this)">
+                <a href="#" class="menu-item" onclick="switchMainTab('studyhub', this); return false;">
                     <span>📚</span> คลังสรุป PDF (StudyHub)
+                </a>
+                <a href="#" class="menu-item" onclick="switchMainTab('benFastwork', this); return false;">
+                    <span>⚡</span> BenFastwork
                 </a>
             </nav>
 
@@ -283,13 +286,37 @@
                     </div>
                 </div>
 
-                <div class="container" style="max-width: 100%; padding: 1.5rem;">
-                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div class="container" style="max-width: 1120px; margin: 0 auto; padding: 1.5rem 1rem;">
+                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 1rem;">
                         <h2>รายการสรุป PDF ทั้งหมด (<span id="noteCount">0</span> รายการ)</h2>
                         <button class="btn-primary-sm" style="width: auto;" onclick="openUploadModal()">+ แจกชีทสรุป PDF</button>
                     </div>
                     <div id="notesLoading" class="loading-text">กำลังโหลดคลังสรุป...</div>
                     <div id="notesGrid" class="notes-grid"></div>
+                </div>
+            </div>
+
+            <!-- หน้า BenFastwork -->
+            <div id="benFastworkViewContainer" class="content-view-panel" style="display: none;">
+                <div class="fw-hero">
+                    <h1 class="hero-brand-title">BenFastwork</h1>
+                    <p>พื้นที่เปิดงานบริการเฉพาะในโรงเรียนเบญจมราชูทิศ • 1 บัญชีเปิดได้ 1 ร้าน • นัดแนะช่องทางชำระกันเอง</p>
+
+                    <div id="fwCategoryPills" class="fw-category-pills"></div>
+
+                    <div class="fw-toolbar">
+                        <input type="text" id="fwSearchInput" placeholder="ค้นหาร้านบริการ, ทักษะ หรือเจ้าของร้าน...">
+                        <select id="fwCategorySelect">
+                            <option value="all">ทุกหมวดหมู่บริการ</option>
+                        </select>
+                        <button type="button" id="fwMyShopActionBtn" class="btn-primary-sm" style="width: auto; background: #FFFFFF; color: #1D56B8;">+ เปิดร้านบริการของฉัน</button>
+                    </div>
+                </div>
+
+                <div class="calendar-container">
+                    <div id="fwLoading" class="loading-text">กำลังโหลดร้านบริการ BenFastwork...</div>
+                    <div id="fwShopsGrid" class="fw-shops-grid"></div>
+                    <div id="fwDetailContainer" style="display: none;"></div>
                 </div>
             </div>
 
@@ -306,7 +333,6 @@
                 <button type="button" id="tabRegisterBtn" class="auth-tab" onclick="switchAuthTab('register')">สร้างบัญชีใหม่</button>
             </div>
 
-            <!-- ฟอร์มเข้าสู่ระบบ -->
             <form id="loginForm">
                 <h3 style="color: var(--royal-blue); margin-bottom: 0.4rem;">🎓 เข้าสู่ระบบด้วยอีเมลโรงเรียน</h3>
                 <p class="modal-sub">เมื่อเข้าสู่ระบบแล้ว เปิดเว็บครั้งต่อไปเข้าใช้งานได้ทันทีโดยไม่ต้องล็อกอินซ้ำ</p>
@@ -321,189 +347,106 @@
                 <button type="submit" id="loginSubmitBtn" class="btn-submit">เข้าสู่ระบบ BENEFIT</button>
             </form>
 
-            <!-- ฟอร์มสมัครสมาชิก -->
             <form id="registerForm" style="display: none;">
                 <h3 style="color: var(--royal-blue); margin-bottom: 0.4rem;">✨ สร้างบัญชี BENEFIT</h3>
                 <p class="modal-sub">อีเมลนักเรียนรูปแบบ <strong>sXXXXX</strong> หรือ <strong>XXXXX</strong> (ตัวเลข 5 หลัก) ลงท้าย <strong>@ben.ac.th</strong> ส่วนอีเมลรูปแบบอื่น (@ben.ac.th) ต้องกรอกชื่อภาษาไทยล้วนและใส่ชื่อตัวเอง</p>
                 <div class="form-group">
-                    <label>อีเมลโรงเรียน *</label>
-                    <input type="email" id="regEmail" required placeholder="sXXXXX@ben.ac.th หรือ XXXXX@ben.ac.th" oninput="handleRegEmailInput()">
+                    <label>อีเมลโรงเรียน (@ben.ac.th) *</label>
+                    <input type="email" id="regEmail" required placeholder="sXXXXX@ben.ac.th" oninput="handleRegEmailInput()">
                 </div>
                 <div class="form-group">
                     <label id="regNicknameLabel">ตั้งชื่อที่อยากแสดง *</label>
-                    <input type="text" id="regNickname" required maxlength="25" placeholder="ตั้งชื่อที่อยากให้แสดงใน BenX และ StudyHub...">
-                    <small id="thaiNameHint" style="display: none; color: #B45309; font-size: 0.78rem; margin-top: 4px;">⚠️ อีเมลนี้ไม่อยู่ในรูปแบบ sXXXXX หรือ XXXXX ของนักเรียน กรุณากรอกชื่อภาษาไทยเท่านั้น ห้ามมีภาษาอังกฤษ และโปรดใส่ชื่อตัวเอง</small>
+                    <input type="text" id="regNickname" required maxlength="30" placeholder="กรอกชื่อที่ต้องการแสดง...">
+                    <small id="thaiNameHint" style="display: none; color: #DC2626; font-size: 0.78rem; margin-top: 4px;">* อีเมลรูปแบบนี้ต้องกรอกชื่อภาษาไทยเท่านั้น ห้ามมีภาษาอังกฤษ</small>
                 </div>
                 <div class="form-group">
                     <label>ตั้งรหัสผ่าน (อย่างน้อย 6 ตัวอักษร) *</label>
-                    <input type="password" id="regPassword" required minlength="6" placeholder="กำหนดรหัสผ่าน...">
+                    <input type="password" id="regPassword" required minlength="6" placeholder="ตั้งรหัสผ่าน...">
                 </div>
                 <button type="submit" id="regSubmitBtn" class="btn-submit">สร้างบัญชี</button>
             </form>
         </div>
     </div>
 
-    <!-- Modal แสดงโปรไฟล์ผู้ใช้งาน -->
-    <div id="userProfileModal" class="modal">
-        <div class="modal-content modal-sm" style="padding: 0; overflow: hidden; border-radius: 20px; text-align: center;">
-            <div style="background: linear-gradient(135deg, #1D56B8 0%, #3B82F6 60%, #EC4899 100%); height: 105px; position: relative;">
-                <span class="close-btn" onclick="closeModal('userProfileModal')" style="color: white; top: 12px; right: 16px; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">&times;</span>
-            </div>
-            <div style="margin-top: -52px; display: flex; justify-content: center; position: relative; z-index: 2;">
-                <div id="profileAvatarCircle" style="width: 104px; height: 104px; border-radius: 50%; background: #EFF6FF; border: 4px solid #FFFFFF; box-shadow: 0 6px 16px rgba(29, 86, 184, 0.25); display: flex; align-items: center; justify-content: center; font-size: 2.6rem; font-weight: 800; color: #1D56B8; overflow: hidden;">
-                    👤
+    <!-- Modal รหัสผ่านทีมงาน / พรรค -->
+    <div id="passwordModal" class="modal">
+        <div class="modal-content modal-sm">
+            <span class="close-btn" onclick="closeModal('passwordModal')">&times;</span>
+            <h3 style="color: var(--royal-blue); margin-bottom: 0.5rem;">🔐 เข้าสู่ระบบสมาชิกพรรค / ทีมงาน</h3>
+            <p class="modal-sub">กรอกรหัสผ่านสำหรับผู้ดูแลระบบ BENEFIT</p>
+            <form id="passwordForm">
+                <div class="form-group">
+                    <input type="password" id="adminPasswordInput" required placeholder="กรอกรหัสผ่านทีมงาน...">
                 </div>
-            </div>
-            <div style="padding: 1rem 1.5rem 1.8rem;">
-                <h3 id="profileModalUsername" style="color: #0F172A; font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem;">Username</h3>
-                <p id="profileModalEmail" style="color: #64748B; font-size: 0.88rem; font-weight: 500; word-break: break-all; margin-bottom: 0.9rem;">student@ben.ac.th</p>
-                <span style="display: inline-block; background: #EFF6FF; color: #1D56B8; font-size: 0.78rem; font-weight: 600; padding: 4px 12px; border-radius: 999px; border: 1px solid #BFDBFE;">
-                    🎓 บัญชีโรงเรียนเบญจมราชูทิศ ราชบุรี
-                </span>
-            </div>
+                <button type="submit" class="btn-submit">เข้าสู่ระบบ</button>
+            </form>
         </div>
     </div>
 
-    <!-- Modal แก้ไข Username -->
+    <!-- Modal เปลี่ยนชื่อแสดงผล -->
     <div id="editNicknameModal" class="modal">
         <div class="modal-content modal-sm">
             <span class="close-btn" onclick="closeModal('editNicknameModal')">&times;</span>
-            <h3 style="color: var(--royal-blue); margin-bottom: 0.5rem;">✏️ เปลี่ยน Username ของคุณ</h3>
-            <p class="modal-sub">บัญชีของคุณยังคงผูกกับอีเมลโรงเรียนเดิม แต่ชื่อที่แสดงจะอัปเดตทันที (เปลี่ยนได้เดือนละ 1 ครั้ง)</p>
+            <h3 style="color: var(--royal-blue); margin-bottom: 0.5rem;">✏️ เปลี่ยนชื่อแสดงผล</h3>
+            <p class="modal-sub">เปลี่ยนได้ 1 ครั้งทุก 30 วันครับ</p>
             <form id="editNicknameForm">
                 <div class="form-group">
-                    <input type="text" id="newNicknameInput" required maxlength="25" placeholder="กรอกชื่อใหม่...">
+                    <label>ชื่อแสดงผลใหม่ *</label>
+                    <input type="text" id="newNicknameInput" required maxlength="30" placeholder="กรอกชื่อใหม่...">
                 </div>
                 <button type="submit" id="saveNicknameBtn" class="btn-submit">บันทึกชื่อใหม่</button>
             </form>
         </div>
     </div>
 
-    <!-- Modal แสดงรายละเอียดอีเวนต์ -->
-    <div id="eventDetailModal" class="modal">
-        <div class="modal-content event-detail-content">
-            <span class="close-btn" onclick="closeModal('eventDetailModal')">&times;</span>
-            <div class="event-detail-header">
-                <span class="tag tag-grade">📅 รายละเอียดอีเวนต์</span>
-                <h2 id="modalEventTitle" class="modal-title-text">ชื่องานกิจกรรม</h2>
-            </div>
-            <div class="event-detail-body">
-                <div class="detail-row">
-                    <span class="detail-label">🗓️ วันที่จัดงาน:</span>
-                    <span id="modalEventDate" class="detail-value">--/--/----</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">⏰ เวลา:</span>
-                    <span id="modalEventTime" class="detail-value">--:-- น.</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">📍 สถานที่:</span>
-                    <span id="modalEventLocation" class="detail-value">สถานที่จัดงาน</span>
-                </div>
-                <div class="detail-box">
-                    <span class="detail-label" style="display: block; margin-bottom: 6px;">📝 รายละเอียดกิจกรรม:</span>
-                    <p id="modalEventDesc" class="detail-desc-text">รายละเอียดเนื้อหาทั้งหมด...</p>
-                </div>
-            </div>
-            <div id="modalActionFooter" style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;">
-                <div id="modalEditActionContainer"></div>
-                <div id="modalDeleteActionContainer"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal สำหรับ Feedback -->
-    <div id="feedbackModal" class="modal">
-        <div class="modal-content" style="max-width: 550px;">
-            <span class="close-btn" onclick="closeModal('feedbackModal')">&times;</span>
-            
-            <div id="studentFeedbackView">
-                <h3 style="color: var(--royal-blue); margin-bottom: 0.8rem; font-size: 1.2rem;">💡 ส่ง Feedback หรือแจ้งบัค</h3>
-                <p style="font-size: 0.9rem; color: #334155; line-height: 1.6; background: #F8FAFC; padding: 1rem; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 1.2rem;">
-                    ขอบคุณเพื่อนๆทุกคนที่เข้ามาใช้งาน BENEFIT ของเราน้าาา อยากได้อะไรเพิ่มเติมหรือเจอบัคใดๆส่ง feedback ให้เราได้เลย เราพร้อมอ่านและรับฟังทุกคนนะะ ❤️
-                </p>
-                <form id="feedbackForm">
-                    <div class="form-group">
-                        <label>ส่งในนาม (ดึงจากบัญชีของคุณอัตโนมัติ)</label>
-                        <input type="text" id="feedbackAuthor" readonly style="background: #F1F5F9; color: #475569;">
-                    </div>
-                    <div class="form-group">
-                        <label>ข้อความ Feedback / แจ้งบัค *</label>
-                        <textarea id="feedbackText" rows="4" required placeholder="พิมพ์ข้อเสนอแนะหรือแจ้งปัญหาที่พบได้ที่นี่เลย..." style="width: 100%; padding: 0.8rem; border: 1px solid #CBD5E1; border-radius: 10px; font-family: 'Prompt', sans-serif; font-size: 0.9rem; outline: none; resize: vertical;"></textarea>
-                    </div>
-                    <button type="submit" id="submitFeedbackBtn" class="btn-submit">ส่ง Feedback ให้ทีมงาน</button>
-                </form>
-            </div>
-
-            <div id="adminFeedbackView" style="display: none;">
-                <h3 style="color: var(--royal-blue); margin-bottom: 0.5rem; font-size: 1.2rem;">📖 กล่องข้อความ Feedback ทั้งหมด</h3>
-                <p class="modal-sub">รายการความคิดเห็นและแจ้งบัคที่ส่งมาจากเพื่อนๆ ในเว็บไซต์</p>
-                <div id="feedbackLoading" class="loading-text">กำลังโหลด Feedback...</div>
-                <div id="feedbackListContainer" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-top: 1rem;"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal แอดมิน -->
-    <div id="passwordModal" class="modal">
-        <div class="modal-content modal-sm">
-            <span class="close-btn" onclick="closeModal('passwordModal')">&times;</span>
-            <h3>🔐 เข้าสู่ระบบสมาชิกพรรค</h3>
-            <p class="modal-notice">สำหรับทีมงานพรรคใช้ยืนยันตัวตนเพื่อจัดการปฏิทินและเพิ่มชีทสรุป PDF ครับ</p>
-            <form id="passwordForm">
-                <div class="form-group">
-                    <input type="password" id="adminPasswordInput" required placeholder="กรอกรหัสผ่านทีมงานพรรค...">
-                </div>
-                <button type="submit" class="btn-submit">ยืนยันรหัสผ่าน</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal เพิ่ม / แก้ไขอีเวนต์ (ในโรงเรียน / นอกโรงเรียน) -->
+    <!-- Modal เพิ่ม / แก้ไขอีเวนต์ -->
     <div id="eventModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal('eventModal')">&times;</span>
-            <h2 id="eventModalTitle">📅 เพิ่มอีเวนต์ / กิจกรรมสำคัญในปฏิทิน</h2>
-            <p class="modal-sub">กำหนดวันเวลาและรายละเอียดกิจกรรมเพื่อให้ทุกคนในโรงเรียนได้รับทราบ</p>
+            <h3 id="eventModalTitle" style="color: var(--royal-blue); margin-bottom: 0.75rem;">+ เพิ่มอีเวนต์กิจกรรม</h3>
             <form id="eventForm">
                 <div class="form-group">
-                    <label>ชื่องาน / กิจกรรม *</label>
-                    <input type="text" id="eventTitle" required placeholder="เช่น ดีเบตผู้สมัครประธานนักเรียน">
+                    <label>ชื่อกิจกรรม *</label>
+                    <input type="text" id="eventTitle" required placeholder="เช่น กีฬาสีประจำปี / สอบกลางภาค">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>วันที่เริ่มจัดงาน *</label>
+                        <label>วันที่เริ่ม *</label>
                         <input type="date" id="eventDate" required>
                     </div>
                     <div class="form-group">
-                        <label>ถึงวันที่ (ไม่บังคับ หากจัดวันเดียว)</label>
+                        <label>วันที่สิ้นสุด (ถ้ามี)</label>
                         <input type="date" id="eventEndDate">
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>เวลา *</label>
-                    <input type="text" id="eventTime" required placeholder="เช่น 09:00 - 11:30 น.">
-                </div>
-                <div class="form-group">
-                    <label>สถานที่ *</label>
-                    <input type="text" id="eventLocation" required placeholder="เช่น หอประชุมโรงเรียนเบญจมราชูทิศ">
-                </div>
-                <div class="form-group">
-                    <label>รายละเอียดเพิ่มเติม *</label>
-                    <input type="text" id="eventDesc" required placeholder="เช่น แจกนโยบายหาเสียงรอบสุดท้าย">
-                </div>
-                <div class="form-group">
-                    <label>แนบรูปภาพโปสเตอร์ / เนื้อหากิจกรรม (เฉพาะบัญชีพรรค • ไม่บังคับ • สูงสุด 5 MB)</label>
-                    <input type="file" id="eventImageInput" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp">
-                    <small id="currentEventImageHint" style="display: none; margin-top: 6px; font-size: 0.78rem; color: #1D56B8;"></small>
-                    <div id="removeEventImageWrap" style="display: none; margin-top: 8px;">
-                        <button type="button" id="removeEventImageBtn" onclick="window.removeCurrentEventImage()" style="background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; padding: 5px 12px; border-radius: 8px; font-family: 'Prompt', sans-serif; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
-                            🗑️ ลบรูปภาพนี้ออก
-                        </button>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>เวลา</label>
+                        <input type="text" id="eventTime" placeholder="เช่น 08.30-15.30">
+                    </div>
+                    <div class="form-group">
+                        <label>สถานที่</label>
+                        <input type="text" id="eventLocation" placeholder="เช่น หอประชุม / โดม">
                     </div>
                 </div>
-                <button type="submit" id="eventSubmitBtn" class="btn-submit">บันทึกอีเวนต์ลงปฏิทิน</button>
+                <div class="form-group">
+                    <label>รายละเอียดเพิ่มเติม</label>
+                    <textarea id="eventDescription" class="x-textarea" rows="3" placeholder="รายละเอียดของกิจกรรม..."></textarea>
+                </div>
+                <button type="submit" id="saveEventBtn" class="btn-submit">บันทึกกิจกรรม</button>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal รายละเอียดอีเวนต์ -->
+    <div id="eventDetailModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('eventDetailModal')">&times;</span>
+            <h3 id="detailEventTitle" style="color: var(--royal-blue); margin-bottom: 0.5rem;">รายละเอียดกิจกรรม</h3>
+            <div class="detail-row"><span class="detail-label">📅 วันที่:</span><span id="detailEventDate">-</span></div>
+            <div class="detail-row"><span class="detail-label">⏰ เวลา:</span><span id="detailEventTime">-</span></div>
+            <div class="detail-row"><span class="detail-label">📍 สถานที่:</span><span id="detailEventLocation">-</span></div>
+            <div class="detail-box" id="detailEventDesc">-</div>
         </div>
     </div>
 
@@ -511,12 +454,11 @@
     <div id="uploadModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal('uploadModal')">&times;</span>
-            <h2>📤 แจกชีทสรุป PDF ใหม่</h2>
-            <p class="modal-sub">แชร์ในนาม: <strong id="uploadDisplayNickname" style="color: var(--royal-blue);">ผู้ใช้งาน</strong></p>
+            <h3 style="color: var(--royal-blue); margin-bottom: 0.5rem;">📚 แจกชีทสรุป PDF (StudyHub)</h3>
             <form id="uploadForm">
                 <div class="form-group">
-                    <label>ชื่อเรื่องสรุป *</label>
-                    <input type="text" id="noteTitle" required placeholder="เช่น สรุปคลื่นกล ฟิสิกส์ ม.5">
+                    <label>ชื่อเรื่อง / บทเรียน *</label>
+                    <input type="text" id="noteTitle" required placeholder="เช่น สรุปฟิสิกส์ SHM และคลื่น">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -526,12 +468,12 @@
                             <option value="ม.2">ม.2</option>
                             <option value="ม.3">ม.3</option>
                             <option value="ม.4">ม.4</option>
-                            <option value="ม.5" selected>ม.5</option>
+                            <option value="ม.5">ม.5</option>
                             <option value="ม.6">ม.6</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>วิชา *</label>
+                        <label>กลุ่มสาระวิชา *</label>
                         <select id="noteSubject" required>
                             <option value="คณิตศาสตร์">คณิตศาสตร์</option>
                             <option value="วิทยาศาสตร์ (ม.1-3)">วิทยาศาสตร์ (ม.1-3)</option>
@@ -548,27 +490,120 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>ลิงก์ไฟล์ PDF (Google Drive) *</label>
-                    <input type="url" id="noteFileUrl" required placeholder="https://drive.google.com/file/d/..." oninput="resetDriveVerificationState()">
-                    <small id="driveVerifyStatus" style="display: block; margin-top: 6px; font-size: 0.8rem; color: #64748B;">
-                        ระบบจะตรวจสอบสิทธิ์ "ทุกคนที่มีลิงก์" อัตโนมัติก่อนบันทึกชีทครับ
-                    </small>
+                    <label>ลิงก์ Google Drive (ตั้งค่าแชร์เป็น "ทุกคนที่มีลิงก์") *</label>
+                    <input type="url" id="noteUrl" required placeholder="https://drive.google.com/...">
                 </div>
-                <button type="submit" id="submitBtn" class="btn-submit">บันทึกสรุป PDF ขึ้นเว็บทันที</button>
+                <button type="submit" id="uploadSubmitBtn" class="btn-submit">เผยแพร่ชีทสรุป</button>
             </form>
         </div>
     </div>
 
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js?v=12')
-            .then((reg) => console.log('Service Worker Registered!', reg))
-            .catch((err) => console.log('Service Worker Failed', err));
-        });
-      }
-    </script>
+    <!-- Modal ส่ง Feedback / แจ้งบัค -->
+    <div id="feedbackModal" class="modal">
+        <div class="modal-content modal-sm">
+            <span class="close-btn" onclick="closeModal('feedbackModal')">&times;</span>
+            <h3 style="color: var(--royal-blue); margin-bottom: 0.5rem;">💡 ส่ง Feedback / แจ้งบัค</h3>
+            <form id="feedbackForm">
+                <div class="form-group">
+                    <label>รายละเอียดข้อเสนอแนะหรือปัญหาที่พบ *</label>
+                    <textarea id="feedbackText" class="x-textarea" rows="4" required maxlength="500" placeholder="พิมพ์ข้อความถึงทีมพัฒนา BENEFIT..."></textarea>
+                </div>
+                <button type="submit" class="btn-submit">ส่งข้อความ</button>
+            </form>
+        </div>
+    </div>
 
-    <script type="module" src="app.js?v=12"></script>
+    <!-- Modal เปิด / แก้ไขร้าน BenFastwork -->
+    <div id="fwShopModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" id="fwCloseShopModalBtn">&times;</span>
+            <h3 id="fwShopModalTitle" style="color: var(--royal-blue); margin-bottom: 0.4rem;">เปิดร้านบริการ BenFastwork</h3>
+            <p class="modal-sub">จำกัด 1 บัญชีต่อ 1 ร้านบริการ และกรุณานัดแนะช่องทางรับงาน/ชำระเงินกันเองอย่างสุภาพครับ</p>
+            <form id="fwShopForm">
+                <div class="form-group">
+                    <label>ชื่อร้าน / ชื่องานบริการ *</label>
+                    <input type="text" id="fwShopTitle" required maxlength="80" placeholder="เช่น รับติวฟิสิกส์ ม.5 / ถ่ายรูปรับปริญญา / ทำสไลด์">
+                </div>
+                <div class="form-group">
+                    <label>หมวดหมู่บริการ *</label>
+                    <select id="fwShopCategory" required></select>
+                </div>
+                <div class="form-group">
+                    <label>รายละเอียดบริการและเรทราคาเบื้องต้น *</label>
+                    <textarea id="fwShopDesc" class="x-textarea" rows="3" required maxlength="500" placeholder="อธิบายรายละเอียดงาน ระยะเวลา และเรทราคาให้ชัดเจน..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>ช่องทางติดต่อ / นัดแนะการชำระเงิน</label>
+                    <input type="text" id="fwShopPayment" maxlength="120" placeholder="เช่น นัดเจอหน้าอาคาร 1 หรือทักแชทในระบบ">
+                </div>
+                <button type="submit" id="fwSaveShopBtn" class="btn-submit">บันทึกร้านบริการ</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal พูดคุย & สั่งซื้อ BenFastwork -->
+    <div id="fwChatModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" id="fwCloseChatModalBtn">&times;</span>
+            <h3 id="fwChatModalTitle" style="color: var(--royal-blue); margin-bottom: 0.5rem;">แชทและคำขอสั่งซื้อ</h3>
+            <div id="fwOrderBox" class="fw-order-action-box">
+                <div class="fw-order-inline">
+                    <input type="text" id="fwOrderNoteInput" placeholder="ระบุรายละเอียดงานที่ต้องการสั่ง..." style="flex: 1; min-width: 160px;">
+                    <input type="date" id="fwOrderDeadlineInput">
+                    <button type="button" id="fwRequestOrderBtn">ส่งคำขอสั่งซื้อ</button>
+                </div>
+                <div class="fw-deadline-lock-note">เมื่อส่งคำขอแล้ว เจ้าของร้านสามารถกดยืนยันหรือยกเลิกได้ตามกำหนดวันส่งงานครับ</div>
+            </div>
+            <div id="fwChatMessages" class="fw-chat-box"></div>
+            <form id="fwChatForm" style="margin-top: 0.75rem; display: flex; gap: 8px;">
+                <input type="text" id="fwChatInput" required placeholder="พิมพ์ข้อความพูดคุย..." style="flex: 1; padding: 0.6rem 0.8rem; border: 1px solid #CBD5E1; border-radius: 10px; font-family: 'Prompt', sans-serif;">
+                <button type="submit" class="btn-primary-sm">ส่ง</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal รีวิว 4 ด้าน BenFastwork -->
+    <div id="fwReviewModal" class="modal">
+        <div class="modal-content modal-sm">
+            <span class="close-btn" id="fwCloseReviewModalBtn">&times;</span>
+            <h3 style="color: var(--royal-blue); margin-bottom: 0.5rem;">ให้คะแนนและรีวิวร้าน</h3>
+            <div id="fwReviewAvgPreview" class="fw-preview-avg-box">คะแนนเฉลี่ยโดยประมาณ: 5.0 / 5.0</div>
+            <form id="fwReviewForm">
+                <div class="fw-rating-grid">
+                    <div class="form-group">
+                        <label>คุณภาพงาน (1-5)</label>
+                        <select id="fwScoreQuality" class="fw-score-input">
+                            <option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>ความตรงต่อเวลา (1-5)</label>
+                        <select id="fwScoreTime" class="fw-score-input">
+                            <option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>การสื่อสาร (1-5)</label>
+                        <select id="fwScoreComm" class="fw-score-input">
+                            <option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>ความคุ้มค่า (1-5)</label>
+                        <select id="fwScoreValue" class="fw-score-input">
+                            <option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>ความคิดเห็นเพิ่มเติม</label>
+                    <textarea id="fwReviewComment" class="x-textarea" rows="2" maxlength="250" placeholder="แชร์ประสบการณ์การใช้บริการ..."></textarea>
+                </div>
+                <button type="submit" class="btn-submit">ส่งรีวิว</button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="app.js?v=17"></script>
 </body>
 </html>
