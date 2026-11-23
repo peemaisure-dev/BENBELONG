@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BENEFIT | แพลตฟอร์มกลางโรงเรียนเบญจมราชูทิศ ราชบุรี</title>
+    <link rel="icon" type="image/jpeg" href="logo.jpg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=17">
+    <link rel="stylesheet" href="style.css?v=18">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1D56B8">
     <link rel="apple-touch-icon" href="logo.jpg">
@@ -25,7 +26,7 @@
             <p>โรงเรียนเบญจมราชูทิศ ราชบุรี • เข้าใช้งานด้วยอีเมลโรงเรียน</p>
             
             <div class="role-buttons">
-                <button class="role-btn btn-student" onclick="handleStudentEntry()">
+                <button type="button" class="role-btn btn-student" onclick="handleStudentEntry()">
                     <span class="role-icon">🎓</span>
                     <div>
                         <h3>คุณครู / นักเรียนโรงเรียนเบญฯ</h3>
@@ -33,7 +34,7 @@
                     </div>
                 </button>
                 
-                <button class="role-btn btn-admin" onclick="openAdminPasswordModal()">
+                <button type="button" class="role-btn btn-admin" onclick="openAdminPasswordModal()">
                     <span class="role-icon">🔐</span>
                     <div>
                         <h3>สมาชิกพรรค / ทีมงาน</h3>
@@ -62,13 +63,13 @@
                     <img src="logo.jpg" alt="BENEFIT Logo" class="sidebar-logo-img" onerror="this.style.display='none'; document.getElementById('sidebarFallback').style.display='block';">
                     <span id="sidebarFallback" class="brand-logo-small" style="display: none;">BENEFIT</span>
                 </div>
-                <button class="btn-close-sidebar" onclick="toggleSidebar()">✕</button>
+                <button type="button" class="btn-close-sidebar" onclick="toggleSidebar()">✕</button>
             </div>
             
             <div class="sidebar-user-info">
                 <span id="userRoleBadge" class="badge-demo">นักเรียน / คุณครู</span>
                 <div id="userAccountSubInfo" style="font-size: 0.75rem; color: #64748B; margin-top: 6px; word-break: break-all;"></div>
-                <button id="editNicknameBtn" onclick="openEditNicknameModal()" style="display: none; margin-top: 6px; background: #E2E8F0; border: none; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; cursor: pointer; font-weight: 600; color: #334155;">✏️ เปลี่ยน Username</button>
+                <button type="button" id="editNicknameBtn" onclick="openEditNicknameModal()" style="display: none; margin-top: 6px; background: #E2E8F0; border: none; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; cursor: pointer; font-weight: 600; color: #334155;">✏️ เปลี่ยน Username</button>
             </div>
 
             <nav class="sidebar-menu">
@@ -90,8 +91,8 @@
             </nav>
 
             <div class="sidebar-footer">
-                <button id="sidebarFeedbackBtn" class="btn-feedback-menu" onclick="openFeedbackModal()">💡 ส่ง Feedback / แจ้งบัค</button>
-                <button id="logoutBtn" class="btn-logout" onclick="logoutToLanding()">🚪 ออกจากระบบ</button>
+                <button type="button" id="sidebarFeedbackBtn" class="btn-feedback-menu" onclick="openFeedbackModal()">💡 ส่ง Feedback / แจ้งบัค</button>
+                <button type="button" id="logoutBtn" class="btn-logout" onclick="logoutToLanding()">🚪 ออกจากระบบ</button>
             </div>
         </aside>
 
@@ -99,7 +100,7 @@
             
             <header class="top-navbar">
                 <div class="nav-left-group">
-                    <button class="btn-toggle-sidebar" onclick="toggleSidebar()">☰</button>
+                    <button type="button" class="btn-toggle-sidebar" onclick="toggleSidebar()">☰</button>
                     <div class="top-nav-brand-container">
                         <img src="logo.jpg" alt="BENEFIT" class="topnav-logo-img" onerror="this.style.display='none'; document.getElementById('topnavFallback').style.display='block';">
                         <span id="topnavFallback" class="top-nav-brand" style="display: none;">BENEFIT</span>
@@ -119,9 +120,9 @@
                 <div class="calendar-container">
                     <div class="calendar-toolbar-card">
                         <div class="month-navigator">
-                            <button class="btn-icon-nav" onclick="changeMonth('school', -1)">◀</button>
+                            <button type="button" class="btn-icon-nav" onclick="changeMonth('school', -1)">◀</button>
                             <h3 id="currentMonthYearLabel">อีเวนต์ทั้งหมด</h3>
-                            <button class="btn-icon-nav" onclick="changeMonth('school', 1)">▶</button>
+                            <button type="button" class="btn-icon-nav" onclick="changeMonth('school', 1)">▶</button>
                         </div>
                         <div class="calendar-toolbar-actions">
                             <select id="monthSelect" class="date-dropdown" onchange="onMonthSelectChange('school', this.value)">
@@ -149,7 +150,7 @@
                                 <option value="2031">2031</option>
                                 <option value="2032">2032</option>
                             </select>
-                            <button class="btn-primary-sm add-event-quick-btn" onclick="openEventModal('school')" style="display: none;">+ เพิ่มอีเวนต์</button>
+                            <button type="button" class="btn-primary-sm add-event-quick-btn" onclick="openEventModal('school')" style="display: none;">+ เพิ่มอีเวนต์</button>
                         </div>
                     </div>
 
@@ -167,9 +168,9 @@
                 <div class="calendar-container">
                     <div class="calendar-toolbar-card">
                         <div class="month-navigator">
-                            <button class="btn-icon-nav" onclick="changeMonth('outside', -1)">◀</button>
+                            <button type="button" class="btn-icon-nav" onclick="changeMonth('outside', -1)">◀</button>
                             <h3 id="outsideCurrentMonthYearLabel">อีเวนต์ทั้งหมด</h3>
-                            <button class="btn-icon-nav" onclick="changeMonth('outside', 1)">▶</button>
+                            <button type="button" class="btn-icon-nav" onclick="changeMonth('outside', 1)">▶</button>
                         </div>
                         <div class="calendar-toolbar-actions">
                             <select id="outsideMonthSelect" class="date-dropdown" onchange="onMonthSelectChange('outside', this.value)">
@@ -197,7 +198,7 @@
                                 <option value="2031">2031</option>
                                 <option value="2032">2032</option>
                             </select>
-                            <button class="btn-primary-sm add-event-quick-btn" onclick="openEventModal('outside')" style="display: none;">+ เพิ่มอีเวนต์</button>
+                            <button type="button" class="btn-primary-sm add-event-quick-btn" onclick="openEventModal('outside')" style="display: none;">+ เพิ่มอีเวนต์</button>
                         </div>
                     </div>
 
@@ -289,7 +290,7 @@
                 <div class="container" style="max-width: 1120px; margin: 0 auto; padding: 1.5rem 1rem;">
                     <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 1rem;">
                         <h2>รายการสรุป PDF ทั้งหมด (<span id="noteCount">0</span> รายการ)</h2>
-                        <button class="btn-primary-sm" style="width: auto;" onclick="openUploadModal()">+ แจกชีทสรุป PDF</button>
+                        <button type="button" class="btn-primary-sm" style="width: auto;" onclick="openUploadModal()">+ แจกชีทสรุป PDF</button>
                     </div>
                     <div id="notesLoading" class="loading-text">กำลังโหลดคลังสรุป...</div>
                     <div id="notesGrid" class="notes-grid"></div>
@@ -536,6 +537,14 @@
                     <label>ช่องทางติดต่อ / นัดแนะการชำระเงิน</label>
                     <input type="text" id="fwShopPayment" maxlength="120" placeholder="เช่น นัดเจอหน้าอาคาร 1 หรือทักแชทในระบบ">
                 </div>
+                <div class="form-group">
+                    <label>รูปภาพหน้าร้าน / ตัวอย่างผลงาน (.jpg, .png, .webp ไม่เกิน 5 MB)</label>
+                    <input type="file" id="fwShopImageInput" accept="image/jpeg,image/png,image/webp">
+                    <small id="fwCurrentImageHint" style="display: none; color: #1D56B8; font-size: 0.78rem; margin-top: 4px;"></small>
+                    <div id="fwShopImagePreviewWrap" style="display: none; margin-top: 8px;">
+                        <img id="fwShopImagePreview" src="" alt="Preview" style="width: 100%; max-height: 180px; object-fit: cover; border-radius: 12px; border: 1px solid #CBD5E1;">
+                    </div>
+                </div>
                 <button type="submit" id="fwSaveShopBtn" class="btn-submit">บันทึกร้านบริการ</button>
             </form>
         </div>
@@ -604,6 +613,6 @@
         </div>
     </div>
 
-    <script type="module" src="app.js?v=17"></script>
+    <script type="module" src="app.js?v=18"></script>
 </body>
 </html>
