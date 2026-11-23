@@ -7,7 +7,37 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=13">
+    <style>
+      .modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(15, 23, 42, 0.55);
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      }
+      .brand-logo-img {
+        max-width: 140px;
+        max-height: 140px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        border-radius: 16px;
+      }
+      .sidebar-logo-img {
+        max-height: 44px;
+        width: auto;
+        object-fit: contain;
+      }
+      .topnav-logo-img {
+        max-height: 36px;
+        width: auto;
+        object-fit: contain;
+      }
+    </style>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1D56B8">
     <link rel="apple-touch-icon" href="logo.jpg">
@@ -333,7 +363,6 @@
                 <button type="button" id="tabRegisterBtn" class="auth-tab" onclick="switchAuthTab('register')">สร้างบัญชีใหม่</button>
             </div>
 
-            <!-- ฟอร์มเข้าสู่ระบบ -->
             <form id="loginForm">
                 <h3 style="color: var(--royal-blue); margin-bottom: 0.4rem;">🎓 เข้าสู่ระบบด้วยอีเมลโรงเรียน</h3>
                 <p class="modal-sub">เมื่อเข้าสู่ระบบแล้ว เปิดเว็บครั้งต่อไปเข้าใช้งานได้ทันทีโดยไม่ต้องล็อกอินซ้ำ</p>
@@ -348,7 +377,6 @@
                 <button type="submit" id="loginSubmitBtn" class="btn-submit">เข้าสู่ระบบ BENEFIT</button>
             </form>
 
-            <!-- ฟอร์มสมัครสมาชิก -->
             <form id="registerForm" style="display: none;">
                 <h3 style="color: var(--royal-blue); margin-bottom: 0.4rem;">✨ สร้างบัญชี BENEFIT</h3>
                 <p class="modal-sub">อีเมลนักเรียนรูปแบบ <strong>sXXXXX</strong> หรือ <strong>XXXXX</strong> (ตัวเลข 5 หลัก) ลงท้าย <strong>@ben.ac.th</strong> ส่วนอีเมลรูปแบบอื่น (@ben.ac.th) ต้องกรอกชื่อภาษาไทยล้วนและใส่ชื่อตัวเอง</p>
