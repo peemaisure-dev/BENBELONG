@@ -84,6 +84,9 @@
                 <a href="#" class="menu-item" onclick="switchMainTab('studyhub', this)">
                     <span>📚</span> คลังสรุป PDF (StudyHub)
                 </a>
+                <a href="#" class="menu-item" onclick="switchMainTab('benFastwork', this)">
+                    <span>⚡</span> BenFastwork
+                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -290,6 +293,30 @@
                     </div>
                     <div id="notesLoading" class="loading-text">กำลังโหลดคลังสรุป...</div>
                     <div id="notesGrid" class="notes-grid"></div>
+                </div>
+            </div>
+
+            <!-- หน้า BenFastwork (ตลาดเปิดบริการสเกลโรงเรียนเบญฯ) -->
+            <div id="benFastworkViewContainer" class="content-view-panel" style="display: none;">
+                <div class="fw-hero">
+                    <h1 class="hero-brand-title">BenFastwork</h1>
+                    <p>พื้นที่เปิดงานบริการเฉพาะในโรงเรียนเบญจมราชูทิศ • 1 บัญชีเปิดได้ 1 ร้าน • นัดแนะช่องทางชำระกันเอง</p>
+
+                    <div id="fwCategoryPills" class="fw-category-pills"></div>
+
+                    <div class="fw-toolbar">
+                        <input type="text" id="fwSearchInput" placeholder="ค้นหาร้านบริการ, ทักษะ หรือเจ้าของร้าน..." oninput="renderFastworkShops()">
+                        <select id="fwCategorySelect" onchange="renderFastworkShops()">
+                            <option value="all">ทุกหมวดหมู่บริการ</option>
+                        </select>
+                        <button type="button" id="fwMyShopActionBtn" class="btn-primary-sm" style="width: auto;" onclick="openCreateOrEditShopModal()">+ เปิดร้านบริการของฉัน</button>
+                    </div>
+                </div>
+
+                <div class="container" style="max-width: 100%; padding: 1.5rem;">
+                    <div id="fwShopDetailPanel" style="display: none; margin-bottom: 1.5rem;"></div>
+                    <div id="fwShopsLoading" class="loading-text">กำลังโหลดร้านบริการในโรงเรียน...</div>
+                    <div id="fwShopsGrid" class="fw-shops-grid"></div>
                 </div>
             </div>
 
@@ -559,16 +586,139 @@
         </div>
     </div>
 
+    <!-- Modal สร้าง / แก้ไขร้านบริการ BenFastwork (1 บัญชี = 1 ร้าน) -->
+    <div id="fwShopModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('fwShopModal')">&times;</span>
+            <h2 id="fwShopModalTitle">⚡ เปิดร้านบริการบน BenFastwork</h2>
+            <p class="modal-sub">1 บัญชีเปิดได้ 1 ร้านเท่านั้น • เฉพาะ "บริการ" ในโรงเรียนเบญฯ • การจ่ายเงินนัดแนะกันเอง</p>
+            <form id="fwShopForm">
+                <div class="form-group">
+                    <label>ชื่อร้านบริการ *</label>
+                    <input type="text" id="fwShopName" required maxlength="80" placeholder="เช่น รับติวฟิสิกส์ ม.ปลาย / ถ่ายรูปงานโรงเรียน">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>หมวดหมู่บริการ *</label>
+                        <select id="fwShopCategory" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label>เรทราคาเริ่มต้น (ระบุเป็นข้อความ/ตัวเลข) *</label>
+                        <input type="text" id="fwShopPriceHint" required maxlength="50" placeholder="เช่น เริ่มต้น 80 บาท หรือ ตามตกลง">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>คำอธิบายบริการ รายละเอียด และช่องทางนัดรับ/ชำระเงิน *</label>
+                    <textarea id="fwShopDesc" rows="4" required maxlength="600" placeholder="อธิบายขอบเขตงานบริการ เวลาว่าง และนัดแนะการโอนเงินหรือเงินสดกับผู้ว่าจ้างเอง..." style="width: 100%; padding: 0.75rem; border: 1px solid #CBD5E1; border-radius: 10px; font-family: 'Prompt', sans-serif; font-size: 0.9rem; resize: vertical;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>รูปภาพเกี่ยวกับร้านบริการ (ไม่บังคับ • สูงสุด 5 MB)</label>
+                    <input type="file" id="fwShopImageInput" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp">
+                    <small id="fwShopExistingImageHint" style="display: none; margin-top: 6px; font-size: 0.78rem; color: #1D56B8;"></small>
+                </div>
+                <button type="submit" id="fwShopSubmitBtn" class="btn-submit">บันทึกร้านบริการ</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal แชทพูดคุย & ยืนยันการซื้อบริการกับเจ้าของร้าน -->
+    <div id="fwChatModal" class="modal">
+        <div class="modal-content" style="max-width: 620px;">
+            <span class="close-btn" onclick="closeModal('fwChatModal')">&times;</span>
+            <h2 id="fwChatShopTitle">💬 แชทกับร้านบริการ</h2>
+            <p id="fwChatSubtitle" class="modal-sub">พูดคุยรายละเอียดและนัดแนะช่องทางจ่ายเงินกันเองได้เลยครับ</p>
+
+            <div id="fwBuyerOrderBox" class="fw-order-action-box">
+                <div style="font-weight: 700; color: #1D56B8; margin-bottom: 8px;">🛒 ผู้ซื้อ: กดแจ้งต้องการสั่งซื้อบริการและเลือกวัน Deadline</div>
+                <div class="fw-order-inline">
+                    <input type="date" id="fwOrderDeadlineInput" required>
+                    <input type="text" id="fwOrderNoteInput" maxlength="120" placeholder="รายละเอียดสั้นๆ เช่น ติวบทคลื่นกล 2 ชม.">
+                    <button type="button" id="fwRequestOrderBtn" onclick="window.requestFastworkOrder()">ต้องการสั่งซื้อบริการ</button>
+                </div>
+            </div>
+
+            <div id="fwChatMessagesList" class="fw-chat-box"></div>
+
+            <form id="fwChatMessageForm" style="margin-top: 10px; display: flex; gap: 8px;">
+                <input type="text" id="fwChatInput" required maxlength="300" placeholder="พิมพ์ข้อความแชท..." style="flex: 1; padding: 0.65rem 0.9rem; border: 1px solid #CBD5E1; border-radius: 10px; font-family: 'Prompt', sans-serif; font-size: 0.9rem;">
+                <button type="submit" id="fwSendChatBtn" class="btn-primary-sm" style="width: auto; padding: 0.65rem 1.1rem;">ส่ง</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal รีวิว 4 ด้าน (เฉลี่ย 1 ตำแหน่ง) + คอมเมนต์ -->
+    <div id="fwReviewModal" class="modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <span class="close-btn" onclick="closeModal('fwReviewModal')">&times;</span>
+            <h2>⭐ ให้คะแนนรีวิว 4 ด้าน</h2>
+            <p class="modal-sub">ระบบจะคำนวณค่าเฉลี่ย 4 ด้านแล้วปัดเป็นทศนิยม 1 ตำแหน่งอัตโนมัติ</p>
+            <form id="fwReviewForm">
+                <div class="fw-rating-grid">
+                    <div class="form-group">
+                        <label>1. ตอบแชทเร็ว (1-5 ดาว)</label>
+                        <select id="fwStarChat" required>
+                            <option value="5">5 ดาว ★★★★★</option>
+                            <option value="4">4 ดาว ★★★★☆</option>
+                            <option value="3">3 ดาว ★★★☆☆</option>
+                            <option value="2">2 ดาว ★★☆☆☆</option>
+                            <option value="1">1 ดาว ★☆☆☆☆</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>2. บริการ (1-5 ดาว)</label>
+                        <select id="fwStarService" required>
+                            <option value="5">5 ดาว ★★★★★</option>
+                            <option value="4">4 ดาว ★★★★☆</option>
+                            <option value="3">3 ดาว ★★★☆☆</option>
+                            <option value="2">2 ดาว ★★☆☆☆</option>
+                            <option value="1">1 ดาว ★☆☆☆☆</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>3. ฝีมือและคุณภาพ (1-5 ดาว)</label>
+                        <select id="fwStarQuality" required>
+                            <option value="5">5 ดาว ★★★★★</option>
+                            <option value="4">4 ดาว ★★★★☆</option>
+                            <option value="3">3 ดาว ★★★☆☆</option>
+                            <option value="2">2 ดาว ★★☆☆☆</option>
+                            <option value="1">1 ดาว ★☆☆☆☆</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>4. ความคุ้มค่าต่อราคา (1-5 ดาว)</label>
+                        <select id="fwStarValue" required>
+                            <option value="5">5 ดาว ★★★★★</option>
+                            <option value="4">4 ดาว ★★★★☆</option>
+                            <option value="3">3 ดาว ★★★☆☆</option>
+                            <option value="2">2 ดาว ★★☆☆☆</option>
+                            <option value="1">1 ดาว ★☆☆☆☆</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="fw-preview-avg-box">
+                    ค่าเฉลี่ยรีวิวของคุณ: <strong id="fwMyReviewAvgPreview">5.0</strong> ดาว
+                </div>
+
+                <div class="form-group">
+                    <label>คอมเมนต์เพิ่มเติม (ไม่บังคับ)</label>
+                    <textarea id="fwReviewComment" rows="3" maxlength="300" placeholder="เขียนคอมเมนต์เพิ่มเติมให้ร้านบริการนี้..." style="width: 100%; padding: 0.7rem; border: 1px solid #CBD5E1; border-radius: 10px; font-family: 'Prompt', sans-serif; font-size: 0.9rem; resize: vertical;"></textarea>
+                </div>
+                <button type="submit" id="fwReviewSubmitBtn" class="btn-submit">ส่งรีวิวร้านนี้</button>
+            </form>
+        </div>
+    </div>
+
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js?v=12')
+          navigator.serviceWorker.register('sw.js?v=13')
             .then((reg) => console.log('Service Worker Registered!', reg))
             .catch((err) => console.log('Service Worker Failed', err));
         });
       }
     </script>
 
-    <script type="module" src="app.js?v=12"></script>
+    <script type="module" src="app.js?v=13"></script>
 </body>
 </html>
