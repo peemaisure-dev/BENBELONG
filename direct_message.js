@@ -8,7 +8,7 @@ import {
 const IS_TEST_MODE = true;
 const PREFIX = IS_TEST_MODE ? "test_" : "";
 const COL_DM = `${PREFIX}direct_messages`;
-const COL_FW_CHATS = `${PREFIX}fastwork_chats`;
+const COL_FRIENDS = `${PREFIX}friends`;
 
 function escapeHtml(str) {
     if (!str) return "";
@@ -27,7 +27,8 @@ export function buildDmRoomId(uidA, uidB) {
 
 export function createDirectMessageController({ db, getCurrentUser }) {
     let dmMessages = [];
-    let fwMessages = [];
+    let registeredUsers = [];
+    let friends = [];
     let threads = [];
     let activeThread = null;
 
@@ -40,14 +41,79 @@ export function createDirectMessageController({ db, getCurrentUser }) {
         newBtn: () => document.getElementById("dmNewChatBtn")
     };
 
+    function getMyFriends(uid) {
+        return friends.filter((f) => f.ownerUid === uid && f.friendUid && f.friendUid !== uid);
+    }
+
+    async function addFriendByEmail(emailInput) {
+        const user = getCurrentUser();
+        if (!user || !user.uid) {
+            alert("กรุณาเข้าสู่ระบบก่อนแอดเพื่อนครับ");
+            return null;
+        }
+        const cleanEmail = String(emailInput || "").trim().toLowerCase();
+        if (!cleanEmail) return null;
+        if (cleanEmail === String(user.email || "").toLowerCase()) {
+            alert("ไม่สามารถแอดอีเมลตัวเองเป็นเพื่อนได้ครับ");
+            return null;
+        }
+
+        const matchedUser = registeredUsers.find(
+            (u) => String(u.schoolEmail || u.email || "").trim().toLowerCase() === cleanEmail
+        );
+
+        if (!matchedUser || !matchedUser.uid) {
+            alert("ไม่พบบัญชีที่สมัครด้วยอีเมลนี้ในระบบครับ (ต้องใช้อีเมลที่สมัครบัญชี BENEFIT แล้ว)");
+            return null;
+        }
+
+        const alreadyFriend = getMyFriends(user.uid).find((f) => f.friendUid === matchedUser.uid);
+        const friendName = matchedUser.nickname || cleanEmail.split("@")[0];
+
+        if (!alreadyFriend) {
+            const friendDoc = {
+                ownerUid: user.uid,
+                friendUid: matchedUser.uid,
+                friendEmail: cleanEmail,
+                friendName,
+                createdAtMillis: Date.now(),
+                createdAt: serverTimestamp()
+            };
+            await addDoc(collection(db, COL_FRIENDS), friendDoc);
+            friends.push(friendDoc);
+        }
+
+        return {
+            kind: "dm",
+            roomId: buildDmRoomId(user.uid, matchedUser.uid),
+            title: friendName,
+            otherUid: matchedUser.uid,
+            lastText: `อีเมล: ${cleanEmail}`,
+            lastMillis: Date.now()
+        };
+    }
+
     function buildThreads(uid) {
         const map = new Map();
+
+        getMyFriends(uid).forEach((f) => {
+            const roomId = buildDmRoomId(uid, f.friendUid);
+            map.set(roomId, {
+                kind: "dm",
+                roomId,
+                title: f.friendName || f.friendEmail || "เพื่อนในโรงเรียน",
+                otherUid: f.friendUid,
+                lastText: f.friendEmail ? `เพื่อน • ${f.friendEmail}` : "เพื่อนในระบบ",
+                lastMillis: Number(f.createdAtMillis || 0)
+            });
+        });
 
         dmMessages.forEach((m) => {
             const isParticipant = m.senderUid === uid || m.recipientUid === uid;
             if (!isParticipant) return;
             const otherName = m.senderUid === uid ? (m.recipientName || "คู่สนทนา") : (m.senderName || "คู่สนทนา");
             const otherUid = m.senderUid === uid ? m.recipientUid : m.senderUid;
+            if (!otherUid) return;
             const roomId = m.roomId || buildDmRoomId(uid, otherUid);
             const ts = Number(m.createdAtMillis || 0);
 
@@ -59,23 +125,6 @@ export function createDirectMessageController({ db, getCurrentUser }) {
                     title: otherName,
                     otherUid,
                     lastText: m.text || "",
-                    lastMillis: ts
-                });
-            }
-        });
-
-        fwMessages.forEach((m) => {
-            const roomKey = `fw_${m.shopId || "shop"}_${m.senderUid || "user"}`;
-            const ts = Number(m.createdAtMillis || 0);
-            const label = m.type === "order" ? `คำสั่งงาน: ${m.orderNote || "-"}` : (m.text || "");
-            const prev = map.get(roomKey);
-            if (!prev || ts >= prev.lastMillis) {
-                map.set(roomKey, {
-                    kind: "fw",
-                    roomId: roomKey,
-                    shopId: m.shopId,
-                    title: `ร้าน BenFastwork • ${m.senderName || "ผู้ใช้งาน"}`,
-                    lastText: label,
                     lastMillis: ts
                 });
             }
@@ -95,7 +144,7 @@ export function createDirectMessageController({ db, getCurrentUser }) {
 
         threads = buildThreads(user.uid);
         if (!threads.length) {
-            listEl.innerHTML = `<div class="loading-text">ยังไม่มีประวัติแชท กด + เพื่อเริ่มคุยได้เลย</div>`;
+            listEl.innerHTML = `<div class="loading-text">ยังไม่มีรายชื่อเพื่อนหรือแชท กด + เพื่อแอดเพื่อนด้วยอีเมล</div>`;
             return;
         }
 
@@ -123,7 +172,7 @@ export function createDirectMessageController({ db, getCurrentUser }) {
         const headerEl = els.header();
         const formEl = els.form();
         if (headerEl) headerEl.innerText = thread.title;
-        if (formEl) formEl.style.display = thread.kind === "dm" ? "flex" : "none";
+        if (formEl) formEl.style.display = "flex";
         renderMessages();
     }
 
@@ -131,20 +180,6 @@ export function createDirectMessageController({ db, getCurrentUser }) {
         const boxEl = els.box();
         const user = getCurrentUser();
         if (!boxEl || !activeThread) return;
-
-        if (activeThread.kind === "fw") {
-            const items = fwMessages.filter((m) => m.shopId === activeThread.shopId);
-            boxEl.innerHTML = items.length
-                ? items.map((m) => `
-                    <div class="fw-msg-bubble theirs">
-                        <div class="fw-msg-sender">${escapeHtml(m.senderName || "ผู้ใช้งาน")}</div>
-                        <div>${escapeHtml(m.type === "order" ? `[คำสั่งงาน] ${m.orderNote || ""}` : (m.text || ""))}</div>
-                    </div>
-                `).join("")
-                : `<div style="text-align:center; color:#64748B;">ยังไม่มีข้อความในห้องนี้</div>`;
-            boxEl.scrollTop = boxEl.scrollHeight;
-            return;
-        }
 
         const items = dmMessages
             .filter((m) => m.roomId === activeThread.roomId)
@@ -168,12 +203,14 @@ export function createDirectMessageController({ db, getCurrentUser }) {
         const user = getCurrentUser();
         if (!user || !user.uid) return;
         try {
-            const [dmSnap, fwSnap] = await Promise.all([
+            const [dmSnap, usersSnap, friendsSnap] = await Promise.all([
                 getDocs(collection(db, COL_DM)).catch(() => ({ docs: [] })),
-                getDocs(collection(db, COL_FW_CHATS)).catch(() => ({ docs: [] }))
+                getDocs(collection(db, "users")).catch(() => ({ docs: [] })),
+                getDocs(collection(db, COL_FRIENDS)).catch(() => ({ docs: [] }))
             ]);
             dmMessages = dmSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-            fwMessages = fwSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            registeredUsers = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            friends = friendsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
         } catch (err) {
             console.error("DM load error:", err);
         }
@@ -188,7 +225,7 @@ export function createDirectMessageController({ db, getCurrentUser }) {
     async function handleSend(e) {
         e.preventDefault();
         const user = getCurrentUser();
-        if (!user || !user.uid || !activeThread || activeThread.kind !== "dm") return;
+        if (!user || !user.uid || !activeThread || !activeThread.otherUid) return;
         const text = els.input()?.value.trim();
         if (!text) return;
 
@@ -196,7 +233,7 @@ export function createDirectMessageController({ db, getCurrentUser }) {
             roomId: activeThread.roomId,
             senderUid: user.uid,
             senderName: user.nickname || user.email || "นักเรียนเบญฯ",
-            recipientUid: activeThread.otherUid || "",
+            recipientUid: activeThread.otherUid,
             recipientName: activeThread.title || "คู่สนทนา",
             text,
             createdAtMillis: Date.now(),
@@ -210,34 +247,25 @@ export function createDirectMessageController({ db, getCurrentUser }) {
         renderMessages();
     }
 
-    async function handleNewDirectChat() {
+    async function handleAddFriendPrompt() {
         const user = getCurrentUser();
         if (!user || !user.uid) {
-            alert("กรุณาเข้าสู่ระบบก่อนเริ่มแชทส่วนตัวครับ");
+            alert("กรุณาเข้าสู่ระบบก่อนแอดเพื่อนครับ");
             return;
         }
-        const targetUid = prompt("กรอก UID ของผู้รับข้อความส่วนตัว (เช่น uid ของคู่สนทนาหรือเจ้าของร้าน):");
-        if (!targetUid || !targetUid.trim()) return;
-        const cleanUid = targetUid.trim();
-        if (cleanUid === user.uid) {
-            alert("ไม่สามารถส่งข้อความหาตัวเองได้ครับ");
-            return;
+        await loadMessages();
+        const emailInput = prompt("กรอกอีเมลโรงเรียนที่เพื่อนใช้สมัคร (เช่น s12345@ben.ac.th):");
+        if (!emailInput || !emailInput.trim()) return;
+        const thread = await addFriendByEmail(emailInput);
+        if (thread) {
+            renderThreads();
+            selectThread(thread);
         }
-        const targetName = (prompt("ระบุชื่อคู่สนทนาที่ต้องการแสดง:") || "คู่สนทนา").trim();
-        const roomId = buildDmRoomId(user.uid, cleanUid);
-        selectThread({
-            kind: "dm",
-            roomId,
-            title: targetName,
-            otherUid: cleanUid,
-            lastText: "",
-            lastMillis: Date.now()
-        });
     }
 
     function bindEvents() {
         els.form()?.addEventListener("submit", handleSend);
-        els.newBtn()?.addEventListener("click", handleNewDirectChat);
+        els.newBtn()?.addEventListener("click", handleAddFriendPrompt);
     }
 
     return {
@@ -250,13 +278,14 @@ export function createDirectMessageController({ db, getCurrentUser }) {
         async openDirectWith({ targetUid, targetName, onOpenTab }) {
             const user = getCurrentUser();
             if (!user || !user.uid) return;
-            if (typeof onOpenTab === "function") onOpenTab();
             await loadMessages();
+            if (typeof onOpenTab === "function") onOpenTab();
+            if (!targetUid) return;
             const roomId = buildDmRoomId(user.uid, targetUid);
             selectThread({
                 kind: "dm",
                 roomId,
-                title: targetName || "คู่สนทนา",
+                title: targetName || "เจ้าของร้าน",
                 otherUid: targetUid,
                 lastText: "",
                 lastMillis: Date.now()
