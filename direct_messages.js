@@ -2,6 +2,9 @@ import {
     collection,
     addDoc,
     getDocs,
+    updateDoc,
+    deleteDoc,
+    doc,
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -9,6 +12,7 @@ const IS_TEST_MODE = true;
 const PREFIX = IS_TEST_MODE ? "test_" : "";
 const COL_DM = `${PREFIX}direct_messages`;
 const COL_FRIENDS = `${PREFIX}friends`;
+const COL_FRIEND_REQUESTS = `${PREFIX}friend_requests`;
 
 function escapeHtml(str) {
     if (!str) return "";
@@ -29,6 +33,7 @@ export function createDirectMessageController({ db, getCurrentUser }) {
     let dmMessages = [];
     let registeredUsers = [];
     let friends = [];
+    let friendRequests = [];
     let threads = [];
     let activeThread = null;
 
@@ -45,7 +50,13 @@ export function createDirectMessageController({ db, getCurrentUser }) {
         return friends.filter((f) => f.ownerUid === uid && f.friendUid && f.friendUid !== uid);
     }
 
-    async function addFriendByEmail(emailInput) {
+    function getIncomingRequests(uid) {
+        return friendRequests.filter(
+            (r) => r.toUid === uid && r.fromUid && r.fromUid !== uid && (r.status || "pending") === "pending"
+        );
+    }
+
+    async function sendFriendRequestByEmail(emailInput) {
         const user = getCurrentUser();
         if (!user || !user.uid) {
             alert("กรุณาเข้าสู่ระบบก่อนแอดเพื่อนครับ");
@@ -68,33 +79,113 @@ export function createDirectMessageController({ db, getCurrentUser }) {
         }
 
         const alreadyFriend = getMyFriends(user.uid).find((f) => f.friendUid === matchedUser.uid);
-        const friendName = matchedUser.nickname || cleanEmail.split("@")[0];
-
-        if (!alreadyFriend) {
-            const friendDoc = {
-                ownerUid: user.uid,
-                friendUid: matchedUser.uid,
-                friendEmail: cleanEmail,
-                friendName,
-                createdAtMillis: Date.now(),
-                createdAt: serverTimestamp()
+        if (alreadyFriend) {
+            return {
+                kind: "dm",
+                roomId: buildDmRoomId(user.uid, matchedUser.uid),
+                title: matchedUser.nickname || cleanEmail.split("@")[0],
+                otherUid: matchedUser.uid,
+                lastText: `เพื่อน • ${cleanEmail}`,
+                lastMillis: Date.now()
             };
-            await addDoc(collection(db, COL_FRIENDS), friendDoc);
-            friends.push(friendDoc);
         }
 
-        return {
-            kind: "dm",
-            roomId: buildDmRoomId(user.uid, matchedUser.uid),
-            title: friendName,
-            otherUid: matchedUser.uid,
-            lastText: `อีเมล: ${cleanEmail}`,
-            lastMillis: Date.now()
+        const existingReq = friendRequests.find(
+            (r) => r.fromUid === user.uid && r.toUid === matchedUser.uid && (r.status || "pending") === "pending"
+        );
+        if (existingReq) {
+            alert("ส่งคำขอเป็นเพื่อนให้อีเมลนี้ไปแล้ว รออีกฝ่ายกดรับเพื่อนครับ");
+            return null;
+        }
+
+        const reqDoc = {
+            fromUid: user.uid,
+            fromName: user.nickname || user.email || "นักเรียนเบญฯ",
+            fromEmail: String(user.email || "").toLowerCase(),
+            toUid: matchedUser.uid,
+            toName: matchedUser.nickname || cleanEmail.split("@")[0],
+            toEmail: cleanEmail,
+            status: "pending",
+            createdAtMillis: Date.now(),
+            createdAt: serverTimestamp()
         };
+
+        const added = await addDoc(collection(db, COL_FRIEND_REQUESTS), reqDoc);
+        friendRequests.push({ id: added.id, ...reqDoc });
+        alert(`ส่งคำขอเป็นเพื่อนไปยัง ${reqDoc.toName} (${cleanEmail}) เรียบร้อยแล้วครับ`);
+        return null;
+    }
+
+    async function acceptFriendRequest(reqId) {
+        const user = getCurrentUser();
+        if (!user || !user.uid) return;
+        const reqItem = friendRequests.find((r) => r.id === reqId);
+        if (!reqItem) return;
+
+        if (reqItem.id) {
+            await updateDoc(doc(db, COL_FRIEND_REQUESTS, reqItem.id), {
+                status: "accepted",
+                acceptedAt: serverTimestamp()
+            }).catch(() => {});
+        }
+        reqItem.status = "accepted";
+
+        const nowMillis = Date.now();
+        const myFriendEntry = {
+            ownerUid: user.uid,
+            friendUid: reqItem.fromUid,
+            friendEmail: reqItem.fromEmail || "",
+            friendName: reqItem.fromName || "เพื่อนในโรงเรียน",
+            createdAtMillis: nowMillis,
+            createdAt: serverTimestamp()
+        };
+        const theirFriendEntry = {
+            ownerUid: reqItem.fromUid,
+            friendUid: user.uid,
+            friendEmail: String(user.email || "").toLowerCase(),
+            friendName: user.nickname || user.email || "นักเรียนเบญฯ",
+            createdAtMillis: nowMillis,
+            createdAt: serverTimestamp()
+        };
+
+        if (!getMyFriends(user.uid).some((f) => f.friendUid === reqItem.fromUid)) {
+            await addDoc(collection(db, COL_FRIENDS), myFriendEntry);
+            friends.push(myFriendEntry);
+        }
+        if (!friends.some((f) => f.ownerUid === reqItem.fromUid && f.friendUid === user.uid)) {
+            await addDoc(collection(db, COL_FRIENDS), theirFriendEntry);
+            friends.push(theirFriendEntry);
+        }
+
+        const roomId = buildDmRoomId(user.uid, reqItem.fromUid);
+        renderThreads();
+        selectThread({
+            kind: "dm",
+            roomId,
+            title: reqItem.fromName || "เพื่อนในโรงเรียน",
+            otherUid: reqItem.fromUid,
+            lastText: reqItem.fromEmail ? `เพื่อน • ${reqItem.fromEmail}` : "เพื่อนในระบบ",
+            lastMillis: nowMillis
+        });
+    }
+
+    async function rejectFriendRequest(reqId) {
+        const reqItem = friendRequests.find((r) => r.id === reqId);
+        if (!reqItem) return;
+
+        if (reqItem.id) {
+            await deleteDoc(doc(db, COL_FRIEND_REQUESTS, reqItem.id)).catch(() => {});
+        }
+        friendRequests = friendRequests.filter((r) => r.id !== reqId);
+        renderThreads();
     }
 
     function buildThreads(uid) {
         const map = new Map();
+
+        if (activeThread && activeThread.roomId && activeThread.otherUid) {
+            map.set(activeThread.roomId, { ...activeThread });
+        }
 
         getMyFriends(uid).forEach((f) => {
             const roomId = buildDmRoomId(uid, f.friendUid);
@@ -142,21 +233,55 @@ export function createDirectMessageController({ db, getCurrentUser }) {
             return;
         }
 
-        threads = buildThreads(user.uid);
-        if (!threads.length) {
-            listEl.innerHTML = `<div class="loading-text">ยังไม่มีรายชื่อเพื่อนหรือแชท กด + เพื่อแอดเพื่อนด้วยอีเมล</div>`;
-            return;
-        }
-
-        listEl.innerHTML = threads.map((t) => {
-            const isActive = activeThread && activeThread.roomId === t.roomId;
-            return `
-                <div class="dm-thread-item ${isActive ? "active" : ""}" data-room-id="${escapeHtml(t.roomId)}">
-                    <div class="dm-thread-title">${escapeHtml(t.title)}</div>
-                    <div class="dm-thread-sub">${escapeHtml(t.lastText || "")}</div>
+        const incoming = getIncomingRequests(user.uid);
+        const requestsHtml = incoming.length
+            ? `
+                <div style="padding: 8px; margin-bottom: 10px; border-radius: 12px; background: #EFF6FF; border: 1px solid #BFDBFE;">
+                    <div style="font-size: 0.78rem; font-weight: 700; color: #1D4ED8; margin-bottom: 6px;">
+                        📩 คำขอเป็นเพื่อน (${incoming.length})
+                    </div>
+                    ${incoming.map((r) => `
+                        <div style="background: #FFFFFF; border-radius: 10px; padding: 8px; margin-bottom: 6px; border: 1px solid #DBEAFE;">
+                            <div style="font-size: 0.84rem; font-weight: 700; color: #0F172A;">${escapeHtml(r.fromName || "ผู้ใช้งาน")}</div>
+                            <div style="font-size: 0.74rem; color: #64748B; margin-bottom: 6px;">${escapeHtml(r.fromEmail || "")}</div>
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" data-accept-req="${escapeHtml(r.id)}" style="flex:1; background:#16A34A; color:#FFF; border:none; border-radius:8px; padding:4px 8px; font-size:0.76rem; font-weight:600; cursor:pointer;">✓ รับเพื่อน</button>
+                                <button type="button" data-reject-req="${escapeHtml(r.id)}" style="background:#FEE2E2; color:#B91C1C; border:none; border-radius:8px; padding:4px 8px; font-size:0.76rem; font-weight:600; cursor:pointer;">✕ ปฏิเสธ</button>
+                            </div>
+                        </div>
+                    `).join("")}
                 </div>
-            `;
-        }).join("");
+            `
+            : "";
+
+        threads = buildThreads(user.uid);
+        const threadsHtml = threads.length
+            ? threads.map((t) => {
+                const isActive = activeThread && activeThread.roomId === t.roomId;
+                return `
+                    <div class="dm-thread-item ${isActive ? "active" : ""}" data-room-id="${escapeHtml(t.roomId)}">
+                        <div class="dm-thread-title">${escapeHtml(t.title)}</div>
+                        <div class="dm-thread-sub">${escapeHtml(t.lastText || "")}</div>
+                    </div>
+                `;
+            }).join("")
+            : `<div class="loading-text">ยังไม่มีรายชื่อเพื่อนหรือแชท กด + เพื่อแอดเพื่อนด้วยอีเมล</div>`;
+
+        listEl.innerHTML = requestsHtml + threadsHtml;
+
+        listEl.querySelectorAll("[data-accept-req]").forEach((btn) => {
+            btn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                await acceptFriendRequest(btn.dataset.acceptReq);
+            });
+        });
+
+        listEl.querySelectorAll("[data-reject-req]").forEach((btn) => {
+            btn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                await rejectFriendRequest(btn.dataset.rejectReq);
+            });
+        });
 
         listEl.querySelectorAll("[data-room-id]").forEach((el) => {
             el.addEventListener("click", () => {
@@ -203,21 +328,23 @@ export function createDirectMessageController({ db, getCurrentUser }) {
         const user = getCurrentUser();
         if (!user || !user.uid) return;
         try {
-            const [dmSnap, usersSnap, friendsSnap] = await Promise.all([
+            const [dmSnap, usersSnap, friendsSnap, reqSnap] = await Promise.all([
                 getDocs(collection(db, COL_DM)).catch(() => ({ docs: [] })),
                 getDocs(collection(db, "users")).catch(() => ({ docs: [] })),
-                getDocs(collection(db, COL_FRIENDS)).catch(() => ({ docs: [] }))
+                getDocs(collection(db, COL_FRIENDS)).catch(() => ({ docs: [] })),
+                getDocs(collection(db, COL_FRIEND_REQUESTS)).catch(() => ({ docs: [] }))
             ]);
             dmMessages = dmSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
             registeredUsers = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
             friends = friendsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            friendRequests = reqSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
         } catch (err) {
             console.error("DM load error:", err);
         }
         renderThreads();
         if (activeThread) {
             const updated = threads.find((t) => t.roomId === activeThread.roomId);
-            if (updated) activeThread = updated;
+            if (updated) activeThread = { ...updated, otherUid: updated.otherUid || activeThread.otherUid };
             renderMessages();
         }
     }
@@ -254,11 +381,11 @@ export function createDirectMessageController({ db, getCurrentUser }) {
             return;
         }
         await loadMessages();
-        const emailInput = prompt("กรอกอีเมลโรงเรียนที่เพื่อนใช้สมัคร (เช่น s12345@ben.ac.th):");
+        const emailInput = prompt("กรอกอีเมลโรงเรียนที่เพื่อนใช้สมัครเพื่อส่งคำขอแอดเพื่อน (เช่น s12345@ben.ac.th):");
         if (!emailInput || !emailInput.trim()) return;
-        const thread = await addFriendByEmail(emailInput);
+        const thread = await sendFriendRequestByEmail(emailInput);
+        renderThreads();
         if (thread) {
-            renderThreads();
             selectThread(thread);
         }
     }
