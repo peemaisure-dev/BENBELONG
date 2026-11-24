@@ -5,6 +5,8 @@ import {
     updateDoc,
     deleteDoc,
     doc,
+    getDoc,
+    increment,
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -13,6 +15,8 @@ const PREFIX = IS_TEST_MODE ? "test_" : "";
 const COL_DM = `${PREFIX}direct_messages`;
 const COL_FRIENDS = `${PREFIX}friends`;
 const COL_FRIEND_REQUESTS = `${PREFIX}friend_requests`;
+const COL_ORDERS = `${PREFIX}fastwork_orders`;
+const COL_SHOPS = `${PREFIX}fastwork_shops`;
 
 function escapeHtml(str) {
     if (!str) return "";
@@ -29,11 +33,38 @@ export function buildDmRoomId(uidA, uidB) {
     return [String(uidA), String(uidB)].sort().join("__");
 }
 
+function formatDeadlineDisplay(order) {
+    if (order.deadlineText) return order.deadlineText;
+    if (order.deadlineMillis) {
+        return new Date(Number(order.deadlineMillis)).toLocaleString("th-TH", {
+            dateStyle: "medium",
+            timeStyle: "short"
+        });
+    }
+    return order.deadlineIso || "-";
+}
+
+function getStatusBadge(status) {
+    switch (status) {
+        case "pending_shop":
+            return { text: "⏳ รอเจ้าของร้านยืนยัน", bg: "#FEF3C7", color: "#92400E" };
+        case "proposed_by_shop":
+            return { text: "✏️ เจ้าของร้านแก้ไขรายละเอียด รอลูกค้าตกลง", bg: "#E0E7FF", color: "#1E40AF" };
+        case "confirmed":
+            return { text: "✅ ยืนยันออเดอร์แล้ว", bg: "#DCFCE7", color: "#166534" };
+        case "cancelled":
+            return { text: "🚫 ยกเลิกออเดอร์แล้ว", bg: "#FEE2E2", color: "#991B1B" };
+        default:
+            return { text: "📌 ออเดอร์", bg: "#F1F5F9", color: "#334155" };
+    }
+}
+
 export function createDirectMessageController({ db, getCurrentUser }) {
     let dmMessages = [];
     let registeredUsers = [];
     let friends = [];
     let friendRequests = [];
+    let orders = [];
     let threads = [];
     let activeThread = null;
 
@@ -45,6 +76,28 @@ export function createDirectMessageController({ db, getCurrentUser }) {
         input: () => document.getElementById("dmMessageInput"),
         newBtn: () => document.getElementById("dmNewChatBtn")
     };
+
+    function ensurePinnedOrderBar() {
+        const boxEl = els.box();
+        if (!boxEl || !boxEl.parentElement) return null;
+        let pinBar = document.getElementById("dmPinnedOrderBar");
+        if (!pinBar) {
+            pinBar = document.createElement("div");
+            pinBar.id = "dmPinnedOrderBar";
+            pinBar.style.cssText = "display:none; padding:10px 14px; background:#F8FAFC; border-bottom:1px solid #E2E8F0; max-height:240px; overflow-y:auto;";
+            boxEl.parentElement.insertBefore(pinBar, boxEl);
+        }
+        return pinBar;
+    }
+
+    function ensureShopCancelCounterColumn(shopId) {
+        if (!shopId) return;
+        getDoc(doc(db, COL_SHOPS, shopId)).then((snap) => {
+            if (snap.exists() && typeof snap.data().cancelledCount !== "number") {
+                updateDoc(doc(db, COL_SHOPS, shopId), { cancelledCount: 0 }).catch(() => {});
+            }
+        }).catch(() => {});
+    }
 
     function getMyFriends(uid) {
         return friends.filter((f) => f.ownerUid === uid && f.friendUid && f.friendUid !== uid);
@@ -180,6 +233,272 @@ export function createDirectMessageController({ db, getCurrentUser }) {
         renderThreads();
     }
 
+    async function createOrderAndNotify(orderDraft) {
+        const user = getCurrentUser();
+        if (!user || !user.uid || !orderDraft) return;
+        const roomId = buildDmRoomId(orderDraft.customerUid, orderDraft.shopOwnerUid);
+        const nowMillis = Date.now();
+
+        if (orderDraft.shopId) {
+            ensureShopCancelCounterColumn(orderDraft.shopId);
+        }
+
+        const orderPayload = {
+            roomId,
+            shopId: orderDraft.shopId || "",
+            shopTitle: orderDraft.shopTitle || "ร้านบริการ",
+            shopOwnerUid: orderDraft.shopOwnerUid,
+            shopOwnerName: orderDraft.shopOwnerName || "เจ้าของร้าน",
+            customerUid: orderDraft.customerUid,
+            customerName: orderDraft.customerName || "ลูกค้า",
+            requirement: orderDraft.requirement,
+            deadlineIso: orderDraft.deadlineIso || "",
+            deadlineMillis: Number(orderDraft.deadlineMillis || nowMillis),
+            deadlineText: orderDraft.deadlineText || "",
+            status: "pending_shop",
+            cancelledBy: "",
+            countedOnShop: false,
+            createdAtMillis: nowMillis,
+            updatedAtMillis: nowMillis,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+        };
+
+        const added = await addDoc(collection(db, COL_ORDERS), orderPayload);
+        orders.unshift({ id: added.id, ...orderPayload });
+
+        const msgPayload = {
+            roomId,
+            senderUid: user.uid,
+            senderName: user.nickname || user.email || "ลูกค้า",
+            recipientUid: orderDraft.shopOwnerUid,
+            recipientName: orderDraft.shopOwnerName || "เจ้าของร้าน",
+            text: `📌 ส่งออเดอร์ใหม่ (${orderDraft.shopTitle}): "${orderDraft.requirement}" | Deadline: ${orderDraft.deadlineText}`,
+            createdAtMillis: nowMillis,
+            createdAt: serverTimestamp()
+        };
+
+        await addDoc(collection(db, COL_DM), msgPayload);
+        dmMessages.push(msgPayload);
+    }
+
+    async function updateOrderStatus(orderId, patch, notifyText = "") {
+        const user = getCurrentUser();
+        if (!user || !user.uid) return;
+        const idx = orders.findIndex((o) => o.id === orderId);
+        if (idx === -1) return;
+        const order = orders[idx];
+        const nowMillis = Date.now();
+
+        const fullPatch = {
+            ...patch,
+            updatedAtMillis: nowMillis,
+            updatedAt: serverTimestamp()
+        };
+
+        if (order.id) {
+            await updateDoc(doc(db, COL_ORDERS, order.id), fullPatch);
+        }
+        orders[idx] = { ...order, ...fullPatch };
+
+        if (notifyText && activeThread) {
+            const recipientUid = activeThread.otherUid || (user.uid === order.customerUid ? order.shopOwnerUid : order.customerUid);
+            const msgPayload = {
+                roomId: order.roomId,
+                senderUid: user.uid,
+                senderName: user.nickname || user.email || "ผู้ใช้งาน",
+                recipientUid,
+                recipientName: activeThread.title || "คู่สนทนา",
+                text: notifyText,
+                createdAtMillis: nowMillis,
+                createdAt: serverTimestamp()
+            };
+            await addDoc(collection(db, COL_DM), msgPayload);
+            dmMessages.push(msgPayload);
+        }
+
+        renderPinnedOrders();
+        renderMessages();
+        renderThreads();
+    }
+
+    async function handleOwnerConfirmOrder(orderId) {
+        await updateOrderStatus(
+            orderId,
+            { status: "confirmed" },
+            "✅ เจ้าของร้านยืนยันออเดอร์เรียบร้อยแล้วครับ"
+        );
+    }
+
+    async function handleOwnerEditOrder(orderId) {
+        const order = orders.find((o) => o.id === orderId);
+        if (!order) return;
+
+        const nextReq = prompt("แก้ไขรายละเอียดงาน/สิ่งที่ทำ:", order.requirement || "");
+        if (nextReq === null) return;
+        const cleanReq = nextReq.trim();
+        if (!cleanReq) return;
+
+        const defaultIso = order.deadlineIso || (order.deadlineMillis ? new Date(Number(order.deadlineMillis)).toISOString().slice(0, 16) : "");
+        const nextDeadline = prompt("แก้ไข Deadline (รูปแบบ YYYY-MM-DDTHH:mm หรือข้อความกำหนดส่ง):", defaultIso);
+        if (nextDeadline === null) return;
+        const cleanDeadline = nextDeadline.trim() || order.deadlineIso || "";
+
+        const parsedMillis = new Date(cleanDeadline).getTime();
+        const deadlineMillis = Number.isFinite(parsedMillis) ? parsedMillis : order.deadlineMillis;
+        const deadlineText = Number.isFinite(parsedMillis)
+            ? new Date(parsedMillis).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })
+            : cleanDeadline;
+
+        await updateOrderStatus(
+            orderId,
+            {
+                requirement: cleanReq,
+                deadlineIso: cleanDeadline,
+                deadlineMillis,
+                deadlineText,
+                status: "proposed_by_shop"
+            },
+            `✏️ เจ้าของร้านแก้ไขรายละเอียด/Deadline: "${cleanReq}" | Deadline ใหม่: ${deadlineText} (รอลูกค้ากดตกลงหรือยกเลิก)`
+        );
+    }
+
+    async function handleCustomerAcceptProposal(orderId) {
+        await updateOrderStatus(
+            orderId,
+            { status: "confirmed" },
+            "👍 ลูกค้าตกลงตามรายละเอียดและ Deadline ที่แก้ไขแล้ว ยืนยันออเดอร์สำเร็จครับ"
+        );
+    }
+
+    async function handleCancelOrder(orderId, reasonType) {
+        const user = getCurrentUser();
+        if (!user || !user.uid) return;
+        const order = orders.find((o) => o.id === orderId);
+        if (!order) return;
+
+        const shouldCountOnShop = reasonType === "shop_after_confirm" || reasonType === "customer_overdue";
+        if (shouldCountOnShop && order.shopId && !order.countedOnShop) {
+            await updateDoc(doc(db, COL_SHOPS, order.shopId), {
+                cancelledCount: increment(1)
+            }).catch(() => {});
+        }
+
+        let notifyMessage = "🚫 ยกเลิกออเดอร์ก่อนยืนยันเรียบร้อยแล้วครับ (ไม่นับยอดยกเลิกบนหน้าร้าน)";
+        if (reasonType === "shop_after_confirm") {
+            notifyMessage = "🚫 ร้านค้ายกเลิกออเดอร์หลังยืนยันแล้ว (ระบบนับยอดยกเลิกบนหน้าร้านค้า)";
+        } else if (reasonType === "customer_overdue") {
+            notifyMessage = "⏰ เกินกำหนด Deadline แล้ว ลูกค้ายกเลิกออเดอร์ (ระบบนับยอดยกเลิกบนหน้าร้านค้า)";
+        }
+
+        await updateOrderStatus(
+            orderId,
+            {
+                status: "cancelled",
+                cancelledBy: user.uid,
+                cancelReason: reasonType,
+                countedOnShop: order.countedOnShop || shouldCountOnShop
+            },
+            notifyMessage
+        );
+    }
+
+    function renderPinnedOrders() {
+        const pinBar = ensurePinnedOrderBar();
+        const user = getCurrentUser();
+        if (!pinBar || !activeThread || !user) {
+            if (pinBar) {
+                pinBar.style.display = "none";
+                pinBar.innerHTML = "";
+            }
+            return;
+        }
+
+        const roomOrders = orders
+            .filter((o) => o.roomId === activeThread.roomId)
+            .sort((a, b) => (b.updatedAtMillis || b.createdAtMillis || 0) - (a.updatedAtMillis || a.createdAtMillis || 0));
+
+        if (!roomOrders.length) {
+            pinBar.style.display = "none";
+            pinBar.innerHTML = "";
+            return;
+        }
+
+        const nowMs = Date.now();
+        pinBar.style.display = "block";
+        pinBar.innerHTML = `
+            <div style="font-size:0.78rem; font-weight:700; color:#1E40AF; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+                <span>📌 ประกาศออเดอร์ปักหมุดด้านบนสุดของแชท (${roomOrders.length})</span>
+            </div>
+            ${roomOrders.map((o) => {
+                const isShopOwner = user.uid === o.shopOwnerUid;
+                const isCustomer = user.uid === o.customerUid;
+                const badge = getStatusBadge(o.status);
+                const deadlineMs = Number(o.deadlineMillis || 0);
+                const isOverdue = deadlineMs > 0 && nowMs > deadlineMs;
+
+                let actionsHtml = "";
+                if (o.status === "pending_shop") {
+                    if (isShopOwner) {
+                        actionsHtml += `<button type="button" data-order-confirm="${escapeHtml(o.id)}" style="background:#16A34A; color:#FFF; border:none; border-radius:8px; padding:5px 10px; font-size:0.76rem; font-weight:600; cursor:pointer;">✓ ยืนยันออเดอร์</button>`;
+                        actionsHtml += `<button type="button" data-order-edit="${escapeHtml(o.id)}" style="background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; border-radius:8px; padding:5px 10px; font-size:0.76rem; font-weight:600; cursor:pointer;">✏️ แก้ไขรายละเอียด / Deadline</button>`;
+                    }
+                    if (isCustomer) {
+                        actionsHtml += `<button type="button" data-order-cancel-pre="${escapeHtml(o.id)}" style="background:#FEE2E2; color:#991B1B; border:none; border-radius:8px; padding:5px 10px; font-size:0.76rem; font-weight:600; cursor:pointer;">✕ ยกเลิก (ไม่นับบนร้าน)</button>`;
+                    }
+                } else if (o.status === "proposed_by_shop") {
+                    if (isCustomer) {
+                        actionsHtml += `<button type="button" data-order-accept-prop="${escapeHtml(o.id)}" style="background:#16A34A; color:#FFF; border:none; border-radius:8px; padding:5px 10px; font-size:0.76rem; font-weight:600; cursor:pointer;">✓ ตกลงออเดอร์ตามที่แก้ไข</button>`;
+                        actionsHtml += `<button type="button" data-order-cancel-pre="${escapeHtml(o.id)}" style="background:#FEE2E2; color:#991B1B; border:none; border-radius:8px; padding:5px 10px; font-size:0.76rem; font-weight:600; cursor:pointer;">✕ ไม่โอเค / ยกเลิก</button>`;
+                    }
+                    if (isShopOwner) {
+                        actionsHtml += `<button type="button" data-order-edit="${escapeHtml(o.id)}" style="background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; border-radius:8px; padding:5px 10px; font-size:0.76rem; font-weight:600; cursor:pointer;">✏️ แก้ไขอีกครั้ง</button>`;
+                    }
+                } else if (o.status === "confirmed") {
+                    if (isShopOwner) {
+                        actionsHtml += `<button type="button" data-order-cancel-shop="${escapeHtml(o.id)}" style="background:#FEE2E2; color:#991B1B; border:none; border-radius:8px; padding:5px 10px; font-size:0.76rem; font-weight:600; cursor:pointer;">✕ ร้านค้ายกเลิกออเดอร์ (นับยอดยกเลิก)</button>`;
+                    }
+                    if (isCustomer && isOverdue) {
+                        actionsHtml += `<button type="button" data-order-cancel-overdue="${escapeHtml(o.id)}" style="background:#DC2626; color:#FFF; border:none; border-radius:8px; padding:5px 10px; font-size:0.76rem; font-weight:600; cursor:pointer;">⏰ เกิน Deadline • ยกเลิกออเดอร์</button>`;
+                    }
+                }
+
+                return `
+                    <div style="background:#FFFFFF; border:1px solid #DBEAFE; border-radius:12px; padding:10px 12px; margin-bottom:8px; box-shadow:0 2px 6px rgba(15,23,42,0.04);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
+                            <strong style="font-size:0.86rem; color:#0F172A;">🛍️ ${escapeHtml(o.shopTitle || "ออเดอร์")} (ลูกค้า: ${escapeHtml(o.customerName || "")})</strong>
+                            <span style="background:${badge.bg}; color:${badge.color}; padding:2px 8px; border-radius:999px; font-size:0.74rem; font-weight:700;">${badge.text}</span>
+                        </div>
+                        <div style="font-size:0.83rem; color:#334155; margin-bottom:3px;"><strong>รายละเอียดที่ต้องการ:</strong> ${escapeHtml(o.requirement || "")}</div>
+                        <div style="font-size:0.79rem; color:${isOverdue && o.status === "confirmed" ? "#DC2626" : "#475569"}; margin-bottom:6px;">
+                            <strong>Deadline:</strong> ${escapeHtml(formatDeadlineDisplay(o))} ${isOverdue && o.status === "confirmed" ? "(เลยกำหนดแล้ว)" : ""}
+                        </div>
+                        ${actionsHtml ? `<div style="display:flex; gap:6px; flex-wrap:wrap;">${actionsHtml}</div>` : ""}
+                    </div>
+                `;
+            }).join("")}
+        `;
+
+        pinBar.querySelectorAll("[data-order-confirm]").forEach((btn) => {
+            btn.addEventListener("click", () => handleOwnerConfirmOrder(btn.dataset.orderConfirm));
+        });
+        pinBar.querySelectorAll("[data-order-edit]").forEach((btn) => {
+            btn.addEventListener("click", () => handleOwnerEditOrder(btn.dataset.orderEdit));
+        });
+        pinBar.querySelectorAll("[data-order-accept-prop]").forEach((btn) => {
+            btn.addEventListener("click", () => handleCustomerAcceptProposal(btn.dataset.orderAcceptProp));
+        });
+        pinBar.querySelectorAll("[data-order-cancel-pre]").forEach((btn) => {
+            btn.addEventListener("click", () => handleCancelOrder(btn.dataset.orderCancelPre, "before_confirm"));
+        });
+        pinBar.querySelectorAll("[data-order-cancel-shop]").forEach((btn) => {
+            btn.addEventListener("click", () => handleCancelOrder(btn.dataset.orderCancelShop, "shop_after_confirm"));
+        });
+        pinBar.querySelectorAll("[data-order-cancel-overdue]").forEach((btn) => {
+            btn.addEventListener("click", () => handleCancelOrder(btn.dataset.orderCancelOverdue, "customer_overdue"));
+        });
+    }
+
     function buildThreads(uid) {
         const map = new Map();
 
@@ -197,6 +516,27 @@ export function createDirectMessageController({ db, getCurrentUser }) {
                 lastText: f.friendEmail ? `เพื่อน • ${f.friendEmail}` : "เพื่อนในระบบ",
                 lastMillis: Number(f.createdAtMillis || 0)
             });
+        });
+
+        orders.forEach((o) => {
+            const isParticipant = o.customerUid === uid || o.shopOwnerUid === uid;
+            if (!isParticipant) return;
+            const otherUid = o.customerUid === uid ? o.shopOwnerUid : o.customerUid;
+            const otherName = o.customerUid === uid ? (o.shopOwnerName || o.shopTitle || "เจ้าของร้าน") : (o.customerName || "ลูกค้า");
+            if (!otherUid) return;
+            const roomId = o.roomId || buildDmRoomId(uid, otherUid);
+            const ts = Number(o.updatedAtMillis || o.createdAtMillis || 0);
+            const prev = map.get(roomId);
+            if (!prev || ts >= prev.lastMillis) {
+                map.set(roomId, {
+                    kind: "dm",
+                    roomId,
+                    title: otherName,
+                    otherUid,
+                    lastText: `ออเดอร์: ${o.requirement || ""}`,
+                    lastMillis: ts
+                });
+            }
         });
 
         dmMessages.forEach((m) => {
@@ -294,6 +634,7 @@ export function createDirectMessageController({ db, getCurrentUser }) {
     function selectThread(thread) {
         activeThread = thread;
         renderThreads();
+        renderPinnedOrders();
         const headerEl = els.header();
         const formEl = els.form();
         if (headerEl) headerEl.innerText = thread.title;
@@ -328,16 +669,18 @@ export function createDirectMessageController({ db, getCurrentUser }) {
         const user = getCurrentUser();
         if (!user || !user.uid) return;
         try {
-            const [dmSnap, usersSnap, friendsSnap, reqSnap] = await Promise.all([
+            const [dmSnap, usersSnap, friendsSnap, reqSnap, ordersSnap] = await Promise.all([
                 getDocs(collection(db, COL_DM)).catch(() => ({ docs: [] })),
                 getDocs(collection(db, "users")).catch(() => ({ docs: [] })),
                 getDocs(collection(db, COL_FRIENDS)).catch(() => ({ docs: [] })),
-                getDocs(collection(db, COL_FRIEND_REQUESTS)).catch(() => ({ docs: [] }))
+                getDocs(collection(db, COL_FRIEND_REQUESTS)).catch(() => ({ docs: [] })),
+                getDocs(collection(db, COL_ORDERS)).catch(() => ({ docs: [] }))
             ]);
             dmMessages = dmSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
             registeredUsers = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
             friends = friendsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
             friendRequests = reqSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            orders = ordersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
         } catch (err) {
             console.error("DM load error:", err);
         }
@@ -345,6 +688,7 @@ export function createDirectMessageController({ db, getCurrentUser }) {
         if (activeThread) {
             const updated = threads.find((t) => t.roomId === activeThread.roomId);
             if (updated) activeThread = { ...updated, otherUid: updated.otherUid || activeThread.otherUid };
+            renderPinnedOrders();
             renderMessages();
         }
     }
@@ -402,19 +746,22 @@ export function createDirectMessageController({ db, getCurrentUser }) {
         async onTabOpen() {
             await loadMessages();
         },
-        async openDirectWith({ targetUid, targetName, onOpenTab }) {
+        async openDirectWith({ targetUid, targetName, orderDraft, onOpenTab }) {
             const user = getCurrentUser();
             if (!user || !user.uid) return;
             await loadMessages();
             if (typeof onOpenTab === "function") onOpenTab();
             if (!targetUid) return;
+            if (orderDraft) {
+                await createOrderAndNotify(orderDraft);
+            }
             const roomId = buildDmRoomId(user.uid, targetUid);
             selectThread({
                 kind: "dm",
                 roomId,
                 title: targetName || "เจ้าของร้าน",
                 otherUid: targetUid,
-                lastText: "",
+                lastText: orderDraft ? `ออเดอร์: ${orderDraft.requirement}` : "",
                 lastMillis: Date.now()
             });
         }
