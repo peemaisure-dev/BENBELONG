@@ -13,7 +13,6 @@ const IS_TEST_MODE = true;
 const PREFIX = IS_TEST_MODE ? "test_" : "";
 
 const COL_SHOPS = `${PREFIX}fastwork_shops`;
-const COL_CHATS = `${PREFIX}fastwork_chats`;
 const COL_REVIEWS = `${PREFIX}fastwork_reviews`;
 
 const SUPABASE_URL = "https://hurjpkudocnapkdteokf.supabase.co";
@@ -49,6 +48,7 @@ export function createBenFastworkController({ db, getCurrentUser, onNavigateToDm
     let selectedCategory = "all";
     let activeShopId = null;
     let editingShop = null;
+    let pendingOrderShop = null;
 
     const els = {
         pills: () => document.getElementById("fwCategoryPills"),
@@ -75,6 +75,109 @@ export function createBenFastworkController({ db, getCurrentUser, onNavigateToDm
         reviewPreview: () => document.getElementById("fwReviewAvgPreview"),
         reviewComment: () => document.getElementById("fwReviewComment")
     };
+
+    function ensureOrderModalExists() {
+        let modal = document.getElementById("fwCreateOrderModal");
+        if (modal) return modal;
+
+        modal = document.createElement("div");
+        modal.id = "fwCreateOrderModal";
+        modal.style.cssText = "display:none; position:fixed; inset:0; background:rgba(15,23,42,0.55); z-index:9999; align-items:center; justify-content:center; padding:16px;";
+        modal.innerHTML = `
+            <div style="background:#FFFFFF; border-radius:18px; width:100%; max-width:460px; padding:20px; box-shadow:0 20px 45px rgba(15,23,42,0.22); font-family:'Prompt',sans-serif;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <h3 id="fwOrderModalTitle" style="margin:0; font-size:1.05rem; color:#0F172A;">📦 ส่งรายละเอียดออเดอร์ให้เจ้าของร้าน</h3>
+                    <button type="button" id="fwCloseOrderModalBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:#64748B;">✕</button>
+                </div>
+                <form id="fwCreateOrderForm" style="display:flex; flex-direction:column; gap:12px;">
+                    <div>
+                        <label style="display:block; font-size:0.84rem; font-weight:600; color:#334155; margin-bottom:4px;">สิ่งที่อยากได้ / รายละเอียดงาน *</label>
+                        <textarea id="fwOrderRequirementInput" rows="3" required placeholder="เช่น ติวฟิสิกส์บท SHM และคลื่น 2 ชม. หรือทำโปสเตอร์ 1 ชิ้น..." style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #CBD5E1; border-radius:10px; font-family:inherit; font-size:0.9rem;"></textarea>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.84rem; font-weight:600; color:#334155; margin-bottom:4px;">Deadline ที่ต้องการ *</label>
+                        <input type="datetime-local" id="fwOrderDeadlineInput" required style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #CBD5E1; border-radius:10px; font-family:inherit; font-size:0.9rem;">
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:4px;">
+                        <button type="button" id="fwCancelOrderModalBtn" style="padding:8px 14px; border-radius:10px; border:1px solid #CBD5E1; background:#F8FAFC; color:#475569; font-weight:600; cursor:pointer;">ยกเลิก</button>
+                        <button type="submit" style="padding:8px 16px; border-radius:10px; border:none; background:linear-gradient(135deg,#2563EB,#1D4ED8); color:#FFFFFF; font-weight:600; cursor:pointer;">ส่งออเดอร์เข้าแชท</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const closeFn = () => {
+            modal.style.display = "none";
+            pendingOrderShop = null;
+        };
+        modal.querySelector("#fwCloseOrderModalBtn")?.addEventListener("click", closeFn);
+        modal.querySelector("#fwCancelOrderModalBtn")?.addEventListener("click", closeFn);
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) closeFn();
+        });
+
+        modal.querySelector("#fwCreateOrderForm")?.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const user = requireSignedInUser();
+            if (!user || !pendingOrderShop) return;
+
+            const requirement = modal.querySelector("#fwOrderRequirementInput")?.value.trim() || "";
+            const deadlineRaw = modal.querySelector("#fwOrderDeadlineInput")?.value || "";
+            if (!requirement || !deadlineRaw) return;
+
+            const deadlineMillis = new Date(deadlineRaw).getTime();
+            const deadlineText = Number.isFinite(deadlineMillis)
+                ? new Date(deadlineMillis).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })
+                : deadlineRaw;
+
+            const shop = pendingOrderShop;
+            modal.style.display = "none";
+            pendingOrderShop = null;
+            modal.querySelector("#fwCreateOrderForm")?.reset();
+
+            if (typeof onNavigateToDm === "function") {
+                await onNavigateToDm({
+                    targetUid: shop.ownerUid || "",
+                    targetName: shop.ownerName || shop.title || "เจ้าของร้าน",
+                    orderDraft: {
+                        shopId: shop.id,
+                        shopTitle: shop.title || "ร้านบริการ",
+                        shopOwnerUid: shop.ownerUid || "",
+                        shopOwnerName: shop.ownerName || "เจ้าของร้าน",
+                        customerUid: user.uid,
+                        customerName: user.nickname || user.email || "ลูกค้า",
+                        requirement,
+                        deadlineIso: deadlineRaw,
+                        deadlineMillis: Number.isFinite(deadlineMillis) ? deadlineMillis : Date.now(),
+                        deadlineText
+                    }
+                });
+            }
+        });
+
+        return modal;
+    }
+
+    function openOrderFormForShop(shop) {
+        const user = requireSignedInUser();
+        if (!user) return;
+        if (!shop || !shop.ownerUid) {
+            alert("ไม่พบข้อมูลเจ้าของร้านสำหรับส่งออเดอร์ครับ");
+            return;
+        }
+        if (shop.ownerUid === user.uid) {
+            if (typeof onNavigateToDm === "function") {
+                onNavigateToDm({ targetUid: "", targetName: "" });
+            }
+            return;
+        }
+        pendingOrderShop = shop;
+        const modal = ensureOrderModalExists();
+        const titleEl = modal.querySelector("#fwOrderModalTitle");
+        if (titleEl) titleEl.innerText = `📦 ส่งออเดอร์ให้ร้าน: ${shop.title || "เจ้าของร้าน"}`;
+        modal.style.display = "flex";
+    }
 
     function requireSignedInUser() {
         const user = getCurrentUser();
@@ -272,7 +375,7 @@ export function createBenFastworkController({ db, getCurrentUser, onNavigateToDm
                         <p class="fw-shop-desc">${safeDesc}</p>
                         <div class="fw-shop-meta">
                             <span>ผู้ให้บริการ: ${safeOwner}</span>
-                            <span>สำเร็จ: ${Number(shop.completedCount || 0)} งาน</span>
+                            <span>สำเร็จ: ${Number(shop.completedCount || 0)} | ยกเลิก: ${Number(shop.cancelledCount || 0)}</span>
                         </div>
                         <div class="fw-card-actions">
                             <button type="button" class="fw-like-btn ${isLiked ? "liked" : ""}" data-like-id="${escapeHtml(shop.id)}">
@@ -342,7 +445,7 @@ export function createBenFastworkController({ db, getCurrentUser, onNavigateToDm
             : "";
 
         const dmButtonLabel = !isOwner
-            ? "✉️ ทักแชทส่วนตัวเจ้าของร้าน (DM)"
+            ? "📦 ทักแชท / กรอกออเดอร์ (DM)"
             : "✉️ เปิดกล่องข้อความส่วนตัว (DM)";
 
         detailEl.innerHTML = `
@@ -413,14 +516,7 @@ export function createBenFastworkController({ db, getCurrentUser, onNavigateToDm
         });
 
         document.getElementById("fwGoToDmBtn")?.addEventListener("click", () => {
-            const currentUser = requireSignedInUser();
-            if (!currentUser) return;
-            if (typeof onNavigateToDm === "function") {
-                onNavigateToDm({
-                    targetUid: isOwner ? "" : (shop.ownerUid || ""),
-                    targetName: isOwner ? "" : (shop.ownerName || "เจ้าของร้าน")
-                });
-            }
+            openOrderFormForShop(shop);
         });
 
         document.getElementById("fwOpenReviewBtn")?.addEventListener("click", () => {
