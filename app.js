@@ -144,12 +144,13 @@ const directMessageController = createDirectMessageController({
 const benFastworkController = createBenFastworkController({
     db,
     getCurrentUser: getActiveDmUser,
-    onNavigateToDm: async ({ targetUid, targetName }) => {
+    onNavigateToDm: async ({ targetUid, targetName, orderDraft }) => {
         const dmMenuItem = document.querySelector('.sidebar-menu a[onclick*="directMessages"]');
         window.switchMainTab("directMessages", dmMenuItem || null);
         await directMessageController.openDirectWith({
             targetUid,
-            targetName
+            targetName,
+            orderDraft
         });
     }
 });
