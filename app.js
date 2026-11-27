@@ -1324,11 +1324,18 @@ function renderEvents(targetKey = 'school', events = []) {
 window.openEventDetail = function(targetKey, ev) {
     const boardKey = calendarBoards[targetKey] ? targetKey : 'school';
     const detailModalEl = document.getElementById('eventDetailModal');
-    document.getElementById('modalEventTitle').innerText = ev.title || '';
-    document.getElementById('modalEventDate').innerText = formatEventDateRange(ev.eventDate, ev.eventEndDate);
-    document.getElementById('modalEventTime').innerText = ev.eventTime || '';
-    document.getElementById('modalEventLocation').innerText = ev.location || '';
-    document.getElementById('modalEventDesc').innerText = ev.desc || '';
+
+    const titleEl = document.getElementById('modalEventTitle');
+    const dateEl = document.getElementById('modalEventDate');
+    const timeEl = document.getElementById('modalEventTime');
+    const locEl = document.getElementById('modalEventLocation');
+    const descEl = document.getElementById('modalEventDesc');
+
+    if (titleEl) titleEl.innerText = ev.title || '';
+    if (dateEl) dateEl.innerText = formatEventDateRange(ev.eventDate, ev.eventEndDate);
+    if (timeEl) timeEl.innerText = ev.eventTime || '';
+    if (locEl) locEl.innerText = ev.location || '';
+    if (descEl) descEl.innerText = ev.desc || '';
 
     const modalBody = document.querySelector('#eventDetailModal .event-detail-body');
     if (modalBody) {
