@@ -1261,20 +1261,30 @@ function renderEvents(targetKey = 'school', events = []) {
     }
 
     events.forEach(ev => {
+        const eventId = ev && ev.id ? String(ev.id) : '';
         const card = document.createElement('div');
         card.className = 'event-card clickable-card';
         card.style.cursor = 'pointer';
-        card.addEventListener('click', () => {
-            if (typeof window.openEventDetail === 'function') {
-                window.openEventDetail(targetKey, ev);
-            }
-        });
 
-        const dateLabel = formatEventDateRange(ev.eventDate, ev.eventEndDate);
-        const safeImageUrl = escapeHTML(ev.imageUrl || '');
+        const handleOpen = (e) => {
+            if (e) e.stopPropagation();
+            if (typeof window.openEventDetail === 'function') {
+                window.openEventDetail(targetKey, eventId, ev);
+            }
+        };
+
+        card.addEventListener('click', handleOpen);
+
+        const dateLabel = formatEventDateRange(ev.eventDate || ev.date || '', ev.eventEndDate || ev.endDate || '');
+        const titleText = ev.title || ev.eventTitle || ev.name || '';
+        const timeText = ev.eventTime || ev.time || '';
+        const locText = ev.location || ev.place || '';
+        const descText = ev.desc || ev.description || ev.detail || '';
+        const safeImageUrl = escapeHTML(ev.imageUrl || ev.image || '');
+
         const bannerHtml = safeImageUrl
             ? `<div style="margin-bottom: 0.75rem; border-radius: 12px; overflow: hidden; border: 1px solid #E2E8F0; background: #F8FAFC;">
-                   <img src="${safeImageUrl}" alt="${escapeHTML(ev.title)}" style="width: 100%; max-height: 210px; object-fit: cover; display: block;">
+                   <img src="${safeImageUrl}" alt="${escapeHTML(titleText)}" style="width: 100%; max-height: 210px; object-fit: cover; display: block;">
                </div>`
             : '';
 
@@ -1286,12 +1296,12 @@ function renderEvents(targetKey = 'school', events = []) {
             ${bannerHtml}
             <div class="event-date-badge">
                 <span class="ev-day">🗓️ ${escapeHTML(dateLabel)}</span>
-                <span class="ev-time">⏰ ${escapeHTML(ev.eventTime)}</span>
+                <span class="ev-time">⏰ ${escapeHTML(timeText)}</span>
             </div>
             <div class="event-details">
-                <h3>${escapeHTML(ev.title)}</h3>
-                <p class="ev-loc">📍 <strong>สถานที่:</strong> ${escapeHTML(ev.location)}</p>
-                <p class="ev-desc">${escapeHTML(ev.desc)}</p>
+                <h3>${escapeHTML(titleText)}</h3>
+                <p class="ev-loc">📍 <strong>สถานที่:</strong> ${escapeHTML(locText)}</p>
+                <p class="ev-desc">${escapeHTML(descText)}</p>
             </div>
             <div class="event-card-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
                 <span class="fw-detail-trigger" style="font-size: 0.8rem; color: var(--royal-blue); font-weight: 600; cursor: pointer;">🔍 คลิกเพื่อดูรายละเอียดเต็มๆ</span>
@@ -1301,19 +1311,14 @@ function renderEvents(targetKey = 'school', events = []) {
 
         const detailTrigger = card.querySelector('.fw-detail-trigger');
         if (detailTrigger) {
-            detailTrigger.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (typeof window.openEventDetail === 'function') {
-                    window.openEventDetail(targetKey, ev);
-                }
-            });
+            detailTrigger.addEventListener('click', handleOpen);
         }
 
         const editBtn = card.querySelector('.fw-edit-ev-btn');
         if (editBtn) {
             editBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                window.openEditEventModal(targetKey, ev.id);
+                window.openEditEventModal(targetKey, eventId);
             });
         }
 
@@ -1321,14 +1326,31 @@ function renderEvents(targetKey = 'school', events = []) {
     });
 }
 
-window.openEventDetail = function(targetKey, ev) {
-    const item = ev || {};
+window.openEventDetail = function(targetKey, eventIdOrEv, fallbackEv = null) {
     const boardKey = calendarBoards[targetKey] ? targetKey : 'school';
+    const board = calendarBoards[boardKey];
+
+    let targetId = '';
+    let passedObj = fallbackEv && typeof fallbackEv === 'object' ? fallbackEv : null;
+
+    if (typeof eventIdOrEv === 'string') {
+        targetId = eventIdOrEv;
+    } else if (eventIdOrEv && typeof eventIdOrEv === 'object') {
+        passedObj = eventIdOrEv;
+        targetId = eventIdOrEv.id ? String(eventIdOrEv.id) : '';
+    }
+
+    const foundEv = targetId
+        ? (board.allEvents || []).find(item => String(item.id) === targetId)
+        : null;
+
+    const item = foundEv || passedObj || {};
     const detailModalEl = document.getElementById('eventDetailModal');
 
-    const titleVal = item.title || item.eventTitle || item.name || 'รายละเอียดกิจกรรม';
+    const titleVal = item.title || item.eventTitle || item.name || '-';
     const startVal = item.eventDate || item.date || item.startDate || '';
     const endVal = item.eventEndDate || item.endDate || '';
+    const dateVal = formatEventDateRange(startVal, endVal) || '-';
     const timeVal = item.eventTime || item.time || item.period || '-';
     const locVal = item.location || item.place || item.venue || '-';
     const descVal = item.desc || item.description || item.detail || item.details || '-';
@@ -1340,7 +1362,7 @@ window.openEventDetail = function(targetKey, ev) {
     const descEl = document.getElementById('modalEventDesc');
 
     if (titleEl) titleEl.innerText = titleVal;
-    if (dateEl) dateEl.innerText = formatEventDateRange(startVal, endVal);
+    if (dateEl) dateEl.innerText = dateVal;
     if (timeEl) timeEl.innerText = timeVal;
     if (locEl) locEl.innerText = locVal;
     if (descEl) descEl.innerText = descVal;
@@ -1361,14 +1383,15 @@ window.openEventDetail = function(targetKey, ev) {
             : '';
     }
 
+    const resolvedId = item.id || targetId;
     const editContainer = document.getElementById('modalEditActionContainer');
     const deleteContainer = document.getElementById('modalDeleteActionContainer');
-    if (isPartyAccountAuthorized() && item.id) {
+    if (isPartyAccountAuthorized() && resolvedId) {
         if (editContainer) {
-            editContainer.innerHTML = `<button type="button" onclick="window.openEditEventModal('${boardKey}', '${escapeHTML(item.id)}')" style="background: #1D56B8; color: #FFFFFF; border: none; padding: 0.6rem 1.1rem; border-radius: 10px; font-family: 'Prompt', sans-serif; font-weight: 600; font-size: 0.88rem; cursor: pointer;">✏️ แก้ไขอีเวนต์</button>`;
+            editContainer.innerHTML = `<button type="button" onclick="window.openEditEventModal('${boardKey}', '${escapeHTML(String(resolvedId))}')" style="background: #1D56B8; color: #FFFFFF; border: none; padding: 0.6rem 1.1rem; border-radius: 10px; font-family: 'Prompt', sans-serif; font-weight: 600; font-size: 0.88rem; cursor: pointer;">✏️ แก้ไขอีเวนต์</button>`;
         }
         if (deleteContainer) {
-            deleteContainer.innerHTML = `<button type="button" class="btn-delete-event" onclick="window.deleteEvent('${boardKey}', '${escapeHTML(item.id)}')">🗑️ ลบอีเวนต์นี้</button>`;
+            deleteContainer.innerHTML = `<button type="button" class="btn-delete-event" onclick="window.deleteEvent('${boardKey}', '${escapeHTML(String(resolvedId))}')">🗑️ ลบอีเวนต์นี้</button>`;
         }
     } else {
         if (editContainer) editContainer.innerHTML = '';
