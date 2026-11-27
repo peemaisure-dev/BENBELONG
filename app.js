@@ -144,13 +144,13 @@ const directMessageController = createDirectMessageController({
 const benFastworkController = createBenFastworkController({
     db,
     getCurrentUser: getActiveDmUser,
-    onNavigateToDm: async ({ targetUid, targetName, orderDraft }) => {
+    onNavigateToDm: async ({ targetUid, targetName, addFriendOwner }) => {
         const dmMenuItem = document.querySelector('.sidebar-menu a[onclick*="directMessages"]');
         window.switchMainTab("directMessages", dmMenuItem || null);
         await directMessageController.openDirectWith({
             targetUid,
             targetName,
-            orderDraft
+            addFriendOwner
         });
     }
 });
@@ -1263,7 +1263,12 @@ function renderEvents(targetKey = 'school', events = []) {
     events.forEach(ev => {
         const card = document.createElement('div');
         card.className = 'event-card clickable-card';
-        card.onclick = () => openEventDetail(targetKey, ev);
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', () => {
+            if (typeof window.openEventDetail === 'function') {
+                window.openEventDetail(targetKey, ev);
+            }
+        });
 
         const dateLabel = formatEventDateRange(ev.eventDate, ev.eventEndDate);
         const safeImageUrl = escapeHTML(ev.imageUrl || '');
@@ -1274,7 +1279,7 @@ function renderEvents(targetKey = 'school', events = []) {
             : '';
 
         const editQuickBtnHtml = isPartyAccountAuthorized()
-            ? `<button type="button" onclick="event.stopPropagation(); window.openEditEventModal('${targetKey}', '${escapeHTML(ev.id)}')" style="background: #EFF6FF; color: #1D56B8; border: 1px solid #BFDBFE; padding: 4px 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">✏️ แก้ไข</button>`
+            ? `<button type="button" class="fw-edit-ev-btn" style="background: #EFF6FF; color: #1D56B8; border: 1px solid #BFDBFE; padding: 4px 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">✏️ แก้ไข</button>`
             : '';
 
         card.innerHTML = `
@@ -1289,21 +1294,41 @@ function renderEvents(targetKey = 'school', events = []) {
                 <p class="ev-desc">${escapeHTML(ev.desc)}</p>
             </div>
             <div class="event-card-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-                <span style="font-size: 0.8rem; color: var(--royal-blue); font-weight: 600;">🔍 คลิกเพื่อดูรายละเอียดเต็มๆ</span>
+                <span class="fw-detail-trigger" style="font-size: 0.8rem; color: var(--royal-blue); font-weight: 600; cursor: pointer;">🔍 คลิกเพื่อดูรายละเอียดเต็มๆ</span>
                 ${editQuickBtnHtml}
             </div>
         `;
+
+        const detailTrigger = card.querySelector('.fw-detail-trigger');
+        if (detailTrigger) {
+            detailTrigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof window.openEventDetail === 'function') {
+                    window.openEventDetail(targetKey, ev);
+                }
+            });
+        }
+
+        const editBtn = card.querySelector('.fw-edit-ev-btn');
+        if (editBtn) {
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window.openEditEventModal(targetKey, ev.id);
+            });
+        }
+
         board.gridEl.appendChild(card);
     });
 }
 
 window.openEventDetail = function(targetKey, ev) {
     const boardKey = calendarBoards[targetKey] ? targetKey : 'school';
-    document.getElementById('modalEventTitle').innerText = ev.title;
+    const detailModalEl = document.getElementById('eventDetailModal');
+    document.getElementById('modalEventTitle').innerText = ev.title || '';
     document.getElementById('modalEventDate').innerText = formatEventDateRange(ev.eventDate, ev.eventEndDate);
-    document.getElementById('modalEventTime').innerText = ev.eventTime;
-    document.getElementById('modalEventLocation').innerText = ev.location;
-    document.getElementById('modalEventDesc').innerText = ev.desc;
+    document.getElementById('modalEventTime').innerText = ev.eventTime || '';
+    document.getElementById('modalEventLocation').innerText = ev.location || '';
+    document.getElementById('modalEventDesc').innerText = ev.desc || '';
 
     const modalBody = document.querySelector('#eventDetailModal .event-detail-body');
     if (modalBody) {
@@ -1334,7 +1359,7 @@ window.openEventDetail = function(targetKey, ev) {
         if (deleteContainer) deleteContainer.innerHTML = '';
     }
 
-    eventDetailModal.style.display = 'flex';
+    if (detailModalEl) detailModalEl.style.display = 'flex';
 };
 
 if (eventForm) {
