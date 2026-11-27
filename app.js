@@ -1294,8 +1294,11 @@ function renderEvents(targetKey = 'school', events = []) {
                </div>`
             : '';
 
-        const editQuickBtnHtml = isPartyAccountAuthorized()
-            ? `<button type="button" class="fw-edit-ev-btn" style="background: #EFF6FF; color: #1D56B8; border: 1px solid #BFDBFE; padding: 4px 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">✏️ แก้ไข</button>`
+        const partyActionsHtml = isPartyAccountAuthorized()
+            ? `<div style="display: flex; align-items: center; gap: 6px;">
+                   <button type="button" class="fw-edit-ev-btn" style="background: #EFF6FF; color: #1D56B8; border: 1px solid #BFDBFE; padding: 4px 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">✏️ แก้ไข</button>
+                   <button type="button" class="fw-delete-ev-btn" style="background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; padding: 4px 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">🗑️ ลบ</button>
+               </div>`
             : '';
 
         card.innerHTML = `
@@ -1309,9 +1312,9 @@ function renderEvents(targetKey = 'school', events = []) {
                 <p class="ev-loc">📍 <strong>สถานที่:</strong> ${escapeHTML(locText)}</p>
                 <p class="ev-desc">${escapeHTML(descText)}</p>
             </div>
-            <div class="event-card-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <div class="event-card-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <span class="fw-detail-trigger" style="font-size: 0.8rem; color: var(--royal-blue); font-weight: 600; cursor: pointer;">🔍 คลิกเพื่อดูรายละเอียดเต็มๆ</span>
-                ${editQuickBtnHtml}
+                ${partyActionsHtml}
             </div>
         `;
 
@@ -1325,6 +1328,14 @@ function renderEvents(targetKey = 'school', events = []) {
             editBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 window.openEditEventModal(targetKey, eventId);
+            });
+        }
+
+        const deleteBtn = card.querySelector('.fw-delete-ev-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window.deleteEvent(targetKey, eventId);
             });
         }
 
@@ -1513,7 +1524,7 @@ window.deleteEvent = async function(targetKey, id) {
     const board = calendarBoards[targetKey] || calendarBoards.school;
     if (confirm("⚠️ คุณต้องการลบอีเวนต์นี้ออกจากปฏิทินใช่หรือไม่?")) {
         try {
-            const targetEvent = board.allEvents.find(ev => ev.id === id);
+            const targetEvent = (board.allEvents || []).find(ev => String(ev.id) === String(id));
             if (targetEvent && targetEvent.imageUrl) {
                 try {
                     await deleteEventImageFromSupabaseStorage(targetEvent.imageUrl);
@@ -1521,9 +1532,11 @@ window.deleteEvent = async function(targetKey, id) {
             }
             await deleteDoc(doc(db, board.collectionName, id));
             alert("🗑️ ลบอีเวนต์สำเร็จ!");
-            eventDetailModal.style.display = 'none';
+            if (eventDetailModal) eventDetailModal.style.display = 'none';
             fetchEvents(targetKey);
-        } catch (error) {}
+        } catch (error) {
+            alert("❌ ลบอีเวนต์ไม่สำเร็จ: " + error.message);
+        }
     }
 };
 
