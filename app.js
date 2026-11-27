@@ -1426,13 +1426,32 @@ if (eventForm) {
             return;
         }
 
+        const readVal = (...ids) => {
+            for (const id of ids) {
+                const el = document.getElementById(id);
+                if (el && typeof el.value === 'string') return el.value.trim();
+            }
+            return "";
+        };
+
         const isEditing = Boolean(editingEventState && editingEventState.eventId);
         const targetKey = isEditing ? editingEventState.targetKey : activeEventTarget;
         const board = calendarBoards[targetKey] || calendarBoards.school;
-        const startDate = normalizeDateStr(document.getElementById('eventDate').value);
-        const rawEndDate = normalizeDateStr(document.getElementById('eventEndDate').value);
+
+        const titleVal = readVal('eventTitle', 'editEventTitle');
+        const startDate = normalizeDateStr(readVal('eventDate', 'editEventDate', 'eventStartDate'));
+        const rawEndDate = normalizeDateStr(readVal('eventEndDate', 'editEventEndDate'));
+        const timeVal = readVal('eventTime', 'editEventTime', 'eventPeriod');
+        const locationVal = readVal('eventLocation', 'editEventLocation', 'eventPlace');
+        const descVal = readVal('eventDesc', 'editEventDesc', 'eventDescription');
+
         const imageInput = document.getElementById('eventImageInput');
         const selectedImage = imageInput && imageInput.files ? imageInput.files[0] : null;
+
+        if (!titleVal) {
+            alert("⚠️ กรุณากรอกชื่อกิจกรรมครับ");
+            return;
+        }
 
         if (!startDate) {
             alert("⚠️ กรุณาเลือกวันที่เริ่มจัดงานครับ");
@@ -1476,12 +1495,12 @@ if (eventForm) {
             }
 
             const payload = {
-                title: document.getElementById('eventTitle').value.trim(),
+                title: titleVal,
                 eventDate: startDate,
                 eventEndDate: rawEndDate || startDate,
-                eventTime: document.getElementById('eventTime').value.trim(),
-                location: document.getElementById('eventLocation').value.trim(),
-                desc: document.getElementById('eventDesc').value.trim(),
+                eventTime: timeVal,
+                location: locationVal,
+                desc: descVal,
                 imageUrl: imageUrl,
                 createdByRole: "admin"
             };
