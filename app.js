@@ -1001,7 +1001,7 @@ window.openEditEventModal = function(targetKey, eventId) {
     }
     const boardKey = calendarBoards[targetKey] ? targetKey : 'school';
     const board = calendarBoards[boardKey];
-    const targetEv = board.allEvents.find(ev => ev.id === eventId);
+    const targetEv = (board.allEvents || []).find(ev => String(ev.id) === String(eventId));
     if (!targetEv) {
         alert("⚠️ ไม่พบข้อมูลอีเวนต์ที่ต้องการแก้ไขครับ");
         return;
@@ -1015,12 +1015,18 @@ window.openEditEventModal = function(targetKey, eventId) {
     };
 
     if (eventForm) eventForm.reset();
-    document.getElementById('eventTitle').value = targetEv.title || "";
-    document.getElementById('eventDate').value = normalizeDateStr(targetEv.eventDate);
-    document.getElementById('eventEndDate').value = normalizeDateStr(targetEv.eventEndDate);
-    document.getElementById('eventTime').value = targetEv.eventTime || "";
-    document.getElementById('eventLocation').value = targetEv.location || "";
-    document.getElementById('eventDesc').value = targetEv.desc || "";
+
+    const setFieldVal = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.value = value ?? "";
+    };
+
+    setFieldVal('eventTitle', targetEv.title || targetEv.eventTitle || "");
+    setFieldVal('eventDate', normalizeDateStr(targetEv.eventDate || targetEv.date || ""));
+    setFieldVal('eventEndDate', normalizeDateStr(targetEv.eventEndDate || targetEv.endDate || ""));
+    setFieldVal('eventTime', targetEv.eventTime || targetEv.time || "");
+    setFieldVal('eventLocation', targetEv.location || targetEv.place || "");
+    setFieldVal('eventDesc', targetEv.desc || targetEv.description || "");
 
     const titleEl = document.getElementById('eventModalTitle');
     const submitBtn = document.getElementById('eventSubmitBtn');
