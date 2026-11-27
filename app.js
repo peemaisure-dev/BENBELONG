@@ -1322,8 +1322,16 @@ function renderEvents(targetKey = 'school', events = []) {
 }
 
 window.openEventDetail = function(targetKey, ev) {
+    const item = ev || {};
     const boardKey = calendarBoards[targetKey] ? targetKey : 'school';
     const detailModalEl = document.getElementById('eventDetailModal');
+
+    const titleVal = item.title || item.eventTitle || item.name || 'รายละเอียดกิจกรรม';
+    const startVal = item.eventDate || item.date || item.startDate || '';
+    const endVal = item.eventEndDate || item.endDate || '';
+    const timeVal = item.eventTime || item.time || item.period || '-';
+    const locVal = item.location || item.place || item.venue || '-';
+    const descVal = item.desc || item.description || item.detail || item.details || '-';
 
     const titleEl = document.getElementById('modalEventTitle');
     const dateEl = document.getElementById('modalEventDate');
@@ -1331,11 +1339,11 @@ window.openEventDetail = function(targetKey, ev) {
     const locEl = document.getElementById('modalEventLocation');
     const descEl = document.getElementById('modalEventDesc');
 
-    if (titleEl) titleEl.innerText = ev.title || '';
-    if (dateEl) dateEl.innerText = formatEventDateRange(ev.eventDate, ev.eventEndDate);
-    if (timeEl) timeEl.innerText = ev.eventTime || '';
-    if (locEl) locEl.innerText = ev.location || '';
-    if (descEl) descEl.innerText = ev.desc || '';
+    if (titleEl) titleEl.innerText = titleVal;
+    if (dateEl) dateEl.innerText = formatEventDateRange(startVal, endVal);
+    if (timeEl) timeEl.innerText = timeVal;
+    if (locEl) locEl.innerText = locVal;
+    if (descEl) descEl.innerText = descVal;
 
     const modalBody = document.querySelector('#eventDetailModal .event-detail-body');
     if (modalBody) {
@@ -1346,20 +1354,21 @@ window.openEventDetail = function(targetKey, ev) {
             previewWrap.style.marginBottom = '1rem';
             modalBody.prepend(previewWrap);
         }
-        const safeImageUrl = escapeHTML(ev.imageUrl || '');
+        const rawImg = item.imageUrl || item.image || item.bannerUrl || '';
+        const safeImageUrl = escapeHTML(rawImg);
         previewWrap.innerHTML = safeImageUrl
-            ? `<img src="${safeImageUrl}" alt="${escapeHTML(ev.title)}" style="width: 100%; max-height: 320px; object-fit: contain; border-radius: 12px; border: 1px solid #E2E8F0; background: #F8FAFC; display: block;">`
+            ? `<img src="${safeImageUrl}" alt="${escapeHTML(titleVal)}" style="width: 100%; max-height: 320px; object-fit: contain; border-radius: 12px; border: 1px solid #E2E8F0; background: #F8FAFC; display: block;">`
             : '';
     }
 
     const editContainer = document.getElementById('modalEditActionContainer');
     const deleteContainer = document.getElementById('modalDeleteActionContainer');
-    if (isPartyAccountAuthorized()) {
+    if (isPartyAccountAuthorized() && item.id) {
         if (editContainer) {
-            editContainer.innerHTML = `<button type="button" onclick="window.openEditEventModal('${boardKey}', '${escapeHTML(ev.id)}')" style="background: #1D56B8; color: #FFFFFF; border: none; padding: 0.6rem 1.1rem; border-radius: 10px; font-family: 'Prompt', sans-serif; font-weight: 600; font-size: 0.88rem; cursor: pointer;">✏️ แก้ไขอีเวนต์</button>`;
+            editContainer.innerHTML = `<button type="button" onclick="window.openEditEventModal('${boardKey}', '${escapeHTML(item.id)}')" style="background: #1D56B8; color: #FFFFFF; border: none; padding: 0.6rem 1.1rem; border-radius: 10px; font-family: 'Prompt', sans-serif; font-weight: 600; font-size: 0.88rem; cursor: pointer;">✏️ แก้ไขอีเวนต์</button>`;
         }
         if (deleteContainer) {
-            deleteContainer.innerHTML = `<button type="button" class="btn-delete-event" onclick="window.deleteEvent('${boardKey}', '${ev.id}')">🗑️ ลบอีเวนต์นี้</button>`;
+            deleteContainer.innerHTML = `<button type="button" class="btn-delete-event" onclick="window.deleteEvent('${boardKey}', '${escapeHTML(item.id)}')">🗑️ ลบอีเวนต์นี้</button>`;
         }
     } else {
         if (editContainer) editContainer.innerHTML = '';
